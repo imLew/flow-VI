@@ -10,10 +10,6 @@ using PDMats
 
 export flat_matrix_kernel_matrix
 export grad_logp
-export expectation_V
-export estimate_logZ
-export logZ
-export numerical_expectation
 
 ## step_size utils
 export geometric_step_size_cb
@@ -23,65 +19,6 @@ function geometric_step_size_cb(step_size, iter, factor, cutoff)
        return step_size * factor^iter 
    end
    return step_size * factor^cutoff
-end
-
-## distribution utils
-function expectation_V(initial_dist::Distribution, target_dist::Distribution) 
-    numerical_expectation( initial_dist, x -> pdf_potential(target_dist, x) )
-end
-
-function expectation_V(initial_dist::Normal, target_dist::Normal)
-    μ₀, σ₀ = Distributions.params(initial_dist)
-    μₚ, σₚ = Distributions.params(target_dist)
-    0.5 * ( σ₀^2 / σₚ^2 + (μ₀-μₚ)^2/σₚ^2  )
-end
-
-function expectation_V(initial_dist::MvNormal, target_dist::MvNormal)
-    μ₀, Σ₀ = Distributions.params(initial_dist)
-    μₚ, Σₚ = Distributions.params(target_dist)
-    0.5 * ( tr(inv(Σₚ)*Σ₀) + invquad(Σₚ, μ₀-μₚ) )
-end
-
-function estimate_logZ(H0, EV, int_KL)
-    H0 - EV + int_KL
-end
-
-function numerical_expectation(d::Distribution, f; n_samples=10000)
-    sum( f, rand(d, n_samples) ) / n_samples
-end
-
-function logZ(d::Distribution)
-    println("log(Z) for distribution $d is not know, returning 0")
-    return 0
-end
-
-function logZ(d::T) where T <: Union{Normal, MvNormal}
-    - logpdf( d, Distributions.params(d)[1] )
-end
-
-function logZ(d::Exponential)
-    λ = 1/Distributions.params(d)[1] 
-    1/λ
-end
-
-function pdf_potential(d::Distribution, x)
-    -logpdf(d, x) # This potential is already normalized
-end
-
-function pdf_potential(d::Exponential, x)
-    # Distribution.jl uses inverse param θ=1/λ (i.e. 1/θ e^{-x/θ})
-    λ = 1/Distributions.params(d)[1] 
-    λ * x
-end
-
-function pdf_potential(d::Normal, x)
-    μ, σ = Distributions.params(d)
-    2 \ ((x-μ)/σ)^2
-end
-
-function pdf_potential(d::MvNormal, x)
-    μ, Σ = Distributions.params(d)
-    2 \ invquad(Σ, x-μ)
 end
 
 ## math utils
@@ -150,40 +87,6 @@ function grad_logp(d::Distribution, x)
         return g
     end
     ForwardDiff.gradient(x->log(pdf(d, x)), reshape(x, length(x)) )
-end
-
-## kernel utils
-export kernel_gradient
-export median_trick_cb
-
-begin
-    function kernel_gradient(k::Kernel, x, y)
-        Zygote.gradient( x->k(x,y), x)[1]
-    end
-
-    function median_trick_cb(kernel::Kernel, q)
-        kernel.transform.s .= 1/sqrt(median_trick(q))
-        return kernel
-    end
-
-    function median_cb(kernel, q)
-        kernel.transform.s .= 1/median(pairwise(Euclidean(), q, dims=2))
-        return kernel
-    end
-
-    function median_trick(x)
-        if size(x)[end] == 1
-            return 1
-        end
-        d = Distances.pairwise(Euclidean(), x, dims=2)
-        median(d)^2/log(size(x)[end])
-    end
-    export median_trick
-
-    # function kernel_gradient(k::TransformedKernel{SqExponentialKernel},x,y)
-    #     h = 1/k.transform.s[1]^2
-    #     -2/h * (x-y) * exp(-h\norm(x-y))
-    # end
 end
 
 ## plot utils
