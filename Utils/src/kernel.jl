@@ -5,6 +5,7 @@ using KernelFunctions
 ## kernel utils
 export kernel_gradient
 export median_trick_cb
+export median_cb
 
 begin
     function kernel_gradient(k::Kernel, x, y)
@@ -28,7 +29,6 @@ begin
         d = Distances.pairwise(Euclidean(), x, dims=2)
         median(d)^2/log(size(x)[end])
     end
-    export median_trick
 
     # function kernel_gradient(k::TransformedKernel{SqExponentialKernel},x,y)
     #     h = 1/k.transform.s[1]^2

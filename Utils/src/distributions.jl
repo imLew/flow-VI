@@ -6,6 +6,7 @@ export expectation_V
 export estimate_logZ
 export logZ
 export numerical_expectation
+export pdf_potential
 
 function expectation_V(initial_dist::Distribution, target_dist::Distribution) 
     numerical_expectation( initial_dist, x -> pdf_potential(target_dist, x) )
