@@ -15,30 +15,58 @@ grad(f,x,y) = gradient(f,x,y)[1]
 Base.identity(args...) = Base.identity(args[1])
 
 function svgd_fit(;q, grad_logp, kernel, n_iter=100, step_size=1,
-                  norm_method="standard", n_particles=50,
-                  kernel_cb=identity, step_size_cb=identity)
+        norm_method="standard", n_particles=50,
+        kernel_cb=identity, step_size_cb=identity, SD_norm=false, USD_norm=false,
+        RKHS_norm=true, update="vanilla", α=4)
     hist = MVHistory()
     @showprogress for i in 1:n_iter
         kernel = kernel_cb(kernel, q)
 
-        ϕ = calculate_phi_vectorized(kernel, q, grad_logp)
-        ϵ = step_size_cb(step_size, i)
-        q .+= ϵ*ϕ
+        if update == "vanilla"
+            ϕ = calculate_phi_vectorized(kernel, q, grad_logp)
+            ϵ = step_size_cb(step_size, i)
+            q .+= ϵ*ϕ
+        elseif update == "naive_WAG"
+            if i == 1
+                y = copy(q)
+            end
+            ϵ = step_size_cb(step_size, i)
+            ϕ = calculate_phi_vectorized(kernel, y, grad_logp)
+            q_new = y .+ ϵ*ϕ
+            y = q_new + (i-1)/i .* (y.-q) + (i + α -2)/i * ϵ * ϕ
+            q = q_new
+            # q, y = naive_WAG_update(q, y, ϵ, α, grad_logp, kernel, step_size_cb, step_size, i)
+        end
 
         push!(hist, :step_sizes, i, ϵ)
-        push!(hist, :dKL_unbiased, i, 
-            compute_phi_norm(q, kernel, grad_logp, norm_method="unbiased", ϕ=ϕ)
-           )
-        push!(hist, :dKL_stein_discrep, i, 
-              compute_phi_norm(q, kernel, grad_logp, norm_method="standard", ϕ=ϕ)
-             )
-        push!(hist, :dKL_rkhs, i, 
-              compute_phi_norm(q, kernel, grad_logp, norm_method="RKHS_norm", ϕ=ϕ)
-             )
-        push!(hist, :ϕ_norm, i, mean(norm(ϕ)))
-        push!(hist, :Σ, i, cov(q, dims=2))
+        if USD_norm  # save unbiased stein discrep
+            push!(hist, :dKL_unbiased, i, 
+                  compute_phi_norm(q, kernel, grad_logp, norm_method="unbiased", ϕ=ϕ)
+                 )
+        end
+        if SD_norm  # save stein discrep
+            push!(hist, :dKL_stein_discrep, i, 
+                  compute_phi_norm(q, kernel, grad_logp, norm_method="standard", ϕ=ϕ)
+                 )
+        end
+        if RKHS_norm  # save rkhs norm
+            push!(hist, :dKL_rkhs, i, 
+                  compute_phi_norm(q, kernel, grad_logp, norm_method="RKHS_norm", ϕ=ϕ)
+                 )
+        end
+        push!(hist, :ϕ_norm, i, mean(norm(ϕ)))  # save average vector norm of phi
+        # push!(hist, :Σ, i, cov(q, dims=2))  # i forgot why i did this
     end
     return q, hist
+end
+
+function naive_WAG_update(q, y, ϵ, α, grad_logp, kernel, step_size_cb, 
+                          step_size, iter)
+    ϵ = step_size_cb(step_size, iter)
+    ϕ = calculate_phi_vectorized(kernel, y, grad_logp)
+    q_new = y .+ ϵ*ϕ
+    y_new = q_new + (iter-1)/iter .* (y.-q) + (iter + α -2)/iter * ϵ * ϕ
+    return q_new, y_new
 end
 
 function calculate_phi(kernel, q, grad_logp)
