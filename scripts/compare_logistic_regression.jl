@@ -1,9 +1,10 @@
-include("../scripts/bayesian_logistic_regression.jl")
-include("../src/therm_int.jl")
-include("../src/SVGD.jl")
+include("therm_int.jl")
 
-include("scripts/bayesian_logistic_regression.jl")
-include("src/therm_int.jl")
+include("bayesian_logistic_regression.jl")
+
+using SVGD
+using Examples
+const LR = Examples.LogisticRegression
 
 # set up
 problem_params = Dict(
@@ -18,7 +19,7 @@ problem_params = Dict(
     :Σ_initial => [1. 0 0; 0 1 0; 0 0 1.],
     )
 
-D = generate_2class_samples_from_gaussian(n₀=problem_params[:n₀],
+D = LR.generate_2class_samples_from_gaussian(n₀=problem_params[:n₀],
     n₁=problem_params[:n₁], μ₀=problem_params[:μ₀], μ₁=problem_params[:μ₁], 
     Σ₀=problem_params[:Σ₀], Σ₁=problem_params[:Σ₁], 
     n_dim=problem_params[:n_dim]
@@ -34,7 +35,7 @@ nSteps = 30
 n_dim = 3
 prior = TuringDiagMvNormal(zeros(n_dim), ones(n_dim))
 logprior(θ) = logpdf(prior, θ)
-loglikelihood(θ) = logistic_log_likelihood(D, θ)
+loglikelihood(θ) = LR.logistic_log_likelihood(D, θ)
 θ_init = rand(n_dim)
 
 alg = ThermoIntegration(nSamples = nSamples, nSteps=nSteps)
@@ -56,7 +57,7 @@ initial_dist, q, hist = fit_logistic_regression(problem_params, alg_params, D)
 
 H₀ = Distributions.entropy(initial_dist)
 EV = ( SVGD.numerical_expectation( initial_dist, 
-    w -> logistic_log_likelihood(D,w) )
+    w -> LR.logistic_log_likelihood(D,w) )
     + SVGD.expectation_V(initial_dist, initial_dist) 
     + 0.5 * logdet(2π * problem_params[:Σ_initial])
 ) 

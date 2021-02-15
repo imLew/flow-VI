@@ -1,6 +1,10 @@
-include("../src/linear_regression.jl")
-include("../src/therm_int.jl")
-include("../src/SVGD.jl")
+using Plots
+
+include("therm_int.jl")
+
+using SVGD
+using Utils
+using Examples; const LR = Examples.LinearRegression
 
 # set up
 n_dim = 3
@@ -16,11 +20,11 @@ problem_params = Dict(
     :MAP_start => true,
 )
 
-true_model = RegressionModel(problem_params[:true_ϕ],
+true_model = LR.RegressionModel(problem_params[:true_ϕ],
                              problem_params[:true_w], 
                              problem_params[:true_β])
 
-D = generate_samples(model=true_model, n_samples=problem_params[:n_samples],
+D = LR.generate_samples(model=true_model, n_samples=problem_params[:n_samples],
                      sample_range=problem_params[:sample_range])
 # scale = sum(extrema(D.t))
 # problem_params[:true_w] ./= scale
@@ -54,12 +58,12 @@ alg_params = Dict(
     :n_particles => 100,
     :kernel_width => "median_trick",
 )
-initial_dist, q, hist = fit_linear_regression(problem_params, alg_params, D)
+initial_dist, q, hist = LR.fit_linear_regression(problem_params, alg_params, D)
 
 H₀ = Distributions.entropy(initial_dist)
 EV = ( 
-true_gauss_expectation(initial_dist,  
-            RegressionModel(problem_params[:ϕ], mean(initial_dist), 
+LR.true_gauss_expectation(initial_dist,  
+            LR.RegressionModel(problem_params[:ϕ], mean(initial_dist), 
                             problem_params[:true_β]), D)
         # num_expectation( initial_dist, 
         #         w -> log_likelihood(D, RegressionModel(problem_params[:ϕ], w, 
@@ -74,7 +78,7 @@ est_logZ_rkhs = SVGD.estimate_logZ(H₀, EV, SVGD.KL_integral(hist)[end])
 ###############################################################################
 ## compare results
 
-true_logZ = regression_logZ(problem_params[:Σ_prior], problem_params[:true_β], 
+true_logZ = LR.regression_logZ(problem_params[:Σ_prior], problem_params[:true_β], 
                             problem_params[:true_ϕ], D.x)
 
 norm_plot = plot(hist[:ϕ_norm], title="φ norm", yaxis=:log);
@@ -88,7 +92,7 @@ plot!(int_plot, SVGD.estimate_logZ.([H₀], [EV], SVGD.KL_integral(hist)),
 #                 label="discrep",);
 # plot!(int_plot, SVGD.estimate_logZ.([H₀], [EV], KL_integral(hist, :dKL_unbiased)),
 #                 label="unbiased",);
-fit_plot = plot_results(plot(), q, problem_params);
+fit_plot = LR.plot_results(plot(), q, problem_params);
 plot(fit_plot, norm_plot, int_plot, step_plot, cov_plot, layout=@layout [f; n i; s c])
 
 @info "Value comparison" true_logZ therm_logZ est_logZ_rkhs 

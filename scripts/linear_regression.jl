@@ -7,17 +7,19 @@ using LinearAlgebra
 using Optim
 
 using SVGD
+using Utils
+using Examples; const LR=Examples.LinearRegression
 
 global DIRNAME = "linear_regression"
 
-function fit_linear_regression(problem_params, alg_params, D::RegressionData)
+function fit_linear_regression(problem_params, alg_params, D::LR.RegressionData)
     function logp(w)
-        model = RegressionModel(problem_params[:ϕ], w, problem_params[:true_β])
-        log_likelihood(D, model) + logpdf(MvNormal(problem_params[:μ_prior], problem_params[:Σ_prior]), w)
+        model = LR.RegressionModel(problem_params[:ϕ], w, problem_params[:true_β])
+        LR.log_likelihood(D, model) + logpdf(MvNormal(problem_params[:μ_prior], problem_params[:Σ_prior]), w)
     end  
     function grad_logp(w) 
-        model = RegressionModel(problem_params[:ϕ], w, problem_params[:true_β])
-        (grad_log_likelihood(D, model) 
+        model = LR.RegressionModel(problem_params[:ϕ], w, problem_params[:true_β])
+        (LR.grad_log_likelihood(D, model) 
          .- inv(problem_params[:Σ_prior]) * (w-problem_params[:μ_prior])
         )
     end
@@ -50,11 +52,11 @@ function run_linear_regression(problem_params, alg_params, n_runs)
     estimation_unbiased = []
     estimation_stein_discrep = []
 
-    true_model = RegressionModel(problem_params[:true_ϕ],
+    true_model = LR.RegressionModel(problem_params[:true_ϕ],
                                  problem_params[:true_w], 
                                  problem_params[:true_β])
     # dataset with labels
-    D = generate_samples(model=true_model, 
+    D = LR.generate_samples(model=true_model, 
                          n_samples=problem_params[:n_samples],
                          sample_range=problem_params[:sample_range]
                         )
@@ -66,8 +68,8 @@ function run_linear_regression(problem_params, alg_params, n_runs)
         H₀ = Distributions.entropy(initial_dist)
         EV = ( num_expectation( 
                     initial_dist, 
-                    w -> log_likelihood(D, 
-                            RegressionModel(problem_params[:ϕ], w, 
+                    w -> LR.log_likelihood(D, 
+                            LR.RegressionModel(problem_params[:ϕ], w, 
                                             problem_params[:true_β])) 
                )
                + expectation_V(initial_dist, initial_dist) 
@@ -92,7 +94,7 @@ function run_linear_regression(problem_params, alg_params, n_runs)
         @info est_logZ_stein_discrep
     end
 
-    true_logZ = regression_logZ(problem_params[:Σ_prior], true_model.β, true_model.ϕ, D)
+    true_logZ = LR.regression_logZ(problem_params[:Σ_prior], true_model.β, true_model.ϕ, D)
     @info true_logZ
 
     file_prefix = savename( merge(problem_params, alg_params, @dict n_runs) )
@@ -103,25 +105,6 @@ function run_linear_regression(problem_params, alg_params, n_runs)
                         estimation_stein_discrep,
                         estimation_rkhs, svgd_results),
             safe=true, storepatch = false)
-end
-
-function plot_results(plt, q, problem_params)
-    x = range(problem_params[:sample_range]..., length=100)
-    for w in eachcol(q)
-        model = RegressionModel(problem_params[:ϕ], w, problem_params[:true_β])
-        plot!(plt,x, y(model), alpha=0.3, color=:orange, legend=:none)
-    end
-    plot!(plt,x, 
-            y(RegressionModel(problem_params[:ϕ], 
-                              mean(q, dims=2), 
-                              problem_params[:true_β])), 
-        color=:red)
-    plot!(plt,x, 
-            y(RegressionModel(problem_params[:true_ϕ], 
-                              problem_params[:true_w], 
-                              problem_params[:true_β])), 
-        color=:green)
-    return plt
 end
 
 ## Experiments - linear regression on 3 basis functions
