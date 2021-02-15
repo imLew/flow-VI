@@ -3,4 +3,5 @@ module Utils
     include("kernel.jl")
     include("misc.jl")
     include("plot_utils.jl")
+    include("run_on_server.jl")
 end 
