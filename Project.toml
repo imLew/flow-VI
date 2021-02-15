@@ -1,3 +1,8 @@
 [deps]
+BSON = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Examples = "c55649a1-fed5-4d03-baa9-df6fec48a9fb"
+KernelFunctions = "ec8451be-7e33-11e9-00cf-bbf324bd1392"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 SVGD = "12455cbd-f41c-42c8-8a02-4f5d3139b542"
+Utils = "18b992a5-4bfc-47a0-89d0-a72c2b812ee8"
