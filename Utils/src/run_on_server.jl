@@ -36,11 +36,9 @@ function cmdline_run(N_RUNS, ALG_PARAMS, PROBLEM_PARAMS, run_func)
                 dnames["$((i-1)*dict_list_count(PROBLEM_PARAMS) + j )"] = dname
             end
         end
-        using BSON
         bson("tmp_dict_names.bson", dnames)
     elseif ARGS[1] == "run"
     # run the algorithm on the params specified in the second argument (bson)
-        using BSON
         dict_o_dicts = BSON.load(ARGS[2])
         @info "Sampling problem: $(dict_o_dicts[:problem_params])"
         @info "Alg parameters: $(dict_o_dicts[:alg_params])"
