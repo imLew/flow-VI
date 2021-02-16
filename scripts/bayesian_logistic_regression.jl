@@ -1,74 +1,12 @@
 using DrWatson
 using KernelFunctions
 using BSON
-using LinearAlgebra
-using Distributions
 
-using SVGD
-using Examples; const LR = Examples.LogisticRegression
 using Utils
 
-global DIRNAME = "bayesian_logistic_regression"
+include("run_funcs.jl")
 
-function fit_logistic_regression(problem_params, alg_params, D) 
-    initial_dist = MvNormal(problem_params[:μ_initial],
-                            problem_params[:Σ_initial])
-    q = rand(initial_dist, alg_params[:n_particles])
-    grad_logp(w) = vec( - inv(problem_params[:Σ_initial])
-                     * ( w-problem_params[:μ_initial] ) 
-                     + LR.logistic_grad_logp(D, w)
-                    )
-
-    q, hist = SVGD.svgd_fit(q=q, grad_logp=grad_logp; alg_params...)
-    return initial_dist, q, hist
-end
-
-function run_log_regression(;problem_params, alg_params, n_runs)
-    svgd_results = []
-    estimation_rkhs = []
-    estimation_unbiased = []
-    estimation_stein_discrep = []
-
-    # dataset with labels
-    D = LR.generate_2class_samples_from_gaussian(n₀=problem_params[:n₀],
-                                              n₁=problem_params[:n₁],
-                                              μ₀=problem_params[:μ₀],
-                                              μ₁=problem_params[:μ₁], 
-                                              Σ₀=problem_params[:Σ₀],
-                                              Σ₁=problem_params[:Σ₁],
-                                              n_dim=problem_params[:n_dim], 
-                                             )
-
-    for i in 1:n_runs
-        @info "Run $i/$(n_runs)"
-        initial_dist, q, hist = fit_logistic_regression(problem_params, 
-                                                        alg_params, D)
-        H₀ = Distributions.entropy(initial_dist)
-        EV = ( SVGD.numerical_expectation( initial_dist, 
-                                      w -> LR.logistic_log_likelihood(D,w) )
-               + SVGD.expectation_V(initial_dist, initial_dist) 
-               + 0.5 * log( det(2π * problem_params[:Σ_initial]) )
-              )
-
-        est_logZ_rkhs = SVGD.estimate_logZ(H₀, EV, SVGD.KL_integral(hist)[end])
-        est_logZ_unbiased = SVGD.estimate_logZ(H₀, EV, SVGD.KL_integral(hist, :dKL_unbiased)[end])
-        est_logZ_stein_discrep = SVGD.estimate_logZ(H₀, EV, SVGD.KL_integral(hist, :dKL_stein_discrep)[end])
-
-        push!(svgd_results, (hist, q))
-        push!(estimation_rkhs, est_logZ_rkhs) 
-        push!(estimation_unbiased, est_logZ_unbiased)
-        push!(estimation_stein_discrep,est_logZ_stein_discrep)
-    end
-
-    file_prefix = savename( merge(problem_params, alg_params, @dict n_runs) )
-
-    tagsave(datadir(DIRNAME, file_prefix * ".bson"),
-            merge(alg_params, problem_params, 
-                @dict(n_runs, estimation_unbiased, 
-                        estimation_stein_discrep,
-                        estimation_rkhs, svgd_results)),
-            safe=true, storepatch = false)
-end
+DIRNAME = "bayesian_logistic_regression"
 
 alg_params = Dict(
     :kernel => TransformedKernel(SqExponentialKernel(), ScaleTransform(1.)),
@@ -125,6 +63,7 @@ N_RUNS = 1
 #     @time run_log_regression(
 #             problem_params=pp,
 #             alg_params=ap,
-#             n_runs=N_RUNS
+#             n_runs=N_RUNS,
+#             DIRNAME=DIRNAME
 #             )
 # end

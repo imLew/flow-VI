@@ -16,10 +16,17 @@
 #### Before executing `run-all` of `make-and-run-all` on the cluster the number
 #### of tasks on line 17 ("#$ -t 1-N#Experiments) must be changed
 using DrWatson
+using KernelFunctions
+using Plots
+using Distributions
+using ValueHistories
+using BSON
+using ColorSchemes
+const colors = ColorSchemes.seaborn_colorblind
 
 using SVGD
 using Utils
-using Distributions
+using Examples
 
 if haskey(ENV, "JULIA_ENVIRONMENT")
     quickactivate(ENV["JULIA_ENVIRONMENT"], "SVGD")
@@ -27,68 +34,100 @@ else
     @quickactivate
 end
 
-global DIRNAME = "gaussian_to_gaussian"
+DIRNAME = "gaussian_to_gaussian"
 
-### local util functions
-function gaussian_to_gaussian(;μ₀::Vector, μₚ::Vector, Σ₀, Σₚ, alg_params)
-    initial_dist = MvNormal(μ₀, Σ₀)
-    target_dist = MvNormal(μₚ, Σₚ)
-    q, hist = SVGD.svgd_sample_from_known_distribution( initial_dist, target_dist; 
-                                                 alg_params=alg_params )
-    return initial_dist, target_dist, q, hist
-end
+N_RUNS = 1
 
-function run_g2g(;problem_params, alg_params, n_runs)
-    svgd_results = []
-    estimation_rkhs = []
-    estimation_unbiased = []
-    estimation_stein_discrep = []
-
-    for i in 1:n_runs
-        @info "Run $i/$(n_runs)"
-        initial_dist, target_dist, q, hist = gaussian_to_gaussian( 
-            ;problem_params..., alg_params=alg_params)
-
-        H₀ = Distributions.entropy(initial_dist)
-        EV = expectation_V( initial_dist, target_dist)
-
-        est_logZ_rkhs = estimate_logZ(H₀, EV, KL_integral(hist)[end])
-        est_logZ_unbiased = estimate_logZ(H₀, EV, KL_integral(hist, :dKL_unbiased)[end])
-        est_logZ_stein_discrep = estimate_logZ(H₀, EV, KL_integral(hist, :dKL_stein_discrep)[end])
-
-        global true_logZ = logZ(target_dist)
-
-        push!(svgd_results, (hist, q))
-        push!(estimation_rkhs, est_logZ_rkhs) 
-        push!(estimation_unbiased, est_logZ_unbiased)
-        push!(estimation_stein_discrep,est_logZ_stein_discrep)
-               
-    end
-
-    file_prefix = savename( merge(problem_params, alg_params, @dict n_runs) )
-
-    tagsave(datadir(DIRNAME, file_prefix * ".bson"),
-            merge(alg_params, problem_params, 
-                  @dict(n_runs, true_logZ, estimation_unbiased, 
-                        estimation_stein_discrep,
-                        estimation_rkhs, svgd_results)),
-            safe=true, storepatch=true
-    )
-end
-
-global N_RUNS = 10
-
-PROBLEM_PARAMS = Dict(
+problem_params = Dict(
     :μ₀ => [[0., 0]],
     :μₚ => [[4,5]],
     :Σ₀ => [[1. 0; 0 1.]],
     :Σₚ => [[1. 0.5; 0.5 1]],
 )
 
-ALG_PARAMS = Dict(
-    :n_iter => [10000],
+alg_params = Dict(
+    :n_iter => [1000],
+    :kernel => [TransformedKernel(SqExponentialKernel(), ScaleTransform(1.))],
     :step_size => [0.05],
-    :n_particles => [50, 100, 200, 500, 1000],
+    :n_particles => [50],
+    :update => ["vanilla", "naive_WAG"],
+    :α => @onlyif(:update == "naive_WAG", [3.5, 4, 5, 7, 10] ),
+    :kernel_cb => [median_trick_cb],
 )
 
-cmdline_run(N_RUNS, ALG_PARAMS, PROBLEM_PARAMS, run_g2g)
+@info dict_list_count(alg_params)*dict_list_count(problem_params)
+for (i, alg_params) ∈ enumerate(dict_list(alg_params))
+    for (j, problem_params) ∈ enumerate(dict_list(problem_params))
+        @info "i" i
+        @info "j" j
+        @info ((i-1)*dict_list_count(problem_params)) + j 
+        name = run_gauss_to_gauss(problem_params=problem_params, alg_params=alg_params, n_runs=N_RUNS, DIRNAME=DIRNAME)
+        break
+    end
+    break
+end
+
+function plot_data(data; size=(275,275), legend=:bottomright, ylims=(-Inf,Inf), lw=3)
+    initial_dist = MvNormal(data[1][:μ₀], data[1][:Σ₀])
+    target_dist = MvNormal(data[1][:μₚ], data[1][:Σₚ])
+
+    H₀ = Distributions.entropy(initial_dist)
+    EV = expectation_V( initial_dist, target_dist )
+    true_logZ = logZ(target_dist)
+
+    int_plot = plot(xlabel="iterations", ylabel="log Z", legend=legend, size=size, lw=lw);
+
+    for (i, d) in enumerate(data)
+        dKL_hist = d[:svgd_results][1][1]
+        est_logZ = estimate_logZ.([H₀], [EV], d[:step_size]*cumsum(get(dKL_hist, :dKL_rkhs)[2]));
+        α = haskey(d, :α) ? "alpha = $(d[:α])" : ""
+        plot!(int_plot, est_logZ, label="$(d[:update]) $α", color=colors[i+1], lw=lw);
+    end
+    hline!(int_plot, [true_logZ],ylims=ylims, color=colors[1], label="true value", lw=lw);
+    return int_plot
+end
+
+function plot_all(data; size=(175,175), legend=:bottomright, ylims=(-Inf,Inf), lw=3)
+    dKL_hist = data[:svgd_results][1][1]
+    final_particles = data[:svgd_results][1][end]
+    initial_dist = MvNormal(data[:μ₀], data[:Σ₀])
+    target_dist = MvNormal(data[:μₚ], data[:Σₚ])
+    H₀ = Distributions.entropy(initial_dist)
+    EV = expectation_V( initial_dist, target_dist )
+    true_logZ = logZ(target_dist)
+    int_plot = plot(xlabel="iterations", ylabel="log Z", legend=legend, lw=lw, ylims=(1, 3));
+    est_logZ = estimate_logZ.([H₀], [EV], data[:step_size]*cumsum(get(dKL_hist, :dKL_rkhs)[2]))
+    plot!(int_plot, est_logZ, label="", color=colors[1]);
+    hline!(int_plot, [true_logZ], labels="", color=colors[2], ls=:dash);
+    dist_plot = plot_2D(initial_dist, target_dist, final_particles);
+    if data[:n_iter] == 5000
+        xticks=0:2500:5000
+    elseif data[:n_iter] == 10000
+        xticks=0:5000:10000
+    elseif data[:n_iter] == 2000
+        xticks=0:1000:2000
+    end
+    norm_plot = plot(data[:svgd_results][1][1][:ϕ_norm],ylims=(0,Inf),
+                     markeralpha=0, label="", title="", xticks=xticks, color=colors[1],
+                    xlabel="iterations", ylabel="||φ||");
+    layout = @layout [ i ; n b]
+    final_plot = plot(int_plot, norm_plot, dist_plot, layout=layout, legend=:bottomright, size=size);
+end
+
+all_data = [BSON.load(n) for n in readdir("data/gaussian_to_gaussian", join=true)]
+plot_data(all_data, legend=:topleft)
+
+# PROBLEM_PARAMS = Dict(
+#     :μ₀ => [[0., 0]],
+#     :μₚ => [[4,5]],
+#     :Σ₀ => [[1. 0; 0 1.]],
+#     :Σₚ => [[1. 0.5; 0.5 1]],
+# )
+
+# ALG_PARAMS = Dict(
+#     :n_iter => [10000],
+#     :step_size => [0.05],
+#     :n_particles => [50, 100, 200, 500, 1000],
+# )
+
+# cmdline_run(N_RUNS, ALG_PARAMS, PROBLEM_PARAMS, run_g2g)
