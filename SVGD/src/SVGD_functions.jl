@@ -10,32 +10,34 @@ using Distances
 using PDMats
 
 export svgd_fit
+export calculate_phi_vectorized
+export compute_phi_norm
+export empirical_RKHS_norm
+export unbiased_stein_discrep
+export stein_discrep_biased
+export kernel_grad_matrix
+export calculate_phi
 
 grad(f,x,y) = gradient(f,x,y)[1]
 Base.identity(args...) = Base.identity(args[1])
 
-function svgd_fit(;q, grad_logp, kernel, n_iter=100, step_size=1,
+function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1,
         norm_method="standard", n_particles=50,
         kernel_cb=identity, step_size_cb=identity, SD_norm=false, USD_norm=false,
         RKHS_norm=true, update="vanilla", α=4)
     hist = MVHistory()
+    y = copy(q)
     @showprogress for i in 1:n_iter
         kernel = kernel_cb(kernel, q)
-
+        ϵ = step_size_cb(step_size, i)
         if update == "vanilla"
             ϕ = calculate_phi_vectorized(kernel, q, grad_logp)
-            ϵ = step_size_cb(step_size, i)
             q .+= ϵ*ϕ
         elseif update == "naive_WAG"
-            if i == 1
-                y = copy(q)
-            end
-            ϵ = step_size_cb(step_size, i)
             ϕ = calculate_phi_vectorized(kernel, y, grad_logp)
             q_new = y .+ ϵ*ϕ
-            y = q_new + (i-1)/i .* (y.-q) + (i + α -2)/i * ϵ * ϕ
+            y = q_new .+ (i-1)/i * (y.-q) .+ (i + α -2)/i * ϵ * ϕ
             q = q_new
-            # q, y = naive_WAG_update(q, y, ϵ, α, grad_logp, kernel, step_size_cb, step_size, i)
         end
 
         push!(hist, :step_sizes, i, ϵ)
@@ -60,14 +62,14 @@ function svgd_fit(;q, grad_logp, kernel, n_iter=100, step_size=1,
     return q, hist
 end
 
-function naive_WAG_update(q, y, ϵ, α, grad_logp, kernel, step_size_cb, 
-                          step_size, iter)
-    ϵ = step_size_cb(step_size, iter)
-    ϕ = calculate_phi_vectorized(kernel, y, grad_logp)
-    q_new = y .+ ϵ*ϕ
-    y_new = q_new + (iter-1)/iter .* (y.-q) + (iter + α -2)/iter * ϵ * ϕ
-    return q_new, y_new
-end
+# function naive_WAG_update(q, y, ϵ, α, grad_logp, kernel, step_size_cb, 
+#                           step_size, iter)
+#     ϵ = step_size_cb(step_size, iter)
+#     ϕ = calculate_phi_vectorized(kernel, y, grad_logp)
+#     q_new = y .+ ϵ*ϕ
+#     y_new = q_new + (iter-1)/iter .* (y.-q) + (iter + α -2)/iter * ϵ * ϕ
+#     return q_new, y_new
+# end
 
 function calculate_phi(kernel, q, grad_logp)
     glp = grad_logp.(eachcol(q))
@@ -82,7 +84,6 @@ function calculate_phi(kernel, q, grad_logp)
     end
     ϕ ./= size(q)[end]
 end
-export calculate_phi
 
 function calculate_phi_vectorized(kernel, q, grad_logp)
     n = size(q)[end]
@@ -95,7 +96,6 @@ function calculate_phi_vectorized(kernel, q, grad_logp)
         ϕ =  1/n * ( glp_mat * k_mat + hcat( sum(grad_k, dims=2)... ) )
     end
 end
-export calculate_phi_vectorized
 
 function compute_phi_norm(q, kernel, grad_logp; norm_method="standard", ϕ=nothing)
     if norm_method == "standard"
@@ -106,7 +106,6 @@ function compute_phi_norm(q, kernel, grad_logp; norm_method="standard", ϕ=nothi
         empirical_RKHS_norm(kernel, q, ϕ)
     end
 end
-export compute_phi_norm
 
 function empirical_RKHS_norm(kernel::Kernel, q, ϕ)
     if size(q)[1] == 1
@@ -131,10 +130,8 @@ function empirical_RKHS_norm(kernel::Kernel, q, ϕ)
         end
     end
 end
-export empirical_RKHS_norm
 
 # function empirical_RKHS_norm(kernel::MatrixKernel, q, ϕ)
-# export empirical_RKHS_norm
 #     invquad(flat_matrix_kernel_matrix(kernel, q), vec(ϕ))
 # end
 
@@ -158,7 +155,6 @@ function unbiased_stein_discrep(q, kernel, grad_logp)
     # dKL += sum(k_mat .* ( 2*d/h .- 4/h^2 * pairwise(SqEuclidean(), q)))
     dKL /= n*(n-1)
 end
-export unbiased_stein_discrep
 
 function stein_discrep_biased(q, kernel, grad_logp) 
     n = size(q)[end]
@@ -177,7 +173,6 @@ function stein_discrep_biased(q, kernel, grad_logp)
     end
     dKL /= n^2
 end
-export stein_discrep_biased
 
 function kernel_grad_matrix(kernel::KernelFunctions.Kernel, q)
     if size(q)[end] == 1
@@ -185,5 +180,4 @@ function kernel_grad_matrix(kernel::KernelFunctions.Kernel, q)
     end
 	mapslices(x -> grad.(kernel, [x], eachcol(q)), q, dims = 1)
 end
-export kernel_grad_matrix
 
