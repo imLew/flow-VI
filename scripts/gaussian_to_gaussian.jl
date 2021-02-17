@@ -28,6 +28,8 @@ using SVGD
 using Utils
 using Examples
 
+include("run_funcs.jl")
+
 if haskey(ENV, "JULIA_ENVIRONMENT")
     quickactivate(ENV["JULIA_ENVIRONMENT"], "SVGD")
 else
@@ -55,17 +57,20 @@ alg_params = Dict(
     :kernel_cb => [median_trick_cb],
 )
 
-@info dict_list_count(alg_params)*dict_list_count(problem_params)
-for (i, alg_params) ∈ enumerate(dict_list(alg_params))
-    for (j, problem_params) ∈ enumerate(dict_list(problem_params))
-        @info "i" i
-        @info "j" j
-        @info ((i-1)*dict_list_count(problem_params)) + j 
-        name = run_gauss_to_gauss(problem_params=problem_params, alg_params=alg_params, n_runs=N_RUNS, DIRNAME=DIRNAME)
-        break
+runs = []
+
+recent_runs = []
+n_sets = dict_list_count(alg_params)*dict_list_count(problem_params)
+for (i, ap) ∈ enumerate(dict_list(alg_params))
+    for (j, pp) ∈ enumerate(dict_list(problem_params))
+        println("$(((i-1)*dict_list_count(problem_params)) + j) out of $n_sets")
+        name = run_gauss_to_gauss(problem_params=pp,
+                                  alg_params=ap, n_runs=N_RUNS,
+                                  DIRNAME=DIRNAME)
+        push!(recent_runs, name)
     end
-    break
 end
+push!(runs, recent_runs)
 
 function plot_data(data; size=(275,275), legend=:bottomright, ylims=(-Inf,Inf), lw=3)
     initial_dist = MvNormal(data[1][:μ₀], data[1][:Σ₀])
