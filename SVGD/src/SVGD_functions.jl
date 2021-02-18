@@ -24,21 +24,22 @@ Base.identity(args...) = Base.identity(args[1])
 function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1,
         norm_method="standard", n_particles=50,
         kernel_cb=identity, step_size_cb=identity, SD_norm=false, USD_norm=false,
-        RKHS_norm=true, update="vanilla", α=4)
+        RKHS_norm=true, update_method=:forward_euler, α=4)
     hist = MVHistory()
     y = copy(q)
     @showprogress for i in 1:n_iter
         kernel = kernel_cb(kernel, q)
         ϵ = step_size_cb(step_size, i)
-        if update == "vanilla"
-            ϕ = calculate_phi_vectorized(kernel, q, grad_logp)
-            q .+= ϵ*ϕ
-        elseif update == "naive_WAG"
-            ϕ = calculate_phi_vectorized(kernel, y, grad_logp)
-            q_new = y .+ ϵ*ϕ
-            y = q_new .+ (i-1)/i * (y.-q) .+ (i + α -2)/i * ϵ * ϕ
-            q = q_new
-        end
+        update!(update_method, q, y, ϵ, α, grad_logp, kernel, step_size_cb, step_size, i, hist)
+        # if update == "vanilla"
+        #     ϕ = calculate_phi_vectorized(kernel, q, grad_logp)
+        #     q .+= ϵ*ϕ
+        # elseif update == "naive_WAG"
+        #     ϕ = calculate_phi_vectorized(kernel, y, grad_logp)
+        #     q_new = y .+ ϵ*ϕ
+        #     y = q_new .+ (i-1)/i * (y.-q) .+ (i + α -2)/i * ϵ * ϕ
+        #     q = q_new
+        # end
 
         push!(hist, :step_sizes, i, ϵ)
         if USD_norm  # save unbiased stein discrep
@@ -56,20 +57,25 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1,
                   compute_phi_norm(q, kernel, grad_logp, norm_method="RKHS_norm", ϕ=ϕ)
                  )
         end
-        push!(hist, :ϕ_norm, i, mean(norm(ϕ)))  # save average vector norm of phi
+        # push!(hist, :ϕ_norm, i, mean(norm(ϕ)))  # save average vector norm of phi
         # push!(hist, :Σ, i, cov(q, dims=2))  # i forgot why i did this
     end
     return q, hist
 end
 
-# function naive_WAG_update(q, y, ϵ, α, grad_logp, kernel, step_size_cb, 
-#                           step_size, iter)
-#     ϵ = step_size_cb(step_size, iter)
-#     ϕ = calculate_phi_vectorized(kernel, y, grad_logp)
-#     q_new = y .+ ϵ*ϕ
-#     y_new = q_new + (iter-1)/iter .* (y.-q) + (iter + α -2)/iter * ϵ * ϕ
-#     return q_new, y_new
-# end
+function update!(::Val(:naive_WAG), q, y, ϵ, α, grad_logp, kernel, iter, hist)
+    ϕ = calculate_phi_vectorized(kernel, y, grad_logp)
+    push!(hist, :ϕ_norm, iter, mean(norm(ϕ)))  # save average vector norm of phi
+    q_new .= y .+ ϵ*ϕ
+    y .= q_new + (iter-1)/iter .* (y.-q) + (iter + α -2)/iter * ϵ * ϕ
+    q .= q_new
+end
+
+function update!(::Val(:forward_euler), q, ϵ, grad_logp, kernel, iter, hist, args...)
+    ϕ = calculate_phi_vectorized(kernel, q, grad_logp)
+    q .+= ϵ*ϕ
+    push!(hist, :ϕ_norm, iter, mean(norm(ϕ)))  # save average vector norm of phi
+end
 
 function calculate_phi(kernel, q, grad_logp)
     glp = grad_logp.(eachcol(q))
