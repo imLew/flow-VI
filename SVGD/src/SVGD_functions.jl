@@ -63,7 +63,7 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1,
     return q, hist
 end
 
-function update!(::Val(:naive_WAG), q, y, ϵ, α, grad_logp, kernel, iter, hist)
+function update!(::Val{:naive_WAG}, q, y, ϵ, α, grad_logp, kernel, iter, hist, args...)
     ϕ = calculate_phi_vectorized(kernel, y, grad_logp)
     push!(hist, :ϕ_norm, iter, mean(norm(ϕ)))  # save average vector norm of phi
     q_new .= y .+ ϵ*ϕ
@@ -71,7 +71,7 @@ function update!(::Val(:naive_WAG), q, y, ϵ, α, grad_logp, kernel, iter, hist)
     q .= q_new
 end
 
-function update!(::Val(:forward_euler), q, ϵ, grad_logp, kernel, iter, hist, args...)
+function update!(::Val{:forward_euler}, q, ϵ, grad_logp, kernel, iter, hist, args...)
     ϕ = calculate_phi_vectorized(kernel, q, grad_logp)
     q .+= ϵ*ϕ
     push!(hist, :ϕ_norm, iter, mean(norm(ϕ)))  # save average vector norm of phi
