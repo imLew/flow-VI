@@ -1,5 +1,6 @@
 [deps]
 BSON = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 ColorSchemes = "35d6a980-a343-548e-a6ea-1d62b119f2f4"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Examples = "c55649a1-fed5-4d03-baa9-df6fec48a9fb"
