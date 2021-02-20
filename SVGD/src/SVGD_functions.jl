@@ -16,9 +16,16 @@ export compute_dKL
 export kernel_grad_matrix
 export calculate_phi
 
+"""
+Fit the samples in q to the distribution corresponding to grad_logp.
+Possible values for dKL_estimator are `:RKHS_norm`, `:KSD`, `:UKSD`; they can be
+combined by putting them in array.
+Possible values for update_method are `:forward_euler`, `:naive_WNES`, 
+`:naive_WAG`. 
+"""
 function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50, kwargs...)
     dKL_estimator = get!(kwargs, :dKL_estimator, :RKHS_norm)
-    kernel_cb = get!(kwargs, :kernel_cb, nothing)
+    kernel_cb! = get!(kwargs, :kernel_cb, nothing)
     step_size_cb = get!(kwargs, :step_size_cb, nothing)
     update_method = get!(kwargs, :update_method, :forward_euler)
     α = get!(kwargs, :α, false)
@@ -35,7 +42,7 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50,
     update_method in [:naive_WAG, :naive_WNES] ? y = similar(q) : nothing
     ϕ = similar(q)
     @showprogress for i in 1:n_iter
-        isnothing(kernel_cb) ? nothing : kernel = kernel_cb(kernel, q)
+        isnothing(kernel_cb) ? nothing : kernel_cb!(kernel, q)
         isnothing(step_size_cb) ? nothing : ϵ = step_size_cb(step_size, i)
         update!(Val(update_method), q, ϵ, ϕ, i, kernel, grad_logp, hist, y=y, kwargs...)
         push_to_hist!(hist, q, ϵ, ϕ, i, kernel, kwargs...)
