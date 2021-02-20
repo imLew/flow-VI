@@ -1,3 +1,4 @@
+using DrWatson
 using ProgressMeter
 using Statistics
 using ValueHistories
@@ -12,7 +13,6 @@ using PDMats
 export svgd_fit
 export calculate_phi_vectorized
 export compute_dKL
-export empirical_RKHS_norm
 export kernel_grad_matrix
 export calculate_phi
 
@@ -21,18 +21,27 @@ Base.identity(args...) = Base.identity(args[1])
 
 function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1,
         norm_method=:RKHS_norm, n_particles=50,
-        kernel_cb=identity, step_size_cb=identity, SD_norm=false, USD_norm=false,
-        RKHS_norm=true, update_method=:forward_euler, α=4)
+        kernel_cb=identity, step_size_cb=identity, update_method=:forward_euler, 
+        kwargs...)
+    RKHS_norm = get!(kwargs, :RKHS_norm, false)
+    # SD_norm = get!(kwargs, :SD_norm, false)
+    # USD_norm = get!(kwargs, :USD_norm, false)
+    α = get!(kwargs, :α, false)
+    c₁ = get!(kwargs, :c₁, false)
+    c₂ = get!(kwargs, :c₂, false)
+    if update_method == :naive_WNES && ( float(c₁) <= 0 || float(c₂) <= 0 )
+        throw(ArgumentError(α, "WNES updates require c₁, c₂ ∈ ℝ."))
+    end
+    if update_method == :naive_WAG && float(α) <= 3
+        throw(ArgumentError(α, "WAG updates require α>3."))
+    end
     hist = MVHistory()
-    y = similar(q)
+    update_method in [:naive_WAG, :naive_WNES] ? y = similar(q) : nothing
     @showprogress for i in 1:n_iter
-        # @info i
         kernel = kernel_cb(kernel, q)
         ϵ = step_size_cb(step_size, i)
-        ϕ = calculate_phi_vectorized(kernel, y, grad_logp)
-        update!(Val(update_method), q, ϵ, ϕ, i, α, y)
+        update!(Val(update_method), q, ϵ, i, kernel, grad_logp, hist, y=y, kwargs...)
 
-        push!(hist, :ϕ_norm, i, mean(norm(ϕ)))  # save average vector norm of phi
         push!(hist, :step_sizes, i, ϵ)
         # if USD_norm  # save unbiased stein discrep
         #     push!(hist, :dKL_unbiased, i, 
@@ -49,18 +58,31 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1,
                   compute_dKL(Val(norm_method), kernel, q, ϕ=ϕ)
                  )
         end
-        # push!(hist, :Σ, i, cov(q, dims=2))  # i forgot why i did this
     end
     return q, hist
 end
 
-function update!(::Val{:naive_WAG}, q, ϵ, ϕ, iter, α, y, args...)
+function update!(::Val{:naive_WNES}, q, ϵ, iter, kernel, grad_logp, hist; iter, kwargs...)
+    @unpack c₁, c₂, y = kwargs
+    ϕ = calculate_phi_vectorized(kernel, y, grad_logp)
+    push!(hist, :ϕ_norm, iter, mean(norm(ϕ)))  # save average vector norm of phi
     q_new = y .+ ϵ*ϕ
-    y .= q_new + (iter-1)/iter .* (y.-q) + (iter + α -2)/iter * ϵ * ϕ
+    y .= q_new .+ c₁(c₂ - 1) * (q_new .- q)
     q = q_new
 end
 
-function update!(::Val{:forward_euler}, q, ϵ, ϕ, args...)
+function update!(::Val{:naive_WAG}, q, ϵ, iter, kernel, grad_logp, hist; iter, kwargs...)
+    @unpack α, y = kwargs
+    ϕ = calculate_phi_vectorized(kernel, y, grad_logp)
+    push!(hist, :ϕ_norm, iter, mean(norm(ϕ)))  # save average vector norm of phi
+    q_new = y .+ ϵ*ϕ
+    y .= q_new .+ (iter-1)/iter .* (y.-q) + (iter + α -2)/iter * ϵ * ϕ
+    q = q_new
+end
+
+function update!(::Val{:forward_euler}, q, ϵ, iter, kernel, grad_logp, hist; kwargs...)
+    ϕ = calculate_phi_vectorized(kernel, q, grad_logp)
+    push!(hist, :ϕ_norm, iter, mean(norm(ϕ)))  # save average vector norm of phi
     q .+= ϵ*ϕ
 end
 
