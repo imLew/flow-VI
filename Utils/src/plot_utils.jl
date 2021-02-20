@@ -5,8 +5,13 @@ using ColorSchemes
 const colors = ColorSchemes.seaborn_colorblind
 
 # export plot_known_dists
-export plot_2D
+export plot_2D_results
+export plot_2D_results!
+export plot_2D_gaussians_results
+export plot_2D_gaussians_results!
 export plot_1D
+export plot_convergence
+export plot_convergence!
 
 function plot_1D(initial_dist::Distribution, target_dist::Distribution, q)
     n_bins = length(q) ÷ 5
@@ -29,8 +34,9 @@ function plot_1D(initial_dist::Distribution, target_dist::Distribution, q)
     return dist_plot
 end
 
-function plot_2D(initial_dist::Distribution, target_dist::Distribution, q)
-    dist_plot = scatter(q[1,:], q[2,:], legend=false, label="", msw=0.0, alpha=0.5, color=colors[1]);
+function plot_2D_results!(plt, initial_dist::Distribution, 
+                          target_dist::Distribution, q)
+    scatter!(plt, q[1,:], q[2,:], legend=false, label="", msw=0.0, alpha=0.5, color=colors[1]);
     # get range to cover both distributions and the particles
     min_x = minimum([
                      minimum(q[1]) - 0.2 * abs(minimum(q[1])), 
@@ -54,11 +60,85 @@ function plot_2D(initial_dist::Distribution, target_dist::Distribution, q)
                    ])
     x = min_x:0.05:max_x
     y = min_y:0.05:max_y
-    contour!(dist_plot, x, y, (x,y)->pdf(target_dist, [x, y]), color=colors[2], 
+    contour!(plt, x, y, (x,y)->pdf(target_dist, [x, y]), color=colors[2], 
              label="", levels=5, msw=0.0, alpha=0.6)
-    contour!(dist_plot, x, y, (x,y)->pdf(initial_dist, [x, y]), color=colors[1], 
+    contour!(plt, x, y, (x,y)->pdf(initial_dist, [x, y]), color=colors[1], 
              label="", levels=5, msw=0.0, alpha=0.6)
-    return dist_plot
+    return plt
+end
+
+function plot_2D_results(initial_dist::Distribution, 
+                         target_dist::Distribution, q)
+    plt = plot()
+    plot_2D_results!(plt, initial_dist, target_dist, q)
+    return plt
+end
+
+function plot_2D_gaussians_results!(plt, data)
+    initial_dist = MvNormal(data[:μ₀], data[:Σ₀])
+    target_dist = MvNormal(data[:μₚ], data[:Σₚ])
+    plot_2D_results!(plt, initial_dist, target_dist, 
+                     data[:svgd_results][1][end]); 
+end
+
+function plot_2D_gaussians_results(data)
+    plt = plot()
+    plot_2D_gaussians_results!(plt, data)
+    return plt
+end
+
+function plot_convergence(data; size=(375,375), legend=:bottomright, ylims=(-Inf,Inf), lw=3)
+    sp1, sp2, sp3 = plot(), plot(), plot()
+    layout = @layout [ i ; n b]
+    plt = plot(sp1, sp2, sp3, layout=layout)
+    plot_convergence!(plt, data, size=size, legend=legend, ylims=ylims, lw=lw)
+    return plt
+end
+
+function plot_convergence!(plt::Plots.Plot, data; size=(375,375), 
+                           legend=:bottomright, ylims=(-Inf,Inf), 
+                           lw=3, int_lims=(-Inf,Inf))
+
+    dist_plot = plot_2D_gaussians_results(data)
+    
+    norm_plot = plot(data[:svgd_results][1][1][:ϕ_norm],ylims=(0,Inf),
+                     markeralpha=0, label="", title="", 
+                     xticks=0:data[:n_iter]÷4:data[:n_iter], color=colors[1],
+                     xlabel="iterations", ylabel="||φ||");
+
+    layout = @layout [ i ; n b]
+    final_plot = plot(int_plot, norm_plot, dist_plot, layout=layout, legend=:bottomright, size=size);
+    for (sp, tp) in zip(plt.subplots, final_plot.subplots)
+        merge_series!(sp, tp)
+    end
+end
+
+function plot_integration(data; size=(375,375), legend=:bottomright, lw=3, 
+                          ylims=(-Inf,Inf))
+    plt = plot()
+    plot_integration!(plt, data; size=size, legend=legend, 
+                      lw=lw, ylims=ylims)
+    return plt
+end
+export plot_integration!
+function plot_integration!(plt::Plots.Plot, data; size=(375,375),
+                           legend=:bottomright, lw=3, ylims=(-Inf,Inf))
+    dKL_hist = data[:svgd_results][1][1]
+    initial_dist = MvNormal(data[:μ₀], data[:Σ₀])
+    target_dist = MvNormal(data[:μₚ], data[:Σₚ])
+    H₀ = Distributions.entropy(initial_dist)
+    EV = expectation_V( initial_dist, target_dist )
+    true_logZ = logZ(target_dist)
+    plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw, ylims=ylims);
+    est_logZ = estimate_logZ.([H₀], [EV], data[:step_size]*cumsum(get(dKL_hist, :dKL_rkhs)[2]))
+    plot!(plt, est_logZ, label="", color=colors[1]);
+    hline!(plt, [true_logZ], labels="", color=colors[2], ls=:dash);
+end
+
+function merge_series!(sp1::Plots.Subplot, sp2::Plots.Subplot)
+    append!(sp1.series_list, sp2.series_list)
+    Plots.expand_extrema!(sp1[:xaxis], xlims(sp2))
+    Plots.expand_extrema!(sp1[:yaxis], ylims(sp2))
 end
 
 # function plot_known_dists(initial_dist, target_dist, alg_params, 
