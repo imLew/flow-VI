@@ -16,16 +16,11 @@ export compute_dKL
 export kernel_grad_matrix
 export calculate_phi
 
-grad(f,x,y) = gradient(f,x,y)[1]
-Base.identity(args...) = Base.identity(args[1])
-
-function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1,
-        norm_method=:RKHS_norm, n_particles=50,
-        kernel_cb=identity, step_size_cb=identity, update_method=:forward_euler, 
-        kwargs...)
-    RKHS_norm = get!(kwargs, :RKHS_norm, false)
-    # SD_norm = get!(kwargs, :SD_norm, false)
-    # USD_norm = get!(kwargs, :USD_norm, false)
+function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50, kwargs...)
+    dKL_estimator = get!(kwargs, :dKL_estimator, :RKHS_norm)
+    kernel_cb = get!(kwargs, :kernel_cb, nothing)
+    step_size_cb = get!(kwargs, :step_size_cb, nothing)
+    update_method = get!(kwargs, :update_method, :forward_euler)
     α = get!(kwargs, :α, false)
     c₁ = get!(kwargs, :c₁, false)
     c₂ = get!(kwargs, :c₂, false)
@@ -35,54 +30,51 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1,
     if update_method == :naive_WAG && float(α) <= 3
         throw(ArgumentError(α, "WAG updates require α>3."))
     end
+
     hist = MVHistory()
     update_method in [:naive_WAG, :naive_WNES] ? y = similar(q) : nothing
+    ϕ = similar(q)
     @showprogress for i in 1:n_iter
-        kernel = kernel_cb(kernel, q)
-        ϵ = step_size_cb(step_size, i)
-        update!(Val(update_method), q, ϵ, i, kernel, grad_logp, hist, y=y, kwargs...)
-
-        push!(hist, :step_sizes, i, ϵ)
-        # if USD_norm  # save unbiased stein discrep
-        #     push!(hist, :dKL_unbiased, i, 
-        #           compute_dKL(Val(norm_method), kernel, q, grad_logp=grad_logp)
-        #          )
-        # end
-        # if SD_norm  # save stein discrep
-        #     push!(hist, :dKL_stein_discrep, i, 
-        #           compute_dKL(Val(norm_method), kernel, q, grad_logp=grad_logp)
-        #          )
-        # end
-        if RKHS_norm  # save rkhs norm
-            push!(hist, :dKL_rkhs, i, 
-                  compute_dKL(Val(norm_method), kernel, q, ϕ=ϕ)
-                 )
-        end
+        isnothing(kernel_cb) ? nothing : kernel = kernel_cb(kernel, q)
+        isnothing(step_size_cb) ? nothing : ϵ = step_size_cb(step_size, i)
+        update!(Val(update_method), q, ϵ, ϕ, i, kernel, grad_logp, hist, y=y, kwargs...)
+        push_to_hist!(hist, q, ϵ, ϕ, i, kernel, kwargs...)
     end
     return q, hist
 end
 
-function update!(::Val{:naive_WNES}, q, ϵ, iter, kernel, grad_logp, hist; iter, kwargs...)
+function push_to_hist!(hist, q, ϵ, ϕ, i, kernel; kwargs...)
+    @unpack dKL_estimator = kwargs
+    push!(hist, :step_sizes, i, ϵ)
+    push!(hist, :ϕ_norm, i, mean(norm(ϕ)))  # save average vector norm of phi
+    if typeof(dKL_estimator) == Symbol
+        push!(hist, dKL_estimator, i, compute_dKL(Val(dKL_estimator), kernel, q, ϕ=ϕ))
+    elseif typeof(dKL_estimator) == Array{Symbol,1}
+        for estimator in dKL_estimator
+            push!(hist, estimator, i, compute_dKL(Val(estimator), kernel, q, ϕ=ϕ))
+        end
+    end
+    push!(hist, :kernel_width, kernel.transform.s)
+end
+
+function update!(::Val{:naive_WNES}, q, ϕ, ϵ, iter, kernel, grad_logp, hist; iter, kwargs...)
     @unpack c₁, c₂, y = kwargs
-    ϕ = calculate_phi_vectorized(kernel, y, grad_logp)
-    push!(hist, :ϕ_norm, iter, mean(norm(ϕ)))  # save average vector norm of phi
+    ϕ .= calculate_phi_vectorized(kernel, y, grad_logp)
     q_new = y .+ ϵ*ϕ
     y .= q_new .+ c₁(c₂ - 1) * (q_new .- q)
     q = q_new
 end
 
-function update!(::Val{:naive_WAG}, q, ϵ, iter, kernel, grad_logp, hist; iter, kwargs...)
+function update!(::Val{:naive_WAG}, q, ϕ, ϵ, iter, kernel, grad_logp, hist; iter, kwargs...)
     @unpack α, y = kwargs
-    ϕ = calculate_phi_vectorized(kernel, y, grad_logp)
-    push!(hist, :ϕ_norm, iter, mean(norm(ϕ)))  # save average vector norm of phi
+    ϕ .= calculate_phi_vectorized(kernel, y, grad_logp)
     q_new = y .+ ϵ*ϕ
     y .= q_new .+ (iter-1)/iter .* (y.-q) + (iter + α -2)/iter * ϵ * ϕ
     q = q_new
 end
 
-function update!(::Val{:forward_euler}, q, ϵ, iter, kernel, grad_logp, hist; kwargs...)
-    ϕ = calculate_phi_vectorized(kernel, q, grad_logp)
-    push!(hist, :ϕ_norm, iter, mean(norm(ϕ)))  # save average vector norm of phi
+function update!(::Val{:forward_euler}, q, ϕ, ϵ, iter, kernel, grad_logp, hist; kwargs...)
+    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp)
     q .+= ϵ*ϕ
 end
 
@@ -179,6 +171,7 @@ function kernel_grad_matrix(kernel::KernelFunctions.Kernel, q)
     if size(q)[end] == 1
         return 0
     end
+    grad(f,x,y) = gradient(f,x,y)[1]
 	mapslices(x -> grad.(kernel, [x], eachcol(q)), q, dims = 1)
 end
 
