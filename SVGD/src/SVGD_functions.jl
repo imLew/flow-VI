@@ -42,7 +42,7 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50,
     update_method in [:naive_WAG, :naive_WNES] ? y = similar(q) : nothing
     ϕ = similar(q)
     @showprogress for i in 1:n_iter
-        isnothing(kernel_cb) ? nothing : kernel_cb!(kernel, q)
+        isnothing(kernel_cb!) ? nothing : kernel_cb!(kernel, q)
         isnothing(step_size_cb) ? nothing : ϵ = step_size_cb(step_size, i)
         update!(Val(update_method), q, ϵ, ϕ, i, kernel, grad_logp, hist, y=y, kwargs...)
         push_to_hist!(hist, q, ϵ, ϕ, i, kernel, kwargs...)
