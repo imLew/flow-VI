@@ -10,6 +10,8 @@ export plot_2D_results!
 export plot_2D_gaussians_results
 export plot_2D_gaussians_results!
 export plot_1D
+export plot_integration
+export plot_integration!
 export plot_convergence
 export plot_convergence!
 
@@ -69,7 +71,7 @@ end
 
 function plot_2D_results(initial_dist::Distribution, 
                          target_dist::Distribution, q)
-    plt = plot()
+    plt = plot(legend=false)
     plot_2D_results!(plt, initial_dist, target_dist, q)
     return plt
 end
@@ -77,40 +79,60 @@ end
 function plot_2D_gaussians_results!(plt, data)
     initial_dist = MvNormal(data[:μ₀], data[:Σ₀])
     target_dist = MvNormal(data[:μₚ], data[:Σₚ])
-    plot_2D_results!(plt, initial_dist, target_dist, 
-                     data[:svgd_results][1][end]); 
+    plot_2D_results!(plt, initial_dist, target_dist, data[:svgd_results][1][end]); 
 end
 
 function plot_2D_gaussians_results(data)
-    plt = plot()
+    plt = plot(legend=false)
     plot_2D_gaussians_results!(plt, data)
     return plt
 end
 
-function plot_convergence(data; size=(375,375), legend=:bottomright, ylims=(-Inf,Inf), lw=3)
-    sp1, sp2, sp3 = plot(), plot(), plot()
+function plot_convergence(data; kwargs...)
+    kwargs = Dict(kwargs...)
+    legend = get!(kwargs, :legend, :bottomright)
+    size = get!(kwargs, :size, (375, 375))
+    ylims = get!(kwargs, :ylims, (-Inf, Inf))
+    lw = get!(kwargs, :lw, 3)
+    int_lims = get!(kwargs, :int_lims, (-Inf, Inf))
+
+    plt, int_plot, dist_plot, norm_plot = plot(), plot(), plot(legend=false), plot()
+    plot_convergence!(int_plot, dist_plot, norm_plot, data; kwargs...)
     layout = @layout [ i ; n b]
-    plt = plot(sp1, sp2, sp3, layout=layout)
-    plot_convergence!(plt, data, size=size, legend=legend, ylims=ylims, lw=lw)
-    return plt
+    plot(int_plot, norm_plot, dist_plot, layout=layout)
 end
 
-function plot_convergence!(plt::Plots.Plot, data; size=(375,375), 
-                           legend=:bottomright, ylims=(-Inf,Inf), 
-                           lw=3, int_lims=(-Inf,Inf))
+function wtf(; kwargs...)
+    println(kwargs)
+    kwargs = Dict(kwargs...)
+    get!(kwargs, :t, false)
+end
+export wtf
 
-    dist_plot = plot_2D_gaussians_results(data)
+
+function plot_convergence!(int_plot, dist_plot, norm_plot, data; kwargs...)
+    kwargs = Dict(kwargs...)
+    size = get!(kwargs, :size, (375, 375))
+    legend = get!(kwargs, :legend, :bottomright)
+    ylims = get!(kwargs, :ylims, (-Inf, Inf))
+    lw = get!(kwargs, :lw, 3)
+    int_lims = get!(kwargs, :int_lims, (-Inf, Inf))
+
+    plot_integration!(int_plot, data)
+
+    plot_2D_gaussians_results!(dist_plot, data)
     
-    norm_plot = plot(data[:svgd_results][1][1][:ϕ_norm],ylims=(0,Inf),
+    plot!(norm_plot, data[:svgd_results][1][1][:ϕ_norm],ylims=(0,Inf),
                      markeralpha=0, label="", title="", 
                      xticks=0:data[:n_iter]÷4:data[:n_iter], color=colors[1],
                      xlabel="iterations", ylabel="||φ||");
 
-    layout = @layout [ i ; n b]
-    final_plot = plot(int_plot, norm_plot, dist_plot, layout=layout, legend=:bottomright, size=size);
-    for (sp, tp) in zip(plt.subplots, final_plot.subplots)
-        merge_series!(sp, tp)
-    end
+    # layout = @layout [ i ; n b ]
+    # final_plot = plot(int_plot, norm_plot, dist_plot, layout=layout, 
+    #                   legend=:bottomright, size=size);
+    # for (sp, tp) in zip(plt.subplots, final_plot.subplots)
+    #     merge_series!(sp, tp)
+    # end
 end
 
 function plot_integration(data; size=(375,375), legend=:bottomright, lw=3, 
@@ -118,8 +140,8 @@ function plot_integration(data; size=(375,375), legend=:bottomright, lw=3,
     plt = plot()
     plot_integration!(plt, data; size=size, legend=legend, 
                       lw=lw, ylims=ylims)
-    return plt
 end
+
 export plot_integration!
 function plot_integration!(plt::Plots.Plot, data; size=(375,375),
                            legend=:bottomright, lw=3, ylims=(-Inf,Inf))
