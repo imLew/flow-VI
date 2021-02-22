@@ -41,8 +41,8 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50,
     end
 
     hist = MVHistory()
-    update_method in [:naive_WAG, :naive_WNES] ? y = similar(q) : nothing
-    ϕ = similar(q)
+    y = copy(q) 
+    ϕ = zeros(size(q))
     @showprogress for i in 1:n_iter
         isnothing(kernel_cb!) ? nothing : kernel_cb!(kernel, q)
         ϵ = isnothing(step_size_cb) ? step_size : step_size_cb(step_size, i)
@@ -72,7 +72,7 @@ function update!(::Val{:naive_WNES}, q, ϕ, ϵ, iter, kernel, grad_logp; kwargs.
     ϕ .= calculate_phi_vectorized(kernel, y, grad_logp)
     q_new = y .+ ϵ*ϕ
     y .= q_new .+ c₁*(c₂ - 1) * (q_new .- q)
-    q = q_new
+    q .= q_new
 end
 
 function update!(::Val{:naive_WAG}, q, ϕ, ϵ, iter, kernel, grad_logp; kwargs...)
@@ -80,7 +80,7 @@ function update!(::Val{:naive_WAG}, q, ϕ, ϵ, iter, kernel, grad_logp; kwargs..
     ϕ .= calculate_phi_vectorized(kernel, y, grad_logp)
     q_new = y .+ ϵ*ϕ
     y .= q_new .+ (iter-1)/iter .* (y.-q) + (iter + α -2)/iter * ϵ * ϕ
-    q = q_new
+    q .= q_new
 end
 
 function update!(::Val{:forward_euler}, q, ϕ, ϵ, iter, kernel, grad_logp; kwargs...)
