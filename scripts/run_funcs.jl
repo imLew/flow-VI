@@ -73,8 +73,8 @@ function run_log_regression(;problem_params, alg_params, n_runs, DIRNAME)
               )
 
         est_logZ_rkhs = SVGD.estimate_logZ(H₀, EV, SVGD.KL_integral(hist)[end])
-        est_logZ_unbiased = SVGD.estimate_logZ(H₀, EV, SVGD.KL_integral(hist, :dKL_unbiased)[end])
-        est_logZ_stein_discrep = SVGD.estimate_logZ(H₀, EV, SVGD.KL_integral(hist, :dKL_stein_discrep)[end])
+        est_logZ_unbiased = SVGD.estimate_logZ(H₀, EV, SVGD.KL_integral(hist, :UKSB)[end])
+        est_logZ_stein_discrep = SVGD.estimate_logZ(H₀, EV, SVGD.KL_integral(hist, :KSD)[end])
 
         push!(svgd_results, (hist, q))
         push!(estimation_rkhs, est_logZ_rkhs) 
