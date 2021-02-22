@@ -21,7 +21,7 @@ function geometric_step_size_cb(step_size, iter, factor, cutoff)
 end
 
 ## math utils
-function KL_integral(hist, key=:dKL_rkhs)
+function KL_integral(hist, key=:RKHS_norm)
     cumsum(get(hist, :step_sizes)[2] .* get(hist, key)[2])
 end
 
