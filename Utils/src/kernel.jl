@@ -4,21 +4,19 @@ using KernelFunctions
 
 ## kernel utils
 export kernel_gradient
-export median_trick_cb
-export median_cb
+export median_trick_cb!
+export median_cb!
 
 function kernel_gradient(k::Kernel, x, y)
     Zygote.gradient( x->k(x,y), x)[1]
 end
 
-function median_trick_cb(kernel::Kernel, q)
+function median_trick_cb!(kernel::Kernel, q)
     kernel.transform.s .= 1/sqrt(median_trick(q))
-    return kernel
 end
 
-function median_cb(kernel, q)
+function median_cb!(kernel, q)
     kernel.transform.s .= 1/median(pairwise(Euclidean(), q, dims=2))
-    return kernel
 end
 
 function median_trick(x)
