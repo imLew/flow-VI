@@ -98,17 +98,9 @@ function plot_convergence(data; kwargs...)
 
     plt, int_plot, dist_plot, norm_plot = plot(), plot(), plot(legend=false), plot()
     plot_convergence!(int_plot, dist_plot, norm_plot, data; kwargs...)
-    layout = @layout [ i ; n b]
+    layout = @layout [ i ; n b ]
     plot(int_plot, norm_plot, dist_plot, layout=layout)
 end
-
-function wtf(; kwargs...)
-    println(kwargs)
-    kwargs = Dict(kwargs...)
-    get!(kwargs, :t, false)
-end
-export wtf
-
 
 function plot_convergence!(int_plot, dist_plot, norm_plot, data; kwargs...)
     kwargs = Dict(kwargs...)
@@ -152,7 +144,7 @@ function plot_integration!(plt::Plots.Plot, data; size=(375,375),
     EV = expectation_V( initial_dist, target_dist )
     true_logZ = logZ(target_dist)
     plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw, ylims=ylims);
-    est_logZ = estimate_logZ.([H₀], [EV], data[:step_size]*cumsum(get(dKL_hist, :dKL_rkhs)[2]))
+    est_logZ = estimate_logZ.([H₀], [EV], data[:step_size]*cumsum(get(dKL_hist, :RKHS_norm)[2]))
     plot!(plt, est_logZ, label="", color=colors[1]);
     hline!(plt, [true_logZ], labels="", color=colors[2], ls=:dash);
 end
