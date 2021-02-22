@@ -23,7 +23,8 @@ combined by putting them in array.
 Possible values for update_method are `:forward_euler`, `:naive_WNES`, 
 `:naive_WAG`. 
 """
-function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50, kwargs...)
+function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50, 
+                  callback=nothing, kwargs...)
     kwargs = Dict(kwargs...)
     dKL_estimator = get!(kwargs, :dKL_estimator, :RKHS_norm)
     kernel_cb! = get!(kwargs, :kernel_cb, nothing)
@@ -47,6 +48,7 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50,
         ϵ = isnothing(step_size_cb) ? step_size : step_size_cb(step_size, i)
         update!(Val(update_method), q, ϕ, ϵ, i, kernel, grad_logp, y=y; kwargs...)
         push_to_hist!(hist, q, ϵ, ϕ, i, kernel; kwargs...)
+        callback(;hist=hist, q=q, ϵ=ϵ, ϕ=ϕ, i=i, y=y, kernel=kernel, grad_logp=grad_logp, kwargs...)
     end
     return q, hist
 end
@@ -69,7 +71,7 @@ function update!(::Val{:naive_WNES}, q, ϕ, ϵ, iter, kernel, grad_logp; kwargs.
     @unpack c₁, c₂, y = kwargs
     ϕ .= calculate_phi_vectorized(kernel, y, grad_logp)
     q_new = y .+ ϵ*ϕ
-    y .= q_new .+ c₁(c₂ - 1) * (q_new .- q)
+    y .= q_new .+ c₁*(c₂ - 1) * (q_new .- q)
     q = q_new
 end
 
