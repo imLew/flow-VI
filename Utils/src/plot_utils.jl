@@ -69,9 +69,9 @@ function plot_2D_results!(plt, initial_dist::Distribution,
     return plt
 end
 
-function plot_2D_results(initial_dist::Distribution, 
-                         target_dist::Distribution, q)
-    plt = plot(legend=false)
+function plot_2D_results(initial_dist::Distribution, target_dist::Distribution, 
+                         q; kwargs...)
+    plt = plot(legend=false; kwargs...)
     plot_2D_results!(plt, initial_dist, target_dist, q)
     return plt
 end
@@ -82,8 +82,8 @@ function plot_2D_gaussians_results!(plt, data)
     plot_2D_results!(plt, initial_dist, target_dist, data[:svgd_results][1][end]); 
 end
 
-function plot_2D_gaussians_results(data)
-    plt = plot(legend=false)
+function plot_2D_gaussians_results(data; kwargs...)
+    plt = plot(legend=false; kwargs...)
     plot_2D_gaussians_results!(plt, data)
     return plt
 end
@@ -96,7 +96,8 @@ function plot_convergence(data; kwargs...)
     lw = get!(kwargs, :lw, 3)
     int_lims = get!(kwargs, :int_lims, (-Inf, Inf))
 
-    plt, int_plot, dist_plot, norm_plot = plot(), plot(), plot(legend=false), plot()
+    plt, int_plot, norm_plot = plot(), plot(), plot()
+    dist_plot = plot(legend=false) 
     plot_convergence!(int_plot, dist_plot, norm_plot, data; kwargs...)
     layout = @layout [ i ; n b ]
     plot(int_plot, norm_plot, dist_plot, layout=layout)
@@ -118,20 +119,12 @@ function plot_convergence!(int_plot, dist_plot, norm_plot, data; kwargs...)
                      markeralpha=0, label="", title="", 
                      xticks=0:data[:n_iter]÷4:data[:n_iter], color=colors[1],
                      xlabel="iterations", ylabel="||φ||");
-
-    # layout = @layout [ i ; n b ]
-    # final_plot = plot(int_plot, norm_plot, dist_plot, layout=layout, 
-    #                   legend=:bottomright, size=size);
-    # for (sp, tp) in zip(plt.subplots, final_plot.subplots)
-    #     merge_series!(sp, tp)
-    # end
 end
 
 function plot_integration(data; size=(375,375), legend=:bottomright, lw=3, 
                           ylims=(-Inf,Inf))
     plt = plot()
-    plot_integration!(plt, data; size=size, legend=legend, 
-                      lw=lw, ylims=ylims)
+    plot_integration!(plt, data; size=size, legend=legend, lw=lw, ylims=ylims)
 end
 
 export plot_integration!
