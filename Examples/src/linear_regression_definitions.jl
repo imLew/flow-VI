@@ -81,23 +81,6 @@ function grad_log_likelihood(D::RegressionData, model::RegressionModel)
     model.β * sum( ( D.t .- y(model).(D.x) ) .* model.ϕ.(D.x) )
 end
 
-function plot_results(plt, q, problem_params)
-    x = range(problem_params[:sample_range]..., length=100)
-    for w in eachcol(q)
-        model = RegressionModel(problem_params[:ϕ], w, problem_params[:true_β])
-        plot!(plt,x, y(model), alpha=0.3, color=:orange, legend=:none)
-    end
-    plot!(plt,x, 
-            y(RegressionModel(problem_params[:ϕ], 
-                              mean(q, dims=2), 
-                              problem_params[:true_β])), 
-        color=:red)
-    plot!(plt,x, 
-            y(RegressionModel(problem_params[:true_ϕ], 
-                              problem_params[:true_w], 
-                              problem_params[:true_β])), 
-        color=:green)
-    return plt
-end
+
 
 end  # module
