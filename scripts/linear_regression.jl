@@ -1,165 +1,122 @@
 using DrWatson
-using Plots
+
+if haskey(ENV, "JULIA_ENVIRONMENT")  # on the cluster
+    quickactivate(ENV["JULIA_ENVIRONMENT"], "SVGD")
+else  # local
+    @quickactivate
+end
+
 using BSON
-using Distributions
-using DataFrames
+# using Distributions
+# using DataFrames
 using LinearAlgebra
-using Optim
+using KernelFunctions
+using Plots
+# using Distributions
+using ValueHistories
+using ColorSchemes
+const colors = ColorSchemes.seaborn_colorblind
 
 using SVGD
 using Utils
-using Examples; const LR=Examples.LinearRegression
+using Examples
+const LinReg = Examples.LinearRegression
 
-global DIRNAME = "linear_regression"
+include("run_funcs.jl")
 
-function fit_linear_regression(problem_params, alg_params, D::LR.RegressionData)
-    function logp(w)
-        model = LR.RegressionModel(problem_params[:ϕ], w, problem_params[:true_β])
-        LR.log_likelihood(D, model) + logpdf(MvNormal(problem_params[:μ_prior], problem_params[:Σ_prior]), w)
-    end  
-    function grad_logp(w) 
-        model = LR.RegressionModel(problem_params[:ϕ], w, problem_params[:true_β])
-        (LR.grad_log_likelihood(D, model) 
-         .- inv(problem_params[:Σ_prior]) * (w-problem_params[:μ_prior])
-        )
+DIRNAME = "linear_regression"
+
+N_RUNS = 1
+
+problem_params = Dict(
+    :n_samples =>[ 20 ],
+    :sample_range =>[ [-3, 3] ],
+    :true_ϕ =>[ x -> [1, x, x^2] ],
+    :true_w =>[ [2, -1, 0.2] ],
+    :true_β =>[ 2 ],
+    :ϕ =>[ x -> [1, x, x^2] ],
+    :μ₀ =>[ zeros(3) ],
+    :Σ₀ =>[ 0.1I(3) ],
+    :MAP_start =>[ true ],
+)
+
+alg_params = Dict(
+    :n_iter => [ 500 ],
+    :kernel => [ TransformedKernel(SqExponentialKernel(), ScaleTransform(1.)) ],
+    :step_size => [ 0.001 ],
+    :n_particles => [ 50 ],
+    :update_method => [:forward_euler],
+    :α => @onlyif(:update_method == :naive_WAG, [3.1, 3.5, 5] ),
+    :c₁ => @onlyif(:update_method == :naive_WNES, [.1, .5,] ),
+    :c₂ => @onlyif(:update_method == :naive_WNES, [3., 1] ),
+    :kernel_cb => [ median_trick_cb! ],
+    # :callback => [plot_cb]
+)
+
+function plot_results(plt, q, problem_params)
+    x = range(problem_params[:sample_range]..., length=100)
+    for w in eachcol(q)
+        model = LinReg.RegressionModel(problem_params[:ϕ], w, problem_params[:true_β])
+        plot!(plt,x, LinReg.y(model), alpha=0.3, color=:orange, legend=:none)
     end
-    grad_logp!(g, w) = g .= grad_logp(w)
-
-    # use eithe prior as initial distribution of change initial mean to MAP
-    global μ_prior = if problem_params[:MAP_start]
-        Optim.maximizer(Optim.maximize(logp, grad_logp!, problem_params[:μ_prior], LBFGS()))
-        # posterior_mean(problem_params[:ϕ], problem_params[:true_β], D, 
-        #                problem_params[:μ_prior], problem_params[:Σ_prior])
-    else
-        problem_params[:μ_prior]
-    end
-
-    initial_dist = MvNormal(μ_prior, problem_params[:Σ_prior])
-    q = rand(initial_dist, alg_params[:n_particles])
-
-    q, hist = SVGD.svgd_fit(q, grad_logp; alg_params...)
-    return initial_dist, q, hist
-end
-# the other numerical_expectation function applies f to each element instead
-# of each col :/
-function num_expectation(d::Distribution, f; n_samples=10000)
-    sum( f, eachcol(rand(d, n_samples)) ) / n_samples
-end
-
-function run_linear_regression(problem_params, alg_params, n_runs)
-    svgd_results = []
-    estimation_rkhs = []
-    estimation_unbiased = []
-    estimation_stein_discrep = []
-
-    true_model = LR.RegressionModel(problem_params[:true_ϕ],
-                                 problem_params[:true_w], 
-                                 problem_params[:true_β])
-    # dataset with labels
-    D = LR.generate_samples(model=true_model, 
-                         n_samples=problem_params[:n_samples],
-                         sample_range=problem_params[:sample_range]
-                        )
-
-    for i in 1:n_runs
-        @info "Run $i/$(n_runs)"
-        initial_dist, q, hist = fit_linear_regression(problem_params, 
-                                                      alg_params, D)
-        H₀ = Distributions.entropy(initial_dist)
-        EV = ( num_expectation( 
-                    initial_dist, 
-                    w -> LR.log_likelihood(D, 
-                            LR.RegressionModel(problem_params[:ϕ], w, 
-                                            problem_params[:true_β])) 
-               )
-               + expectation_V(initial_dist, initial_dist) 
-               + 0.5 * log( det(2π * problem_params[:Σ_prior]) )
-              )
-        est_logZ_rkhs = estimate_logZ(H₀, EV,
-                        alg_params[:step_size] * sum( get(hist,:dKL_rkhs)[2] ) 
-                                 )
-        est_logZ_unbiased = estimate_logZ(H₀, EV,
-                    alg_params[:step_size] * sum( get(hist,:dKL_unbiased)[2] ) 
-                                 )
-        est_logZ_stein_discrep = estimate_logZ(H₀, EV,
-                alg_params[:step_size] * sum( get(hist,:dKL_stein_discrep)[2] ) 
-                                 )
-
-        push!(svgd_results, (hist, q))
-        push!(estimation_rkhs, est_logZ_rkhs) 
-        push!(estimation_unbiased, est_logZ_unbiased)
-        push!(estimation_stein_discrep,est_logZ_stein_discrep)
-        @info est_logZ_rkhs
-        @info est_logZ_unbiased
-        @info est_logZ_stein_discrep
-    end
-
-    true_logZ = LR.regression_logZ(problem_params[:Σ_prior], true_model.β, true_model.ϕ, D)
-    @info true_logZ
-
-    file_prefix = savename( merge(problem_params, alg_params, @dict n_runs) )
-
-    tagsave(datadir(DIRNAME, file_prefix * ".bson"),
-            merge(alg_params, problem_params, 
-                @dict n_runs, true_logZ, estimation_unbiased, 
-                        estimation_stein_discrep,
-                        estimation_rkhs, svgd_results),
-            safe=true, storepatch = false)
+    plot!(plt,x, 
+            LinReg.y(LinReg.RegressionModel(problem_params[:ϕ], 
+                              mean(q, dims=2), 
+                              problem_params[:true_β])), 
+        color=:red)
+    plot!(plt,x, 
+            LinReg.y(LinReg.RegressionModel(problem_params[:true_ϕ], 
+                              problem_params[:true_w], 
+                              problem_params[:true_β])), 
+        color=:green)
+    return plt
 end
 
-## Experiments - linear regression on 3 basis functions
+ap = dict_list(alg_params)[1]
+pp = dict_list(problem_params)[1]
+data = run_linear_regression(pp, ap, N_RUNS)
 
-# alg_params = Dict(
-#     :step_size => 0.0001,
-#     :n_iter => 1000,
-#     :n_particles => 20,
-#     :kernel_width => "median_trick",
-# )
+initial_dist = MvNormal(data[:μ₀], data[:Σ₀])
+H₀ = Distributions.entropy(initial_dist)
+EV = ( 
+      LinReg.true_gauss_expectation(initial_dist,  
+            LinReg.RegressionModel(data[:ϕ], mean(initial_dist), 
+                                   data[:true_β]),
+            data[:sample_data])
+       + expectation_V(initial_dist, initial_dist) 
+       + 0.5 * logdet(2π * data[:Σ₀])
+      )
+est_logZ_rkhs = estimate_logZ.(H₀, EV, KL_integral(data[:svgd_results][1][1]))
 
-# problem_params = Dict(
-#     :n_samples => 20,
-#     :sample_range => [-3, 3],
-#     :true_ϕ => x -> [x, x^2, x^4, x^5],
-#     :true_w => [2, -1, 0.2, 1],
-#     :true_β => 2,
-#     :ϕ => x -> [x, x^2, x^4, x^3],
-#     :μ_prior => zeros(4),
-#     :Σ_prior => 1.0I(4),
-#     :MAP_start => true,
-# )
+norm_plot = plot(data[:svgd_results][1][1][:ϕ_norm], title = "φ norm", yaxis = :log)
+int_plot = plot( estimate_logZ.(H₀, EV, KL_integral(data[:svgd_results][1][1])) ,title = "log Z", label = "",)
+hline!(int_plot, 
+       [LinReg.regression_logZ(data[:Σ₀], data[:true_β], data[:true_ϕ], data[:sample_data].x)],
+      legend=false)
 
-# n_runs = 1
+fit_plot = plot_results(plot(size=(300,250)), data[:svgd_results][1][2], data)
+plot(fit_plot, norm_plot, int_plot, layout=@layout [f; n i])
 
-# run_linear_regression(problem_params, alg_params, n_runs)
-
-# # run it once to get a value for log Z
-# true_model = RegressionModel(problem_params[:true_ϕ], problem_params[:true_w], 
-#                                  problem_params[:true_β])
-#     # dataset with labels
-# D = generate_samples(model=true_model, 
-#                      n_samples=problem_params[:n_samples],
-#                      sample_range=problem_params[:sample_range]
-#                     )
-
-# initial_dist, q, hist = fit_linear_regression(problem_params, alg_params, D)
-# H₀ = Distributions.entropy(initial_dist)
-# EV = ( num_expectation( 
-#                     initial_dist, 
-#                     w -> log_likelihood(D, 
-#                             RegressionModel(problem_params[:ϕ], w, 
-#                                             problem_params[:true_β])) 
-#                )
-#                + SVGD.expectation_V(initial_dist, initial_dist) 
-#                + 0.5 * log( det(2π * problem_params[:Σ_prior]) )
-#               )
-# est_logZ = SVGD.estimate_logZ(H₀, EV,
-#                             alg_params[:step_size] * sum( get(hist,:dKL_rkhs)[2] ) 
-#                                  )
-
-# norm_plot = plot(hist[:ϕ_norm], title = "φ norm", yaxis = :log)
-# int_plot = plot(
-#     SVGD.estimate_logZ.([H₀], [EV], alg_params[:step_size] * cumsum( get(hist, :dKL_rkhs)[2]))
-#     ,title = "log Z", label = "",
-# )
-# fit_plot = plot_results(plot(size=(300,250)), q, problem_params)
-# plot(fit_plot, norm_plot, int_plot, layout=@layout [f; n i])
+# runs = []
+# recent_runs = []
+# n_sets = dict_list_count(alg_params)*dict_list_count(problem_params)
+# for (i, ap) ∈ enumerate(dict_list(alg_params))
+#     for (j, pp) ∈ enumerate(dict_list(problem_params))
+#         # @show ap[:update_method]
+#         # if haskey(ap, :c₁) 
+#         #     @show (ap[:c₁], ap[:c₂]) 
+#         # end
+#         # if haskey(ap, :α) 
+#         #     @show ap[:α] 
+#         # end
+#         println("$(((i-1)*dict_list_count(problem_params)) + j) out of $n_sets")
+#         # name = run_gauss_to_gauss(problem_params=pp, alg_params=ap, 
+#         #                           n_runs=N_RUNS, DIRNAME=DIRNAME)
+#         push!(recent_runs, name)
+#         display(plot_convergence(name))
+#     end
+#     if readline() == "q"
+#         break
+#     end
+# end
+# push!(runs, recent_runs)
