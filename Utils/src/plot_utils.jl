@@ -127,7 +127,6 @@ function plot_integration(data; size=(375,375), legend=:bottomright, lw=3,
     plot_integration!(plt, data; size=size, legend=legend, lw=lw, ylims=ylims)
 end
 
-export plot_integration!
 function plot_integration!(plt::Plots.Plot, data; size=(375,375),
                            legend=:bottomright, lw=3, ylims=(-Inf,Inf))
     dKL_hist = data[:svgd_results][1][1]

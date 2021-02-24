@@ -6,6 +6,7 @@ export expectation_V
 export estimate_logZ
 export logZ
 export numerical_expectation
+export num_expectation
 export pdf_potential
 
 function expectation_V(initial_dist::Distribution, target_dist::Distribution) 
@@ -30,6 +31,12 @@ end
 
 function numerical_expectation(d::Distribution, f; n_samples=10000)
     sum( f, rand(d, n_samples) ) / n_samples
+end
+
+# the other numerical_expectation function applies f to each element instead
+# of each col :/
+function num_expectation(d::Distribution, f; n_samples=10000)
+    sum( f, eachcol(rand(d, n_samples)) ) / n_samples
 end
 
 function logZ(d::Distribution)
