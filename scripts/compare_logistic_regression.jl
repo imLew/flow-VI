@@ -35,7 +35,7 @@ nSteps = 30
 n_dim = 3
 prior = TuringDiagMvNormal(zeros(n_dim), ones(n_dim))
 logprior(θ) = logpdf(prior, θ)
-loglikelihood(θ) = LR.logistic_log_likelihood(D, θ)
+loglikelihood(θ) = LR.log_likelihood(D, θ)
 θ_init = rand(n_dim)
 
 alg = ThermoIntegration(nSamples = nSamples, nSteps=nSteps)
@@ -57,7 +57,7 @@ initial_dist, q, hist = fit_logistic_regression(problem_params, alg_params, D)
 
 H₀ = Distributions.entropy(initial_dist)
 EV = ( SVGD.numerical_expectation( initial_dist, 
-    w -> LR.logistic_log_likelihood(D,w) )
+    w -> LR.log_likelihood(D,w) )
     + SVGD.expectation_V(initial_dist, initial_dist) 
     + 0.5 * logdet(2π * problem_params[:Σ_initial])
 ) 
