@@ -157,13 +157,13 @@ function plot_classes(sample_data)
 end
 
 function plot_classes!(plt, sample_data)
-    scatter!(plt, sample_data[:,2], sample_data[:,3], legend=false, label="", 
-            colorbar=false, msw=0.0, alpha=0.5, zcolor=sample_data[:,1]);
+    scatter!(plt, sample_data.x[:,1], sample_data.x[:,2], legend=false, label="", 
+            colorbar=false, msw=0.0, alpha=0.5, zcolor=sample_data.t);
 end
 
 function plot_prediction!(plt, data)
-    xs = range(minimum(data[:sample_data][:,2]), maximum(data[:sample_data][:,2]), length=100)
-    ys = range(minimum(data[:sample_data][:,3]), maximum(data[:sample_data][:,3]), length=100)
+    xs = range(minimum(data[:sample_data].x[:,1]), maximum(data[:sample_data].x[:,1]), length=100)
+    ys = range(minimum(data[:sample_data].x[:,2]), maximum(data[:sample_data].x[:,2]), length=100)
     grid = [[1, x, y] for x in xs, y in ys]
 
     σ(a) = 1 / (1 + exp(-a))
