@@ -16,7 +16,19 @@ module Structs
     end
 end  # Structs
 Data = Structs.Data
-y(D::Data, w) = σ.(D.z*w)
+Base.getindex(d::Data, i::Int) = Data(d.t[i], d.x[i,:]')
+Base.display(d::Data) = display([d.t d.x])
+Base.length(d::Data) = length(d.t)
+# Base.iterate(d::Data) = (d[1], 1)
+# function Base.iterate(d::Data, state)
+#     if state < length(d)
+#         (d[state+1], state+1)
+#     else
+#         return nothing
+#     end
+# end
+y(w) = z -> σ.(z*w)
+y(D::Data, w) = y(w)(D.z)
 
 log_likelihood(D::Data, w) = sum( D.t .* log.(y(D, w)) + (1 .- D.t) .* log.(1 .- y(D,w)) )
 
