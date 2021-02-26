@@ -19,27 +19,30 @@ alg_params = Dict(
     :kernel => [ TransformedKernel(SqExponentialKernel(), ScaleTransform(1.)) ],
     :kernel_cb => [ median_trick_cb! ],
     :step_size => [ 0.001 ],
-    :n_iter => [ 5000 ],
+    :n_iter => [ 1000 ],
     :n_particles => [ 20 ],
+    :n_runs => 1,
     )
 
 problem_params = Dict(
+    :problem_type => [ :bayesian_logistic_regression ],
+    :MAP_start => [ false ],
+    :MLE_start => [ false ],
+    :Laplace_start => [ true ],
     :n_dim => [ 2 ],
-    :n₀ => [ 100 ],
-    :n₁ => [ 100 ],
+    :n₀ => [ 50 ],
+    :n₁ => [ 50 ],
     :μ₀ => [ [0., 0] ],
-    :μ₁ => [ [0., 5] ],
-    :Σ₀ => [ [.5 0.1; 0.1 0.2] ],
+    :μ₁ => [ [4., 3] ],
+    :Σ₀ => [ [0.5 0.1; 0.1 0.2] ],
     :Σ₁ => [ [.5 0.1; 0.1 .2] ],
     :μ_initial => [ [1., 1, 1] ],
-    :Σ_initial => [ [1. 0 0; 0 1 0; 0 0 1.] ],
+    :Σ_initial => [ I(3) ],
     )
-
-N_RUNS = 1
 
 ap = dict_list(alg_params)[1]
 pp = dict_list(problem_params)[1]
-data = run_log_regression(pp, ap, N_RUNS)
+data = run_log_regression(pp, ap)
 
 plt = plot_classes(data[:sample_data])
 plot_prediction!(plt,data)
@@ -47,7 +50,7 @@ plot_prediction!(plt,data)
 initial_dist = MvNormal(data[:μ₀], data[:Σ₀])
 H₀ = Distributions.entropy(initial_dist)
 EV = ( numerical_expectation( initial_dist, 
-            w -> LogReg.logistic_log_likelihood(data[:sample_data],w) )
+            w -> LogReg.log_likelihood(data[:sample_data],w) )
        + expectation_V(initial_dist, initial_dist) 
        + 0.5 * logdet(2π * data[:Σ_initial])
 ) 
