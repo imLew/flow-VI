@@ -34,7 +34,7 @@ const LogReg = Examples.LogisticRegression
 #     end
 # end
 
-function run_gauss_to_gauss(;problem_params, alg_params, n_runs, DIRNAME)
+function run_gauss_to_gauss(;problem_params, alg_params, DIRNAME)
     svgd_results = []
     svgd_hist = []
     estimation_rkhs = []
@@ -42,8 +42,8 @@ function run_gauss_to_gauss(;problem_params, alg_params, n_runs, DIRNAME)
     initial_dist = MvNormal(problem_params[:μ₀], problem_params[:Σ₀])
     target_dist = MvNormal(problem_params[:μₚ], problem_params[:Σₚ])
 
-    for i in 1:n_runs
-        @info "Run $i/$(n_runs)"
+    for i in 1:alg_params[:n_runs]
+        @info "Run $i/$(alg_params[:n_runs])"
         q, hist = SVGD.svgd_sample_from_known_distribution( initial_dist,
                             target_dist; alg_params=alg_params )
 
@@ -59,11 +59,11 @@ function run_gauss_to_gauss(;problem_params, alg_params, n_runs, DIRNAME)
 
     true_logZ = logZ(target_dist)
 
-    file_prefix = savename( merge(problem_params, alg_params, @dict n_runs) )
+    file_prefix = savename( merge(problem_params, alg_params) )
 
     tagsave(datadir(DIRNAME, file_prefix * ".bson"),
                 merge(alg_params, problem_params, 
-                      @dict(n_runs, true_logZ, estimation_rkhs, svgd_results,
+                      @dict(true_logZ, estimation_rkhs, svgd_results,
                            svgd_hist)),
                 safe=true, storepatch=true)
 end
@@ -98,7 +98,7 @@ function fit_linear_regression(problem_params, alg_params, D::LinReg.RegressionD
     return initial_dist, q, hist
 end
 
-function run_linear_regression(problem_params, alg_params, n_runs)
+function run_linear_regression(problem_params, alg_params)
     svgd_results = []
     svgd_hist = []
     estimation_rkhs = []
@@ -112,8 +112,8 @@ function run_linear_regression(problem_params, alg_params, n_runs)
                          sample_range=problem_params[:sample_range]
                         )
 
-    for i in 1:n_runs
-        @info "Run $i/$(n_runs)"
+    for i in 1:alg_params[:n_runs]
+        @info "Run $i/$(alg_params[:n_runs])"
         initial_dist, q, hist = fit_linear_regression(problem_params, 
                                                       alg_params, sample_data)
         H₀ = Distributions.entropy(initial_dist)
@@ -136,64 +136,115 @@ function run_linear_regression(problem_params, alg_params, n_runs)
     true_logZ = LinReg.regression_logZ(problem_params[:Σ₀], true_model.β,
                                        true_model.ϕ, sample_data.x)
 
-    file_prefix = savename( merge(problem_params, alg_params, @dict n_runs) )
+    file_prefix = savename( merge(problem_params, alg_params) )
 
     tagsave(datadir(DIRNAME, file_prefix * ".bson"),
             merge(alg_params, problem_params, 
-                @dict(n_runs, true_logZ, estimation_rkhs, svgd_results, 
+                @dict(true_logZ, estimation_rkhs, svgd_results, 
                       svgd_hist, sample_data)),
             safe=true, storepatch = false)
 end
 
 function fit_logistic_regression(problem_params, alg_params, D) 
-    if problem_params[:n_dim] == 1
-        initial_dist = Normal(problem_params[:μ_initial],
-                              problem_params[:Σ_initial])
-    else
-        initial_dist = MvNormal(problem_params[:μ_initial],
-                                problem_params[:Σ_initial])
+    function logp(w)
+        ( LogReg.log_likelihood(D, w) 
+            + logpdf(MvNormal(problem_params[:μ₀], problem_params[:Σ₀]), w)
+        )
+    end  
+
+    function grad_logp(w) 
+        ( LogReg.grad_log_likelihood(D, w)
+         .- inv(problem_params[:Σ₀]) * (w-problem_params[:μ₀])
+        )
     end
+    grad_logp!(g, w) = g .= grad_logp(w)
+    @info test
+
+    # use eithe prior as initial distribution of change initial mean to MAP
+    if problem_params[:MAP_start] || problem_params[:Laplace_start]
+        problem_params[:μ_initial] = Optim.maximizer(
+                                Optim.maximize(logp, grad_logp!, 
+                                               problem_params[:μ₀], LBFGS())
+                               )
+        @info "MAP estimate is " problem_params[:μ_initial]
+        # posterior_mean(problem_params[:ϕ], problem_params[:true_β], D, 
+        #                problem_params[:μ₀], problem_params[:Σ₀])
+    end
+    if problem_params[:Laplace_start]
+        y = LogReg.y(D, problem_params[:μ_initial][1])
+        problem_params[:Σ_initial] = ( inv(problem_params[:Σ_initial]) 
+                                      + D.z' * ( y.*(1 .- y) .* D.z )
+                                      )
+        @info "Using Laplace approximation with " problem_params[:Σ_initial]
+    end
+
+    initial_dist = MvNormal(problem_params[:μ_initial], problem_params[:Σ_initial])
+
     q = rand(initial_dist, alg_params[:n_particles])
-    grad_logp(w) = vec( - inv(problem_params[:Σ_initial])
-                     * ( w-problem_params[:μ_initial] ) 
-                     + LogReg.logistic_grad_logp(D, w)
-                    )
+    # grad_logp(w) = vec( - inv(problem_params[:Σ_initial])
+    #                  * ( w-problem_params[:μ_initial] ) 
+    #                  + LogReg.grad_log_likelihood(D, w)
+    #                 )
 
     q, hist = svgd_fit(q, grad_logp; alg_params...)
     return initial_dist, q, hist
 end
 
-function run_log_regression(problem_params, alg_params, n_runs)
+function run_log_regression(problem_params, alg_params)
     LinReg = Examples.LogisticRegression
     svgd_hist = []
     svgd_results = []
     estimation_rkhs = []
 
     # dataset with labels
-    sample_data = LogReg.generate_2class_samples_from_gaussian(n₀=problem_params[:n₀],
+    D = sample_data = LogReg.generate_2class_samples_from_gaussian(n₀=problem_params[:n₀],
                                                   n₁=problem_params[:n₁],
                                                   μ₀=problem_params[:μ₀],
                                                   μ₁=problem_params[:μ₁], 
                                                   Σ₀=problem_params[:Σ₀],
                                                   Σ₁=problem_params[:Σ₁],
-                                                  n_dim=problem_params[:n_dim], 
                                                  )
 
-    initial_dist = MvNormal(problem_params[:μ_initial], 
-                            problem_params[:Σ_initial])
+    function logp(w)
+        ( LogReg.log_likelihood(D, w) 
+            + logpdf(MvNormal(problem_params[:μ_initial], problem_params[:Σ_initial]), w)
+        )
+    end  
 
-    grad_logp(w) = vec( - inv(problem_params[:Σ_initial])
-                        * ( w-problem_params[:μ_initial] ) 
-                        + LogReg.logistic_grad_logp(sample_data, w)
-                      )
+    function grad_logp(w) 
+        vec( LogReg.grad_log_likelihood(D, w)
+         .- inv(problem_params[:Σ_initial]) * (w-problem_params[:μ_initial])
+        )
+    end
+    grad_logp!(g, w) = g .= grad_logp(w)
 
-    for i in 1:n_runs
-        @info "Run $i/$(n_runs)"
+    # use eithe prior as initial distribution of change initial mean to MAP
+    if problem_params[:MAP_start] || problem_params[:Laplace_start]
+        problem_params[:μ_initial] = Optim.maximizer(
+                                Optim.maximize(logp, grad_logp!, 
+                                               problem_params[:μ_initial], LBFGS())
+                               )
+        @info "MAP estimate is " problem_params[:μ_initial]
+        # posterior_mean(problem_params[:ϕ], problem_params[:true_β], D, 
+        #                problem_params[:μ₀], problem_params[:Σ₀])
+    end
+    if problem_params[:Laplace_start]
+        y = LogReg.y(D, problem_params[:μ_initial])
+        problem_params[:Σ_initial] = inv( get_pdmat( inv(problem_params[:Σ_initial]) 
+                                           .+ D.z' * ( y.*(1 .- y) .* D.z )
+                                          ) )
+        @info "Using Laplace approximation with " problem_params[:Σ_initial]
+    end
+
+    initial_dist = MvNormal(problem_params[:μ_initial], problem_params[:Σ_initial])
+
+    for i in 1:alg_params[:n_runs]
+        @info "Run $i/$(alg_params[:n_runs])"
         q = rand(initial_dist, alg_params[:n_particles])
         q, hist = svgd_fit(q, grad_logp; alg_params...)
         H₀ = Distributions.entropy(initial_dist)
         EV = ( num_expectation( initial_dist, 
-                                      w -> LogReg.logistic_log_likelihood(sample_data,w) )
+                                      w -> LogReg.log_likelihood(sample_data,w) )
                + expectation_V(initial_dist, initial_dist) 
                + 0.5 * log( det(2π * problem_params[:Σ_initial]) )
               )
@@ -205,11 +256,11 @@ function run_log_regression(problem_params, alg_params, n_runs)
         push!(estimation_rkhs, est_logZ_rkhs) 
     end
 
-    file_prefix = savename( merge(problem_params, alg_params, @dict n_runs) )
+    file_prefix = savename( merge(problem_params, alg_params) )
 
     tagsave(datadir(DIRNAME, file_prefix * ".bson"),
             merge(alg_params, problem_params, 
-                @dict(n_runs, estimation_rkhs, svgd_results, svgd_hist,
+                @dict(estimation_rkhs, svgd_results, svgd_hist,
                       sample_data)),
             safe=true, storepatch = false)
 end
