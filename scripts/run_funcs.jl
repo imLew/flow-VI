@@ -8,6 +8,32 @@ using Examples
 const LinReg = Examples.LinearRegression
 const LogReg = Examples.LogisticRegression
 
+# function run(problem_params, alg_params, n_runs, DIRNAME)
+#     if problem_params[:problem_type] == :bayesian_logistic_regression
+#         if get(problem_params, :MAP_start, false) == true
+#             function logp(w)
+#                 model = LinReg.RegressionModel(problem_params[:ϕ], w, problem_params[:true_β])
+#                 LinReg.log_likelihood(D, model) + logpdf(MvNormal(problem_params[:μ₀], problem_params[:Σ₀]), w)
+#             end  
+#             function grad_logp(w) 
+#                 model = LinReg.RegressionModel(problem_params[:ϕ], w, problem_params[:true_β])
+#                 (LinReg.grad_log_likelihood(D, model) 
+#                  .- inv(problem_params[:Σ₀]) * (w-problem_params[:μ₀])
+#                 )
+#             end
+#             grad_logp!(g, w) = g .= grad_logp(w)
+
+#             problem_params[:μ₀] = Optim.maximizer(Optim.maximize(logp, 
+#                                                                  grad_logp!, 
+#                                                                  problem_params[:μ₀], 
+#                                                                  LBFGS())
+#                                                  )
+#         end
+#     elseif problem_params[:problem_type] == :gauss_to_gauss
+#     elseif problem_params[:problem_type] == :bayesian_linear_regression
+#     end
+# end
+
 function run_gauss_to_gauss(;problem_params, alg_params, n_runs, DIRNAME)
     svgd_results = []
     svgd_hist = []
