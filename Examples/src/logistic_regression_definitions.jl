@@ -18,21 +18,16 @@ end  # Structs
 Data = Structs.Data
 y(D::Data, w) = σ.(D.z*w)
 
-function log_likelihood(D, w)
-    t = D[:,1]
-    x = D[:,2:end]
-    z = [ones(size(x)[1]) x]
-    sum( σ.(z*w) )
-end
+log_likelihood(D::Data, w) = sum( D.t .* log.(y(D, w)) + (1 .- D.t) .* log.(1 .- y(D,w)) )
 
-grad_logp(D, w) = sum((D.t .- y(D,w)).*D.z, dims=1)'
+grad_log_likelihood(D::Data, w) = sum((D.t .- y(D,w)).*D.z, dims=1)'
 
-function generate_2class_samples_from_gaussian(;n₀, n₁, μ₀=0, μ₁=1, Σ₀=1, Σ₁=1, n_dim=1)
+function generate_2class_samples_from_gaussian(;n₀=5, n₁=5, μ₀=[0], μ₁=[1], Σ₀=[1], Σ₁=[1])
     generate_2class_samples(n₀, n₁, MvNormal(μ₁, Σ₁), MvNormal(μ₀, Σ₀))
 end
 
-function generate_2class_samples(n₀, n₁, dist_0, dist_1)
-    return Data([ones(Int(n₁)); zeros(Int(n₀))], [rand(dist_1, n₁)'; rand(dist_0, n₀)'])
+function generate_2class_samples(n₀, n₁, dist₀, dist₁)
+    return Data([ones(Int(n₁)); zeros(Int(n₀))], [rand(dist₁, n₁)'; rand(dist₀, n₀)'])
 end
 
-end # logistic regression module
+end # logistic regressionmodule
