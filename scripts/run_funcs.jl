@@ -82,12 +82,13 @@ function fit_linear_regression(problem_params, alg_params, D::LinReg.RegressionD
     grad_logp!(g, w) = g .= grad_logp(w)
 
     # use eithe prior as initial distribution of change initial mean to MAP
-    problem_params[:μ₀] = if problem_params[:MAP_start]
-        Optim.maximizer(Optim.maximize(logp, grad_logp!, problem_params[:μ₀], LBFGS()))
+    if problem_params[:MAP_start]
+        problem_params[:μ₀] = Optim.maximizer(
+                                Optim.maximize(logp, grad_logp!, 
+                                               problem_params[:μ₀], LBFGS())
+                               )
         # posterior_mean(problem_params[:ϕ], problem_params[:true_β], D, 
         #                problem_params[:μ₀], problem_params[:Σ₀])
-    else
-        problem_params[:μ₀]
     end
 
     initial_dist = MvNormal(problem_params[:μ₀], problem_params[:Σ₀])
