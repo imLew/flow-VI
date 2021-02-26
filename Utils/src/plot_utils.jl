@@ -174,7 +174,9 @@ function plot_prediction!(plt, data)
     heatmap!(plt, xs, ys, avg_prediction, alpha=0.5)
 
     for w in eachcol(q)
-        plot!(plt, x -> -(w[2]*x+w[1])/w[3], xs, legend=false, color=colors[1], alpha=0.3)
+        plot!(plt, x -> -(w[2]*x+w[1])/w[3], xs, legend=false, color=colors[1], 
+              alpha=0.3, ylims=(minimum(ys), maximum(ys))
+             )
     end
     display(plt)
 end
