@@ -147,41 +147,53 @@ function merge_series!(sp1::Plots.Subplot, sp2::Plots.Subplot)
     Plots.expand_extrema!(sp1[:yaxis], ylims(sp2))
 end
 
-# function plot_known_dists(initial_dist, target_dist, alg_params, 
-#                       H₀, logZ, EV, dKL, q)
-#     # caption="""n_particles=$n_particles; n_iter=$n_iter; 
-#     #         norm_method=$norm_method; kernel_width=$kernel_width; 
-#     #         step_size=$step_size"""
-#     caption = ""
-#     caption_plot = plot(grid=false,annotation=(0.5,0.5,caption),
-#                       ticks=([]),fgborder=:white, subplot=1, framestyle=:none);
-#     # title = """$(typeof(initial_dist)) $(Distributions.params(initial_dist)) 
-#     #          target $(typeof(target_dist)) 
-#     #          $(Distributions.params(target_dist))"""
-#     title = ""
-#     title_plot = plot(grid=false,annotation=(0.5,0.5,title),
-#                       ticks=([]),fgborder=:white,subplot=1, framestyle=:none);
-#     int_plot, norm_plot = plot_integration(H₀, logZ, EV, dKL, 
-#                                            alg_params[:step_size])
+export plot_classes
+export plot_classes!
 
-#     dim = size(q)[1]
-#     if dim > 3 
-#         layout = @layout [t{0.1h} ; d{0.3w} i ; c{0.1h}]
-#         display(plot(title_plot, norm_plot, int_plot, 
-#                       caption_plot, layout=layout, size=(1400,800), 
-#                       legend=:topleft));
-#     else
-#         if dim == 1
-#             dist_plot = plot_1D(initial_dist, target_dist, q)
-#         elseif dim == 2
-#             dist_plot = plot_2D(initial_dist, target_dist, q)
-#         # elseif dim == 3
-#         #     dist_plot = plot_3D(initial_dist, target_dist, q)
-#         end
-#     layout = @layout [t{0.1h} ; i ; a b; c{0.1h}]
-#     plot(title_plot, int_plot, norm_plot, dist_plot, 
-#          caption_plot, layout=layout, size=(1400,800), 
-#          legend=:topleft);
-#     end
-# end
+function plot_classes(sample_data)
+    plt = plot()
+    plot_classes!(plt, sample_data)
+    return plt
+end
+
+function plot_classes!(plt, sample_data)
+    scatter!(plt, sample_data[:,2], sample_data[:,3], legend=false, label="", 
+            colorbar=false, msw=0.0, alpha=0.5, zcolor=sample_data[:,1]);
+end
+
+function plot_prediction!(plt, data)
+    xs = range(minimum(data[:sample_data][:,2]), maximum(data[:sample_data][:,2]), length=100)
+    ys = range(minimum(data[:sample_data][:,3]), maximum(data[:sample_data][:,3]), length=100)
+    grid = [[1, x, y] for x in xs, y in ys]
+
+    σ(a) = 1 / (1 + exp(-a))
+    q = hcat(data[:svgd_results]...)
+    predictions = [σ(point'*w) for point in grid, w in eachcol(q)]
+    avg_prediction = transpose(dropdims(mean(predictions, dims=3),dims=3))
+    # for now leave the transpose as it seems to give the correct result    
+    heatmap!(plt, xs, ys, avg_prediction, alpha=0.5)
+
+    for w in eachcol(q)
+        plot!(plt, x -> -(w[2]*x+w[1])/w[3], xs, legend=false, color=colors[1], alpha=0.3)
+    end
+    display(plt)
+end
+
+function color_point_by_prediction!(plt, data)
+    xs = range(minimum(data[:sample_data][:,2]), maximum(data[:sample_data][:,2]), length=100)
+    ys = range(minimum(data[:sample_data][:,3]), maximum(data[:sample_data][:,3]), length=100)
+    grid = [[1, x, y] for x in xs, y in ys]
+
+    σ(a) = 1 / (1 + exp(-a))
+    q = hcat(data[:svgd_results]...)
+    # predictions = [σ(point'*w) for point in grid, w in eachcol(q)]
+    predictions = [σ(point'*w) for point in eachrow([ones(200) data[:sample_data][:,2:end]]), w in eachcol(q)]
+    avg_prediction = mean(predictions, dims=3)
+    
+    scatter!(plt, data[:sample_data][:,2], data[:sample_data][:,3], zcolor=avg_prediction)
+    # heatmap!(plt, xs, ys, dropdims(avg_prediction,dims=3), alpha=0.5)
+end
+
+export plot_prediction!
+export color_point_by_prediction!
 
