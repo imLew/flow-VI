@@ -16,7 +16,7 @@ const LogReg = Examples.LogisticRegression
 #                 LinReg.log_likelihood(D, model) + logpdf(MvNormal(problem_params[:μ₀], problem_params[:Σ₀]), w)
 #             end  
 #             function grad_logp(w) 
-#                 model = LinReg.RegressionModel(problem_params[:ϕ], w, problem_params[:true_β])
+#                 model = LinReg.RegressionModel(problem_params[:ϕ], w, problem_params[:true_β)]
 #                 (LinReg.grad_log_likelihood(D, model) 
 #                  .- inv(problem_params[:Σ₀]) * (w-problem_params[:μ₀])
 #                 )
@@ -210,7 +210,6 @@ function run_log_regression(problem_params, alg_params)
             + logpdf(MvNormal(problem_params[:μ_initial], problem_params[:Σ_initial]), w)
         )
     end  
-
     function grad_logp(w) 
         vec( LogReg.grad_log_likelihood(D, w)
          .- inv(problem_params[:Σ_initial]) * (w-problem_params[:μ_initial])
@@ -218,15 +217,12 @@ function run_log_regression(problem_params, alg_params)
     end
     grad_logp!(g, w) = g .= grad_logp(w)
 
-    # use eithe prior as initial distribution of change initial mean to MAP
     if problem_params[:MAP_start] || problem_params[:Laplace_start]
         problem_params[:μ_initial] = Optim.maximizer(
                                 Optim.maximize(logp, grad_logp!, 
                                                problem_params[:μ_initial], LBFGS())
                                )
         @info "MAP estimate is " problem_params[:μ_initial]
-        # posterior_mean(problem_params[:ϕ], problem_params[:true_β], D, 
-        #                problem_params[:μ₀], problem_params[:Σ₀])
     end
     if problem_params[:Laplace_start]
         y = LogReg.y(D, problem_params[:μ_initial])
@@ -236,24 +232,30 @@ function run_log_regression(problem_params, alg_params)
         @info "Using Laplace approximation with " problem_params[:Σ_initial]
     end
 
-    initial_dist = MvNormal(problem_params[:μ_initial], problem_params[:Σ_initial])
+    therm_logZ = if haskey(problem_params, :therm_params)
+        therm_integration(problem_params, D; problem_params[:therm_params]...)
+    else
+        nothing
+    end
 
+    initial_dist = MvNormal(problem_params[:μ_initial], problem_params[:Σ_initial])
+    H₀ = Distributions.entropy(initial_dist)
+    EV = ( num_expectation( initial_dist, 
+                                  w -> LogReg.log_likelihood(sample_data,w) )
+           + expectation_V(initial_dist, initial_dist) 
+           + 0.5 * log( det(2π * problem_params[:Σ_initial]) )
+          )
+    isnothing(therm_logZ) ? nothing : @show therm_logZ
     for i in 1:alg_params[:n_runs]
         @info "Run $i/$(alg_params[:n_runs])"
         q = rand(initial_dist, alg_params[:n_particles])
         q, hist = svgd_fit(q, grad_logp; alg_params...)
-        H₀ = Distributions.entropy(initial_dist)
-        EV = ( num_expectation( initial_dist, 
-                                      w -> LogReg.log_likelihood(sample_data,w) )
-               + expectation_V(initial_dist, initial_dist) 
-               + 0.5 * log( det(2π * problem_params[:Σ_initial]) )
-              )
-
-        est_logZ_rkhs = estimate_logZ(H₀, EV, KL_integral(hist)[end])
 
         push!(svgd_results, q)
         push!(svgd_hist, hist)
-        push!(estimation_rkhs, est_logZ_rkhs) 
+        est_logZ = estimate_logZ(H₀, EV, KL_integral(hist)[end])
+        push!(estimation_rkhs, est_logZ) 
+        @show est_logZ
     end
 
     file_prefix = savename( merge(problem_params, alg_params) )
@@ -261,6 +263,19 @@ function run_log_regression(problem_params, alg_params)
     tagsave(datadir(DIRNAME, file_prefix * ".bson"),
             merge(alg_params, problem_params, 
                 @dict(estimation_rkhs, svgd_results, svgd_hist,
-                      sample_data)),
+                      sample_data, therm_logZ)),
             safe=true, storepatch = false)
+end
+
+function therm_integration(problem_params, D; nSamples=3000, nSteps=30)
+    n_dim = problem_params[:n_dim] + 1
+    # prior = TuringDiagMvNormal(zeros(n_dim), ones(n_dim))
+    prior = MvNormal(zeros(n_dim), ones(n_dim))
+    logprior(θ) = logpdf(prior, θ)
+    loglikelihood(θ) = LogReg.log_likelihood(D, θ)
+    θ_init = randn(n_dim)
+
+    alg = ThermoIntegration(nSamples = nSamples, nSteps=nSteps)
+    samplepower_posterior(x->loglikelihood(x) + logprior(x), n_dim, alg.nSamples)
+    alg(logprior, loglikelihood, n_dim)  # log Z estimate
 end
