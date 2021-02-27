@@ -79,7 +79,9 @@ end
 function plot_2D_gaussians_results!(plt, data)
     initial_dist = MvNormal(data[:μ₀], data[:Σ₀])
     target_dist = MvNormal(data[:μₚ], data[:Σₚ])
-    plot_2D_results!(plt, initial_dist, target_dist, data[:svgd_results][1][end]); 
+    for q in data[:svgd_results]
+        plot_2D_results!(plt, initial_dist, target_dist, q); 
+    end
 end
 
 function plot_2D_gaussians_results(data; kwargs...)
@@ -111,14 +113,16 @@ function plot_convergence!(int_plot, dist_plot, norm_plot, data; kwargs...)
     lw = get!(kwargs, :lw, 3)
     int_lims = get!(kwargs, :int_lims, (-Inf, Inf))
 
-    plot_integration!(int_plot, data)
+    plot_integration!(int_plot, data, ylims=int_lims)
 
     plot_2D_gaussians_results!(dist_plot, data)
     
-    plot!(norm_plot, data[:svgd_results][1][1][:ϕ_norm],ylims=(0,Inf),
-                     markeralpha=0, label="", title="", 
-                     xticks=0:data[:n_iter]÷4:data[:n_iter], color=colors[1],
-                     xlabel="iterations", ylabel="||φ||");
+    for hist in data[:svgd_hist]
+        plot!(norm_plot, hist[:ϕ_norm],ylims=ylims,
+                         markeralpha=0, label="", title="", 
+                         xticks=0:data[:n_iter]÷4:data[:n_iter], color=colors[1],
+                         xlabel="iterations", ylabel="||φ||");
+    end
 end
 
 function plot_integration(data; size=(375,375), legend=:bottomright, lw=3, 
@@ -129,15 +133,18 @@ end
 
 function plot_integration!(plt::Plots.Plot, data; size=(375,375),
                            legend=:bottomright, lw=3, ylims=(-Inf,Inf))
-    dKL_hist = data[:svgd_results][1][1]
+    # dKL_hist = data[:svgd_results][1]
     initial_dist = MvNormal(data[:μ₀], data[:Σ₀])
     target_dist = MvNormal(data[:μₚ], data[:Σₚ])
     H₀ = Distributions.entropy(initial_dist)
     EV = expectation_V( initial_dist, target_dist )
     true_logZ = logZ(target_dist)
-    plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw, ylims=ylims);
-    est_logZ = estimate_logZ.([H₀], [EV], data[:step_size]*cumsum(get(dKL_hist, :RKHS_norm)[2]))
-    plot!(plt, est_logZ, label="", color=colors[1]);
+    for dKL_hist in data[:svgd_hist]  #dKL_hist in [h[:RKHS_norm] for h in data[:svgd_hist]]
+        plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw, ylims=ylims);
+        est_logZ = estimate_logZ.([H₀], [EV], 
+                                  data[:step_size]*cumsum(get(dKL_hist, :RKHS_norm)[2]))
+        plot!(plt, est_logZ, label="", color=colors[1]);
+    end
     hline!(plt, [true_logZ], labels="", color=colors[2], ls=:dash);
 end
 
@@ -149,6 +156,8 @@ end
 
 export plot_classes
 export plot_classes!
+export plot_prediction!
+export color_point_by_prediction!
 
 function plot_classes(sample_data)
     plt = plot()
@@ -195,7 +204,3 @@ function color_point_by_prediction!(plt, data)
     scatter!(plt, data[:sample_data][:,2], data[:sample_data][:,3], zcolor=avg_prediction)
     # heatmap!(plt, xs, ys, dropdims(avg_prediction,dims=3), alpha=0.5)
 end
-
-export plot_prediction!
-export color_point_by_prediction!
-
