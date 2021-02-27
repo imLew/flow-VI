@@ -4,4 +4,5 @@ module Utils
     include("misc.jl")
     include("plot_utils.jl")
     include("run_on_server.jl")
+    include("therm_int.jl")
 end 
