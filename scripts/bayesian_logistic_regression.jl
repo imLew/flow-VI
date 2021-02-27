@@ -27,7 +27,6 @@ alg_params = Dict(
 problem_params = Dict(
     :problem_type => [ :bayesian_logistic_regression ],
     :MAP_start => [ false ],
-    :MLE_start => [ false ],
     :Laplace_start => [ true ],
     :n_dim => [ 2 ],
     :n₀ => [ 50 ],
@@ -38,6 +37,10 @@ problem_params = Dict(
     :Σ₁ => [ [.5 0.1; 0.1 .2] ],
     :μ_initial => [ [1., 1, 1] ],
     :Σ_initial => [ I(3) ],
+    :therm_params => [Dict(
+                          :nSamples => 3000,
+                          :nSteps => 30
+                         )],
     )
 
 ap = dict_list(alg_params)[1]
