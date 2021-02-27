@@ -66,7 +66,7 @@ alg_params = Dict(
     :update_method => [:forward_euler, :naive_WAG, :naive_WNES],
     :α => @onlyif(:update_method == :naive_WAG, [3.1] ),
     :c₁ => @onlyif(:update_method == :naive_WNES, [.1, .5,] ),
-    :c₂ => @onlyif(:update_method == :naive_WNES, [.3., 1] ),
+    :c₂ => @onlyif(:update_method == :naive_WNES, [.3, 1] ),
     :kernel_cb => [median_trick_cb!],
     # :callback => [plot_cb],
     :n_runs => 10
