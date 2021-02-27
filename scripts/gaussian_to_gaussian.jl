@@ -37,15 +37,13 @@ using Examples
 
 include("run_funcs.jl")
 
-DIRNAME = "gaussian_to_gaussian"
-
-N_RUNS = 1
+DIRNAME = "gaussian_to_gaussian/27-02-21"
 
 problem_params = Dict(
     :μ₀ => [[0., 0]],
     :μₚ => [[0, 0]],
     :Σₚ => [[1. 0; 0 1.]],
-    :Σ₀ => [[2. 0.5; 0.5 2], [0.3 0; 0 0.3]],
+    :Σ₀ => [[4 0; 0 1], [3 2; 2 3], [2. 0.5; 0.5 2], [2. 0.; 0. 2], [0.5 0.3; 0.3 0.5], [0.1 0; 0 0.1], [0.3 0; 0 0.3]],
 )
 
 plt = plot()
@@ -61,21 +59,22 @@ function plot_cb(;kwargs...)
 end
 
 alg_params = Dict(
-    :n_iter => [1000],
+    :n_iter => [2000],
     :kernel => [TransformedKernel(SqExponentialKernel(), ScaleTransform(1.))],
     :step_size => [0.05],
-    :n_particles => [20],
-    :update_method => [:naive_WNES, :naive_WAG],
-    :α => @onlyif(:update_method == :naive_WAG, [3.1, 3.5,  5] ),
+    :n_particles => [100],
+    :update_method => [:forward_euler, :naive_WAG, :naive_WNES],
+    :α => @onlyif(:update_method == :naive_WAG, [3.1] ),
     :c₁ => @onlyif(:update_method == :naive_WNES, [.1, .5,] ),
-    :c₂ => @onlyif(:update_method == :naive_WNES, [3., 1] ),
+    :c₂ => @onlyif(:update_method == :naive_WNES, [.3., 1] ),
     :kernel_cb => [median_trick_cb!],
-    :callback => [plot_cb]
+    # :callback => [plot_cb],
+    :n_runs => 10
 )
 
 runs = []
 
-recent_runs = []
+# recent_runs = []
 n_sets = dict_list_count(alg_params)*dict_list_count(problem_params)
 for (i, ap) ∈ enumerate(dict_list(alg_params))
     for (j, pp) ∈ enumerate(dict_list(problem_params))
@@ -87,18 +86,17 @@ for (i, ap) ∈ enumerate(dict_list(alg_params))
         #     @show ap[:α] 
         # end
         println("$(((i-1)*dict_list_count(problem_params)) + j) out of $n_sets")
-        name = run_gauss_to_gauss(problem_params=pp, alg_params=ap, 
-                                  n_runs=N_RUNS, DIRNAME=DIRNAME)
-        push!(recent_runs, name)
-        display(plot_convergence(name))
+        name = run_gauss_to_gauss(problem_params=pp, alg_params=ap, DIRNAME=DIRNAME)
+        # push!(recent_runs, name)
+        # display(plot_convergence(name))
     end
-    if readline() == "q"
-        break
-    end
+    # if readline() == "q"
+    #     break
+    # end
 end
 
-push!(runs, recent_runs)
+# push!(runs, recent_runs)
 
-all_data = [BSON.load(n) for n in readdir("data/gaussian_to_gaussian", join=true)]
+# all_data = [BSON.load(n) for n in readdir("data/gaussian_to_gaussian", join=true)]
 
-# cmdline_run(N_RUNS, alg_params, problem_params, run_g2g)
+# # cmdline_run(N_RUNS, alg_params, problem_params, run_g2g)
