@@ -34,7 +34,7 @@ const LogReg = Examples.LogisticRegression
 #     end
 # end
 
-function run_gauss_to_gauss(;problem_params, alg_params, DIRNAME)
+function run_gauss_to_gauss(;problem_params, alg_params, DIRNAME, save=true)
     svgd_results = []
     svgd_hist = []
     estimation_rkhs = []
@@ -61,11 +61,17 @@ function run_gauss_to_gauss(;problem_params, alg_params, DIRNAME)
 
     file_prefix = savename( merge(problem_params, alg_params) )
 
-    tagsave(datadir(DIRNAME, file_prefix * ".bson"),
-                merge(alg_params, problem_params, 
-                      @dict(true_logZ, estimation_rkhs, svgd_results,
-                           svgd_hist)),
-                safe=true, storepatch=true)
+    if save
+        tagsave(datadir(DIRNAME, file_prefix * ".bson"),
+                    merge(alg_params, problem_params, 
+                          @dict(true_logZ, estimation_rkhs, svgd_results,
+                               svgd_hist)),
+                    safe=true, storepatch=true)
+    else
+        merge(alg_params, problem_params, 
+              @dict(true_logZ, estimation_rkhs, svgd_results, svgd_hist)
+             )
+    end
 end
 
 function fit_linear_regression(problem_params, alg_params, D::LinReg.RegressionData)
