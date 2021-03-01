@@ -117,11 +117,19 @@ function plot_convergence!(int_plot, dist_plot, norm_plot, data; kwargs...)
 
     plot_2D_gaussians_results!(dist_plot, data)
     
-    for hist in data[:svgd_hist]
-        plot!(norm_plot, hist[:ϕ_norm],ylims=ylims,
-                         markeralpha=0, label="", title="", 
-                         xticks=0:data[:n_iter]÷4:data[:n_iter], color=colors[1],
-                         xlabel="iterations", ylabel="||φ||");
+    if data[:n_runs] < 4
+		for hist in data[:svgd_hist]
+			plot!(norm_plot, hist[:ϕ_norm],ylims=ylims,
+							 markeralpha=0, label="", title="", 
+							 xticks=0:data[:n_iter]÷4:data[:n_iter], color=colors[1],
+							 xlabel="iterations", ylabel="||φ||");
+		end 
+    else
+        norms = [get(hist, :ϕ_norm)[2] for hist in data[:svgd_hist]]
+        plot!(norm_plot, mean(norms), ribbon=std(norms), ylims=ylims,
+              markeralpha=0, label="", title="", 
+              xticks=0:data[:n_iter]÷4:data[:n_iter], color=colors[1],
+              xlabel="iterations", ylabel="||φ||");
     end
 end
 
@@ -152,7 +160,6 @@ function plot_integration!(plt::Plots.Plot, data; size=(375,375),
                     for d in data[:svgd_hist]]
         plot!(plt, mean(est_logZ), ribbon=std(est_logZ), label="", color=colors[1]);
     end
-    
     hline!(plt, [true_logZ], labels="", color=colors[2], ls=:dash);
 end
 
