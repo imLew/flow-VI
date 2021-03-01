@@ -6,7 +6,7 @@
 #$ -V 
 #$ -t 1-16
 ### Run SVGD integration of KL divergence on the problem of smapling from
-### a Gaussian starting from a standard gaussian
+### a Gaussian 
 ########
 ### command line arguments:
 ### make-dicts - create the parameter dicts with DrWatson
@@ -26,6 +26,7 @@ end
 using KernelFunctions
 using Plots
 using Distributions
+using LinearAlgebra
 using ValueHistories
 using BSON
 using ColorSchemes
@@ -37,14 +38,16 @@ using Examples
 
 include("run_funcs.jl")
 
-DIRNAME = "gaussian_to_gaussian/27-02-21"
+DIRNAME = "gaussian_to_gaussian/covariance"
 
 problem_params = Dict(
     :μ₀ => [[0., 0]],
     :μₚ => [[0, 0]],
     :Σₚ => [[1. 0; 0 1.]],
-    :Σ₀ => [[4 0; 0 1], [3 2; 2 3], [2. 0.5; 0.5 2], [2. 0.; 0. 2], [0.5 0.3; 0.3 0.5], [0.1 0; 0 0.1], [0.3 0; 0 0.3]],
+    :Σ₀ => [[10.0^i * I(2) for i in -5:1:5]],
 )
+
+
 
 plt = plot()
 function plot_cb(;kwargs...)
@@ -59,10 +62,10 @@ function plot_cb(;kwargs...)
 end
 
 alg_params = Dict(
-    :n_iter => [2000],
+    :n_iter => [1000],
     :kernel => [TransformedKernel(SqExponentialKernel(), ScaleTransform(1.))],
     :step_size => [0.05],
-    :n_particles => [100],
+    :n_particles => [50],
     :update_method => [:forward_euler, :naive_WAG, :naive_WNES],
     :α => @onlyif(:update_method == :naive_WAG, [3.1] ),
     :c₁ => @onlyif(:update_method == :naive_WNES, [.1, .5,] ),
@@ -72,31 +75,12 @@ alg_params = Dict(
     :n_runs => 10
 )
 
-runs = []
-
-# recent_runs = []
 n_sets = dict_list_count(alg_params)*dict_list_count(problem_params)
 for (i, ap) ∈ enumerate(dict_list(alg_params))
     for (j, pp) ∈ enumerate(dict_list(problem_params))
-        # @show ap[:update_method]
-        # if haskey(ap, :c₁) 
-        #     @show (ap[:c₁], ap[:c₂]) 
-        # end
-        # if haskey(ap, :α) 
-        #     @show ap[:α] 
-        # end
         println("$(((i-1)*dict_list_count(problem_params)) + j) out of $n_sets")
         name = run_gauss_to_gauss(problem_params=pp, alg_params=ap, DIRNAME=DIRNAME)
-        # push!(recent_runs, name)
-        # display(plot_convergence(name))
     end
-    # if readline() == "q"
-    #     break
-    # end
 end
 
-# push!(runs, recent_runs)
-
-# all_data = [BSON.load(n) for n in readdir("data/gaussian_to_gaussian", join=true)]
-
-# # cmdline_run(N_RUNS, alg_params, problem_params, run_g2g)
+cmdline_run(alg_params, problem_params, run_gauss_to_gauss)
