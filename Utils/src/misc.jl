@@ -11,6 +11,7 @@ using PDMats
 export KL_integral
 export get_pdmat
 export geometric_step_size_cb
+export filter_by_dict
 
 ## step_size utils
 function geometric_step_size_cb(step_size, iter, factor, cutoff)
@@ -41,6 +42,28 @@ function get_pdmat(K)
     end
     return PDMat(K+α*I)
 end 
+
+function data_filename(d)
+    "$(d[:n_particles])particles_mu0=$(d[:μ₀])_S0=$(d[:Σ₀])_mup=$(d[:μₚ])_Sp=$(d[:Σₚ])_$(d[:n_iter])iter_stepsize=$(d[:step_size])"
+end
+
+function filter_by_key(key, values, data_array)
+    out = []
+    for d in data_array
+        if d[key] ∈ values
+            push!(out, d)
+        end
+    end
+    return out
+end
+
+function filter_by_dict(dict, data_array)
+    out = data_array
+    for (k, v) in dict
+        out = filter_by_key(k, v, out)
+    end
+    return out 
+end
 
 # flatten_index(i, j, j_max) = j + j_max *(i-1)
 
