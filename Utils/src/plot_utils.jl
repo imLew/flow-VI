@@ -139,7 +139,7 @@ function plot_integration!(plt::Plots.Plot, data; size=(375,375),
     H₀ = Distributions.entropy(initial_dist)
     EV = expectation_V( initial_dist, target_dist )
     true_logZ = logZ(target_dist)
-    for dKL_hist in data[:svgd_hist]  #dKL_hist in [h[:RKHS_norm] for h in data[:svgd_hist]]
+    for dKL_hist in data[:svgd_hist]
         plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw, ylims=ylims);
         est_logZ = estimate_logZ.([H₀], [EV], 
                                   data[:step_size]*cumsum(get(dKL_hist, :RKHS_norm)[2]))
@@ -179,7 +179,8 @@ function plot_prediction!(plt, data)
     q = hcat(data[:svgd_results]...)
     predictions = [σ(point'*w) for point in grid, w in eachcol(q)]
     avg_prediction = transpose(dropdims(mean(predictions, dims=3),dims=3))
-    # for now leave the transpose as it seems to give the correct result    
+    # heatmap() treats the y-direction as the first direction so the data needs
+    # to be transposed before plotting it
     heatmap!(plt, xs, ys, avg_prediction, alpha=0.5)
 
     for w in eachcol(q)
