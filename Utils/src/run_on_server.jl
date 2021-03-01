@@ -3,7 +3,7 @@ using DrWatson
 
 export cmdline_run
 
-function cmdline_run(N_RUNS, ALG_PARAMS, PROBLEM_PARAMS, run_func)
+function cmdline_run(ALG_PARAMS, PROBLEM_PARAMS, DIRNAME, run_func)
     if length(ARGS) == 0 
         @info "Number of tasks defined by current params" ( dict_list_count(PROBLEM_PARAMS) * dict_list_count(ALG_PARAMS) )
         if haskey(ENV, "SGE_TASK_ID")
@@ -21,10 +21,9 @@ function cmdline_run(N_RUNS, ALG_PARAMS, PROBLEM_PARAMS, run_func)
         @info "Alg parameters: $(dict_o_dicts[:alg_params])"
         @time run_func(problem_params=dict_o_dicts[:problem_params],
                       alg_params=dict_o_dicts[:alg_params],
-                      n_runs=dict_o_dicts[:N_RUNS])
+                      DIRNAME)
         end
     elseif ARGS[1] == "make-dicts" 
-
     # make dictionaries in a tmp directory containing the parameters for
     # all the experiment we want to run
     # also saves a dictionary mapping numbers 1 through #dicts to the dictionary
@@ -32,11 +31,11 @@ function cmdline_run(N_RUNS, ALG_PARAMS, PROBLEM_PARAMS, run_func)
         dnames = Dict()
         for (i, alg_params) ∈ enumerate(dict_list(ALG_PARAMS))
             for (j, problem_params) ∈ enumerate(dict_list(PROBLEM_PARAMS))
-                dname = tmpsave([@dict alg_params problem_params N_RUNS])
+                dname = tmpsave([@dict alg_params problem_params])
                 dnames["$((i-1)*dict_list_count(PROBLEM_PARAMS) + j )"] = dname
             end
         end
-        bson("tmp_dict_names.bson", dnames)
+        bson(projectdir("_research", "tmp_dict_names.bson"), dnames)
     elseif ARGS[1] == "run"
     # run the algorithm on the params specified in the second argument (bson)
         dict_o_dicts = BSON.load(ARGS[2])
@@ -44,9 +43,9 @@ function cmdline_run(N_RUNS, ALG_PARAMS, PROBLEM_PARAMS, run_func)
         @info "Alg parameters: $(dict_o_dicts[:alg_params])"
         @time run_func(problem_params=dict_o_dicts[:problem_params],
                       alg_params=dict_o_dicts[:alg_params],
-                      n_runs=dict_o_dicts[:N_RUNS])
+                      DIRNAME=DIRNAME)
     elseif ARGS[1] == "run-all"
-        Threads.@threads for file in readdir("_research/tmp", join=true)
+        Threads.@threads for file in readdir(projectdir("_research", "tmp"), join=true)
             run(`julia $PROGRAM_FILE run $file`)
         end
     elseif ARGS[1] == "make-and-run-all"
