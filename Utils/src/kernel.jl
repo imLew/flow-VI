@@ -27,8 +27,3 @@ function median_trick(x)
     # @info median(d)^2/log(size(x)[end])
     median(d)^2/log(size(x)[end])
 end
-
-# function kernel_gradient(k::TransformedKernel{SqExponentialKernel},x,y)
-#     h = 1/k.transform.s[1]^2
-#     -2/h * (x-y) * exp(-h\norm(x-y))
-# end
