@@ -157,7 +157,7 @@ end
 export plot_classes
 export plot_classes!
 export plot_prediction!
-export color_point_by_prediction!
+# export color_point_by_prediction!
 
 function plot_classes(sample_data)
     plt = plot()
@@ -191,17 +191,15 @@ function plot_prediction!(plt, data)
     display(plt)
 end
 
-function color_point_by_prediction!(plt, data)
-    xs = range(minimum(data[:sample_data][:,2]), maximum(data[:sample_data][:,2]), length=100)
-    ys = range(minimum(data[:sample_data][:,3]), maximum(data[:sample_data][:,3]), length=100)
-    grid = [[1, x, y] for x in xs, y in ys]
+# function color_point_by_prediction!(plt, data)
+#     xs = range(minimum(data[:sample_data][:,2]), maximum(data[:sample_data][:,2]), length=100)
+#     ys = range(minimum(data[:sample_data][:,3]), maximum(data[:sample_data][:,3]), length=100)
+#     grid = [[1, x, y] for x in xs, y in ys]
 
-    σ(a) = 1 / (1 + exp(-a))
-    q = hcat(data[:svgd_results]...)
-    # predictions = [σ(point'*w) for point in grid, w in eachcol(q)]
-    predictions = [σ(point'*w) for point in eachrow([ones(200) data[:sample_data][:,2:end]]), w in eachcol(q)]
-    avg_prediction = mean(predictions, dims=3)
+#     σ(a) = 1 / (1 + exp(-a))
+#     q = hcat(data[:svgd_results]...)
+#     predictions = [σ(point'*w) for point in eachrow([ones(200) data[:sample_data][:,2:end]]), w in eachcol(q)]
+#     avg_prediction = mean(predictions, dims=3)
     
-    scatter!(plt, data[:sample_data][:,2], data[:sample_data][:,3], zcolor=avg_prediction)
-    # heatmap!(plt, xs, ys, dropdims(avg_prediction,dims=3), alpha=0.5)
-end
+#     scatter!(plt, data[:sample_data][:,2], data[:sample_data][:,3], zcolor=avg_prediction)
+# end
