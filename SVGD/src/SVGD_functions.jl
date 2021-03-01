@@ -187,3 +187,13 @@ function kernel_grad_matrix(kernel::KernelFunctions.Kernel, q)
 	mapslices(x -> grad.(kernel, [x], eachcol(q)), q, dims = 1)
 end
 
+function kernel_grad_matrix(kernel::TransformedKernel{SqExponentialKernel}, q)
+    if size(q)[end] == 1
+        return 0
+    end
+    function kernel_gradient(k::TransformedKernel{SqExponentialKernel}, x, y)
+        h = 1/k.transform.s[1]^2
+        -2/h * (x-y) * exp(-h\norm(x-y))
+    end
+    hcat(map(y->map(x->kernel_gradient(kernel, x, y), eachcol(q)), eachcol(q))...)
+end
