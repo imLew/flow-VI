@@ -139,12 +139,20 @@ function plot_integration!(plt::Plots.Plot, data; size=(375,375),
     H₀ = Distributions.entropy(initial_dist)
     EV = expectation_V( initial_dist, target_dist )
     true_logZ = logZ(target_dist)
-    for dKL_hist in data[:svgd_hist]
-        plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw, ylims=ylims);
+    plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw, ylims=ylims);
+    if data[:n_runs] < 5
+        for dKL_hist in data[:svgd_hist]
         est_logZ = estimate_logZ.([H₀], [EV], 
                                   data[:step_size]*cumsum(get(dKL_hist, :RKHS_norm)[2]))
         plot!(plt, est_logZ, label="", color=colors[1]);
+        end
+    else
+        est_logZ = [estimate_logZ.([H₀], [EV], 
+                                  data[:step_size]*cumsum(get(d, :RKHS_norm)[2]))
+                    for d in data[:svgd_hist]]
+        plot!(plt, mean(est_logZ), ribbon=std(est_logZ), label="", color=colors[1]);
     end
+    
     hline!(plt, [true_logZ], labels="", color=colors[2], ls=:dash);
 end
 
