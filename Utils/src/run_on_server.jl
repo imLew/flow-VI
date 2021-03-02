@@ -59,6 +59,17 @@ function cmdline_run(ALG_PARAMS, PROBLEM_PARAMS, DIRNAME, run_func)
     # make the files containig the parameter dicts and start running them immediatly
         run(`julia $PROGRAM_FILE make-dicts`)
         run(`julia $PROGRAM_FILE run-all`)
+    elseif ARGS[1] == "run-single-file"
+    # run all experiments defined in the script from a single cmdline call
+        params = [ (pp, ap) for pp in dict_list(PROBLEM_PARAMS), ap in dict_list(ALG_PARAMS)]
+        Threads.@threads for (i, (ap, pp)) in enumerate(params)
+            @info "experiment $i out of $(length(params))"
+            try 
+                @time run_func(problem_params=pp, alg_params=ap, DIRNAME=DIRNAME)
+            catch e
+                println(e)
+            end
+        end
     end
 end
 
