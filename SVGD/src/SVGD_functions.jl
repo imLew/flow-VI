@@ -43,7 +43,7 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50,
     hist = MVHistory()
     y = copy(q) 
     ϕ = zeros(size(q))
-    @showprogress for i in 1:n_iter
+    for i in 1:n_iter
         isnothing(kernel_cb!) ? nothing : kernel_cb!(kernel, q)
         ϵ = isnothing(step_size_cb) ? step_size : step_size_cb(step_size, i)
         update!(Val(update_method), q, ϕ, ϵ, i, kernel, grad_logp, y=y; kwargs...)
