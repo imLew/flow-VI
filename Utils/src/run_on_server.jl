@@ -45,7 +45,10 @@ function cmdline_run(ALG_PARAMS, PROBLEM_PARAMS, DIRNAME, run_func)
                       alg_params=dict_o_dicts[:alg_params],
                       DIRNAME=DIRNAME)
     elseif ARGS[1] == "run-all"
-        Threads.@threads for file in readdir(projectdir("_research", "tmp"), join=true)
+        files = readdir(projectdir("_research", "tmp"), join=true)
+        @info "Number of tmp files to run" length(files)
+        Threads.@threads for (i, file) in enumerate(files)
+            @info "experiment $i out of $(length(files))"
             try 
                 run(`julia $PROGRAM_FILE run $file`)
             catch e
