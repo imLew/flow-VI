@@ -46,7 +46,11 @@ function cmdline_run(ALG_PARAMS, PROBLEM_PARAMS, DIRNAME, run_func)
                       DIRNAME=DIRNAME)
     elseif ARGS[1] == "run-all"
         Threads.@threads for file in readdir(projectdir("_research", "tmp"), join=true)
-            run(`julia $PROGRAM_FILE run $file`)
+            try 
+                run(`julia $PROGRAM_FILE run $file`)
+            catch e
+                println(e)
+            end
         end
     elseif ARGS[1] == "make-and-run-all"
     # make the files containig the parameter dicts and start running them immediatly
