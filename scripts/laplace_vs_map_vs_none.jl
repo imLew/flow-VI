@@ -32,7 +32,7 @@ problem_params = Dict(
     :Σ₀ => [ [0.5 0.1; 0.1 0.2] ],
     :Σ₁ => [ [.5 0.1; 0.1 .2] ],
     :μ_initial => [ [1., 1, 1] ],
-    :Σ_initial => [ 1e-1*I(3), @onlyif(:Laplace_start == false, [I(3)]) ],
+    :Σ_initial => [ I(3) ],
     :therm_params => [Dict(
                           :nSamples => 3000,
                           :nSteps => 30
