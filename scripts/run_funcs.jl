@@ -196,7 +196,7 @@ function fit_logistic_regression(problem_params, alg_params, D)
     return initial_dist, q, hist
 end
 
-function run_log_regression(problem_params, alg_params)
+function run_log_regression(problem_params, alg_params, DIRNAME)
     LinReg = Examples.LogisticRegression
     svgd_hist = []
     svgd_results = []
