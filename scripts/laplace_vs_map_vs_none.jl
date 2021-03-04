@@ -2,6 +2,14 @@ using DrWatson
 @quickactivate
 using KernelFunctions
 using LinearAlgebra
+using AdvancedHMC
+
+using LoggingExtras
+using Logging
+function not_HTTP_message_filter(log)
+    log._module != AdvancedHMC
+end
+global_logger(EarlyFilteredLogger(not_HTTP_message_filter, global_logger()))
 
 using Utils
 using SVGD
