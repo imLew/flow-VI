@@ -196,7 +196,7 @@ function fit_logistic_regression(problem_params, alg_params, D)
     return initial_dist, q, hist
 end
 
-function run_log_regression(problem_params, alg_params, DIRNAME)
+function run_log_regression(;problem_params, alg_params, DIRNAME, save=true)
     LinReg = Examples.LogisticRegression
     svgd_hist = []
     svgd_results = []
@@ -266,11 +266,17 @@ function run_log_regression(problem_params, alg_params, DIRNAME)
 
     file_prefix = savename( merge(problem_params, alg_params) )
 
-    tagsave(datadir(DIRNAME, file_prefix * ".bson"),
-            merge(alg_params, problem_params, 
-                @dict(estimation_rkhs, svgd_results, svgd_hist,
-                      sample_data, therm_logZ)),
-            safe=true, storepatch = false)
+    if save
+        tagsave(datadir(DIRNAME, file_prefix * ".bson"),
+                merge(alg_params, problem_params, 
+                    @dict(estimation_rkhs, svgd_results, svgd_hist,
+                          sample_data, therm_logZ)),
+                safe=true, storepatch = false)
+    else
+        merge(alg_params, problem_params, 
+            @dict(estimation_rkhs, svgd_results, svgd_hist,
+                  sample_data, therm_logZ))
+    end
 end
 
 function therm_integration(problem_params, D; nSamples=3000, nSteps=30)
