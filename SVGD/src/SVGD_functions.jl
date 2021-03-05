@@ -6,7 +6,8 @@ using KernelFunctions
 using LinearAlgebra
 using Random
 using Flux
-using Zygote
+# using Zygote
+using ForwardDiff
 using Distances
 using PDMats
 

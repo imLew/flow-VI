@@ -29,14 +29,14 @@ function estimate_logZ(H0, EV, int_KL)
     H0 - EV + int_KL
 end
 
-function numerical_expectation(d::Distribution, f; n_samples=10000)
-    sum( f, rand(d, n_samples) ) / n_samples
+function numerical_expectation(d::Distribution, f; n_samples=10000, rng=Random.GLOBAL_RNG)
+    sum( f, rand(rng, d, n_samples) ) / n_samples
 end
 
 # the other numerical_expectation function applies f to each element instead
 # of each col :/
-function num_expectation(d::Distribution, f; n_samples=10000)
-    sum( f, eachcol(rand(d, n_samples)) ) / n_samples
+function num_expectation(d::Distribution, f; n_samples=10000, rng=Random.GLOBAL_RNG)
+    sum( f, eachcol(rand(rng, d, n_samples)) ) / n_samples
 end
 
 function logZ(d::Distribution)

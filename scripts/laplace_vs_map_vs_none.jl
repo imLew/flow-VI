@@ -25,7 +25,7 @@ alg_params = Dict(
     :step_size => [ 0.001 ],
     :n_iter => [ 1000 ],
     :n_particles => [ 20 ],
-    :n_runs => [ 10 ],
+    :n_runs => [ 1 ],
     )
 
 problem_params = Dict(
@@ -41,10 +41,29 @@ problem_params = Dict(
     :Σ₁ => [ [.5 0.1; 0.1 .2] ],
     :μ_initial => [ [1., 1, 1] ],
     :Σ_initial => [ I(3) ],
-    :therm_params => [Dict(
-                          :nSamples => 3000,
-                          :nSteps => 30
-                         )],
+    # :therm_params => [Dict(
+    #                       :nSamples => 3000,
+    #                       :nSteps => 30
+    #                      )],
+    :random_seed => [ 5 ],
     )
 
-cmdline_run(alg_params, problem_params, DIRNAME, run_log_regression)
+pp = dict_list(problem_params)[3]
+ap = dict_list(alg_params)[1]
+
+for i in 1:10
+    run_log_regression(problem_params=pp, alg_params=ap, DIRNAME="", save=false)
+end
+
+# D = LogReg.generate_2class_samples_from_gaussian(n₀=pp[:n₀],
+#                                                   n₁=pp[:n₁],
+#                                                   μ₀=pp[:μ₀],
+#                                                   μ₁=pp[:μ₁], 
+#                                                   Σ₀=pp[:Σ₀],
+#                                                   Σ₁=pp[:Σ₁],
+#                                                  )
+# wsave(datadir("classification_samples",
+#               "2dim_$(pp[:n₀]):$(pp[:μ₀]):$(pp[:Σ₀])_$(pp[:n₀]):$(pp[:μ₀]):$(pp[:Σ₀]).bson"),
+#       @dict D)
+
+# cmdline_run(alg_params, problem_params, DIRNAME, run_log_regression)

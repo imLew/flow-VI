@@ -1,3 +1,5 @@
+using Random
+
 using DrWatson
 using Distributions
 using Optim
@@ -200,19 +202,20 @@ function run_log_regression(;problem_params, alg_params, DIRNAME="", save=true)
     if DIRNAME=="" && save
         throw(ArgumentError("Cannot save to empty DIRNAME"))
     end
-    LinReg = Examples.LogisticRegression
+    if haskey(problem_params, :random_seed)
+        # Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
+        rng = MersenneTwister(problem_params[:random_seed])
+    end
     svgd_hist = []
     svgd_results = []
     estimation_rkhs = []
 
     # dataset with labels
-    D = sample_data = LogReg.generate_2class_samples_from_gaussian(n₀=problem_params[:n₀],
-                                                  n₁=problem_params[:n₁],
-                                                  μ₀=problem_params[:μ₀],
-                                                  μ₁=problem_params[:μ₁], 
-                                                  Σ₀=problem_params[:Σ₀],
-                                                  Σ₁=problem_params[:Σ₁],
-                                                 )
+    D = sample_data = LogReg.generate_2class_samples_from_gaussian(
+                        n₀=problem_params[:n₀], n₁=problem_params[:n₁],
+                        μ₀=problem_params[:μ₀], μ₁=problem_params[:μ₁], 
+                        Σ₀=problem_params[:Σ₀], Σ₁=problem_params[:Σ₁],
+                       rng=rng)
 
     function logp(w)
         ( LogReg.log_likelihood(D, w) 
@@ -231,14 +234,13 @@ function run_log_regression(;problem_params, alg_params, DIRNAME="", save=true)
                                 Optim.maximize(logp, grad_logp!, 
                                                problem_params[:μ_initial], LBFGS())
                                )
-        @info "MAP estimate is " problem_params[:μ_initial]
     end
     if problem_params[:Laplace_start]
         y = LogReg.y(D, problem_params[:μ_initial])
         problem_params[:Σ_initial] = inv( get_pdmat( inv(problem_params[:Σ_initial]) 
-                                           .+ D.z' * ( y.*(1 .- y) .* D.z )
-                                          ) )
-        @info "Using Laplace approximation with " problem_params[:Σ_initial]
+                                           .+ D.z' * ( y.*(1 .- y) .* D.z ) 
+                                                    )
+                                        )
     end
 
     therm_logZ = if haskey(problem_params, :therm_params)
@@ -250,14 +252,15 @@ function run_log_regression(;problem_params, alg_params, DIRNAME="", save=true)
     initial_dist = MvNormal(problem_params[:μ_initial], problem_params[:Σ_initial])
     H₀ = Distributions.entropy(initial_dist)
     EV = ( num_expectation( initial_dist, 
-                                  w -> LogReg.log_likelihood(sample_data,w) )
+                                  w -> LogReg.log_likelihood(sample_data,w),
+                                 rng=rng)
            + expectation_V(initial_dist, initial_dist) 
            + 0.5 * log( det(2π * problem_params[:Σ_initial]) )
           )
     isnothing(therm_logZ) ? nothing : @show therm_logZ
     for i in 1:alg_params[:n_runs]
         @info "Run $i/$(alg_params[:n_runs])"
-        q = rand(initial_dist, alg_params[:n_particles])
+        q = rand(rng, initial_dist, alg_params[:n_particles])
         q, hist = svgd_fit(q, grad_logp; alg_params...)
 
         push!(svgd_results, q)
@@ -266,7 +269,7 @@ function run_log_regression(;problem_params, alg_params, DIRNAME="", save=true)
         push!(estimation_rkhs, est_logZ) 
         @show est_logZ
     end
-
+    @show rand(rng)
     file_prefix = savename( merge(problem_params, alg_params) )
 
     if save
