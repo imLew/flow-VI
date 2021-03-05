@@ -1,6 +1,7 @@
 export LogisticRegression
 module LogisticRegression
 
+using Random
 using Distributions
 
 σ(a) = 1 / (1 + exp(-a))
@@ -34,12 +35,12 @@ log_likelihood(D::Data, w) = sum( D.t .* log.(y(D, w)) + (1 .- D.t) .* log.(1 .-
 
 grad_log_likelihood(D::Data, w) = sum((D.t .- y(D,w)).*D.z, dims=1)'
 
-function generate_2class_samples_from_gaussian(;n₀=5, n₁=5, μ₀=[0], μ₁=[1], Σ₀=[1], Σ₁=[1])
+function generate_2class_samples_from_gaussian(;n₀=5, n₁=5, μ₀=[0], μ₁=[1], Σ₀=[1], Σ₁=[1], rng=Random.GLOBAL_RNG)
     generate_2class_samples(n₀, n₁, MvNormal(μ₁, Σ₁), MvNormal(μ₀, Σ₀))
 end
 
-function generate_2class_samples(n₀, n₁, dist₀, dist₁)
-    return Data([ones(Int(n₁)); zeros(Int(n₀))], [rand(dist₁, n₁)'; rand(dist₀, n₀)'])
+function generate_2class_samples(n₀, n₁, dist₀, dist₁, rng=Random.GLOBAL_RNG)
+    return Data([ones(Int(n₁)); zeros(Int(n₀))], [rand(rng, dist₁, n₁)'; rand(rng, dist₀, n₀)'])
 end
 
 end # logistic regressionmodule
