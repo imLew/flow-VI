@@ -196,7 +196,10 @@ function fit_logistic_regression(problem_params, alg_params, D)
     return initial_dist, q, hist
 end
 
-function run_log_regression(;problem_params, alg_params, DIRNAME, save=true)
+function run_log_regression(;problem_params, alg_params, DIRNAME="", save=true)
+    if DIRNAME=="" && save
+        throw(ArgumentError("Cannot save to empty DIRNAME"))
+    end
     LinReg = Examples.LogisticRegression
     svgd_hist = []
     svgd_results = []
