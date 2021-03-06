@@ -205,19 +205,20 @@ function run_log_regression(;problem_params, alg_params, DIRNAME="", save=true)
         throw(ArgumentError("Cannot save to empty DIRNAME"))
     end
     if haskey(problem_params, :random_seed)
-        # Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
-        rng = MersenneTwister(problem_params[:random_seed])
+        Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
+        @info "GLOBAL_RNG random seed set" problem_params[:random_seed]
     end
     svgd_hist = []
     svgd_results = []
     estimation_rkhs = []
 
     # dataset with labels
-    D = sample_data = LogReg.generate_2class_samples_from_gaussian(
+    D = LogReg.generate_2class_samples_from_gaussian(
                         n₀=problem_params[:n₀], n₁=problem_params[:n₁],
                         μ₀=problem_params[:μ₀], μ₁=problem_params[:μ₁], 
                         Σ₀=problem_params[:Σ₀], Σ₁=problem_params[:Σ₁],
-                       rng=rng)
+                       )
+    sample_data = D
 
     function logp(w)
         ( LogReg.log_likelihood(D, w) 
@@ -255,14 +256,14 @@ function run_log_regression(;problem_params, alg_params, DIRNAME="", save=true)
     H₀ = Distributions.entropy(initial_dist)
     EV = ( num_expectation( initial_dist, 
                                   w -> LogReg.log_likelihood(sample_data,w),
-                                 rng=rng)
+                                 )
            + expectation_V(initial_dist, initial_dist) 
            + 0.5 * log( det(2π * problem_params[:Σ_initial]) )
           )
     isnothing(therm_logZ) ? nothing : @show therm_logZ
     for i in 1:alg_params[:n_runs]
         @info "Run $i/$(alg_params[:n_runs])"
-        q = rand(rng, initial_dist, alg_params[:n_particles])
+        q = rand(initial_dist, alg_params[:n_particles])
         q, hist = svgd_fit(q, grad_logp; alg_params...)
 
         push!(svgd_results, q)
@@ -271,7 +272,6 @@ function run_log_regression(;problem_params, alg_params, DIRNAME="", save=true)
         push!(estimation_rkhs, est_logZ) 
         @show est_logZ
     end
-    @show rand(rng)
     file_prefix = savename( merge(problem_params, alg_params) )
 
     if save
