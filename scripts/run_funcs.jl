@@ -209,6 +209,7 @@ function run_log_regression(;problem_params, alg_params, DIRNAME="", save=true)
         @info "GLOBAL_RNG random seed set" problem_params[:random_seed]
     end
     if haskey(problem_params, :sample_data_file)
+        @info "Using data from file, make sure the problem params are correct"
         D = BSON.load(problem_params[:sample_data_file])[:D]
     else
         D = LogReg.generate_2class_samples_from_gaussian(
@@ -278,6 +279,7 @@ function run_log_regression(;problem_params, alg_params, DIRNAME="", save=true)
         push!(estimation_rkhs, est_logZ) 
         @show est_logZ
     end
+    problem_params[:sample_data_file] = basename(problem_params[:sample_data_file])
     file_prefix = savename( merge(problem_params, alg_params) )
 
     if save
