@@ -1,5 +1,5 @@
 using Random
-
+using BSON
 using DrWatson
 using Distributions
 using Optim
@@ -208,21 +208,26 @@ function run_log_regression(;problem_params, alg_params, DIRNAME="", save=true)
         Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
         @info "GLOBAL_RNG random seed set" problem_params[:random_seed]
     end
-    svgd_hist = []
-    svgd_results = []
-    estimation_rkhs = []
-
-    # dataset with labels
-    D = LogReg.generate_2class_samples_from_gaussian(
+    if haskey(problem_params, :sample_data_file)
+        D = BSON.load(problem_params[:sample_data_file])[:D]
+    else
+        D = LogReg.generate_2class_samples_from_gaussian(
                         n₀=problem_params[:n₀], n₁=problem_params[:n₁],
                         μ₀=problem_params[:μ₀], μ₁=problem_params[:μ₁], 
                         Σ₀=problem_params[:Σ₀], Σ₁=problem_params[:Σ₁],
                        )
+    end
     sample_data = D
+
+    # arrays to hold results
+    svgd_hist = []
+    svgd_results = []
+    estimation_rkhs = []
 
     function logp(w)
         ( LogReg.log_likelihood(D, w) 
-            + logpdf(MvNormal(problem_params[:μ_initial], problem_params[:Σ_initial]), w)
+            + logpdf(MvNormal(problem_params[:μ_initial], 
+                              problem_params[:Σ_initial]), w)
         )
     end  
     function grad_logp(w) 
