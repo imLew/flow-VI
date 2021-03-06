@@ -227,7 +227,8 @@ function run_log_regression(;problem_params, alg_params, DIRNAME="", save=true)
     end  
     function grad_logp(w) 
         vec( LogReg.grad_log_likelihood(D, w)
-         .- inv(problem_params[:Σ_initial]) * (w-problem_params[:μ_initial])
+            .- inv(problem_params[:Σ_initial]) 
+            * (w-problem_params[:μ_initial])
         )
     end
     grad_logp!(g, w) = g .= grad_logp(w)
@@ -235,15 +236,15 @@ function run_log_regression(;problem_params, alg_params, DIRNAME="", save=true)
     if problem_params[:MAP_start] || problem_params[:Laplace_start]
         problem_params[:μ_initial] = Optim.maximizer(
                                 Optim.maximize(logp, grad_logp!, 
-                                               problem_params[:μ_initial], LBFGS())
+                                               problem_params[:μ_initial],
+                                               LBFGS(),)
                                )
     end
     if problem_params[:Laplace_start]
         y = LogReg.y(D, problem_params[:μ_initial])
-        problem_params[:Σ_initial] = inv( get_pdmat( inv(problem_params[:Σ_initial]) 
-                                           .+ D.z' * ( y.*(1 .- y) .* D.z ) 
-                                                    )
-                                        )
+        problem_params[:Σ_initial] = inv(Symmetric(
+                inv(problem_params[:Σ_initial]) + D.z' * (y.*(1 .- y) .* D.z)
+            ))
     end
 
     therm_logZ = if haskey(problem_params, :therm_params)
