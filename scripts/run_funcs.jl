@@ -279,8 +279,16 @@ function run_log_regression(;problem_params, alg_params, DIRNAME="", save=true)
         push!(estimation_rkhs, est_logZ) 
         @show est_logZ
     end
-    problem_params[:sample_data_file] = basename(problem_params[:sample_data_file])
-    file_prefix = savename( merge(problem_params, alg_params) )
+    # trim dict to generate name for file
+    savenamedict = merge(problem_params, alg_params)
+    delete!(savenamedict, :sample_data_file)
+    if !problem_params[:MAP_start] || problem_params[:Laplace_start]
+        delete!(savenamedict, :MAP_start)
+    end
+    if !problem_params[:Laplace_start] 
+        delete!(savenamedict, :Laplace_start)
+    end
+    file_prefix = savename( savenamedict )
 
     if save
         tagsave(datadir(DIRNAME, file_prefix * ".bson"),
