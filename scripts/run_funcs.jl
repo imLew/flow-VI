@@ -199,6 +199,8 @@ function fit_logistic_regression(problem_params, alg_params, D)
 end
 
 function run_log_regression(;problem_params, alg_params, DIRNAME="", save=true)
+    problem_params = copy(problem_params)
+    alg_params = copy(alg_params)
     if DIRNAME=="" && save
         throw(ArgumentError("Cannot save to empty DIRNAME"))
     end
