@@ -24,7 +24,7 @@ ALG_PARAMS = Dict(
     :kernel_cb => [ median_trick_cb! ],
     :step_size => [ 0.001 ],
     :n_iter => [ 1000 ],
-    :n_particles => [ 50 ],
+    :n_particles => [ 20 ],
     :n_runs => [ 20 ],
     )
 
@@ -51,4 +51,4 @@ PROBLEM_PARAMS = Dict(
                          ],
 )
 
-cmdline_run(ALG_PARAMS, PROBLEM_PARAMS, DIRNAME, run_log_regression)
+cmdline_run(ALG_PARAMS, PROBLEM_PARAMS, DIRNAME, run)
