@@ -24,8 +24,8 @@ ALG_PARAMS = Dict(
     :kernel_cb => [ median_trick_cb! ],
     :step_size => [ 0.001 ],
     :n_iter => [ 1000 ],
-    :n_particles => [ 20 ],
-    :n_runs => [ 2 ],
+    :n_particles => [ 50 ],
+    :n_runs => [ 20 ],
     )
 
 PROBLEM_PARAMS = Dict(
