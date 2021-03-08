@@ -13,11 +13,10 @@ function cmdline_run(ALG_PARAMS, PROBLEM_PARAMS, DIRNAME, run_func)
     # and that they are indexed in tmp_dict_names.bson
         dict_o_dicts = BSON.load(
                         projectdir("_research","tmp",
-                            BSON.load(
-                                  projectdir("tmp_dict_names.bson")
-                            )[ENV["SGE_TASK_ID"]][1]
-                        )
-                       )
+                            BSON.load( projectdir("tmp_dict_names.bson")
+                                )[ENV["SGE_TASK_ID"]][1]
+                            )
+                           )
         @info "Sampling problem: $(dict_o_dicts[:problem_params])"
         @info "Alg parameters: $(dict_o_dicts[:alg_params])"
         @time run_func(problem_params=dict_o_dicts[:problem_params],
