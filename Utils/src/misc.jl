@@ -43,6 +43,13 @@ function get_pdmat(K)
     return PDMat(K+α*I)
 end 
 
+function get_savename(data)
+    savenamedict = data
+    delete!(savenamedict, :sample_data_file)
+    delete!(savenamedict, :problem_type)
+    file_prefix = savename( savenamedict )
+end
+
 function data_filename(d)
     "$(d[:n_particles])particles_mu0=$(d[:μ₀])_S0=$(d[:Σ₀])_mup=$(d[:μₚ])_Sp=$(d[:Σₚ])_$(d[:n_iter])iter_stepsize=$(d[:step_size])"
 end
