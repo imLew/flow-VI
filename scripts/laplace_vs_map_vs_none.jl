@@ -24,12 +24,12 @@ ALG_PARAMS = Dict(
     :kernel_cb => [ median_trick_cb! ],
     :step_size => [ 0.001 ],
     :n_iter => [ 1000 ],
-    :n_particles => [ 20 ],
+    :n_particles => [ 50 ],
     :n_runs => [ 20 ],
     )
 
 PROBLEM_PARAMS = Dict(
-    :problem_type => [ :bayesian_logistic_regression ],
+    :problem_type => [ :logistic_regression ],
     :MAP_start => [ false, true ],
     :Laplace_start => [false, @onlyif(:MAP_start == true,  true )],
     :n_dim => [ 2 ],
@@ -50,5 +50,11 @@ PROBLEM_PARAMS = Dict(
     "2dim_50:[0.0, 0.0]:[0.5 0.1; 0.1 0.2]_50:[0.0, 0.0]:[0.5 0.1; 0.1 0.2].bson")
                          ],
 )
+
+# problem_params=dict_list(PROBLEM_PARAMS)[1] 
+# alg_params=dict_list(ALG_PARAMS)[1] 
+
+# include("run_funcs.jl")
+# run(problem_params=dict_list(PROBLEM_PARAMS)[1], alg_params=dict_list(ALG_PARAMS)[1], save=false)
 
 cmdline_run(ALG_PARAMS, PROBLEM_PARAMS, DIRNAME, run)

@@ -224,7 +224,6 @@ function run(::Val{:logistic_regression} ;problem_params, alg_params, DIRNAME=""
                         Σ₀=problem_params[:Σ₀], Σ₁=problem_params[:Σ₁],
                        )
     end
-    sample_data = D
 
     # arrays to hold results
     svgd_hist = []
@@ -267,9 +266,7 @@ function run(::Val{:logistic_regression} ;problem_params, alg_params, DIRNAME=""
 
     initial_dist = MvNormal(problem_params[:μ_initial], problem_params[:Σ_initial])
     H₀ = Distributions.entropy(initial_dist)
-    EV = ( num_expectation( initial_dist, 
-                                  w -> LogReg.log_likelihood(sample_data,w),
-                                 )
+    EV = ( num_expectation( initial_dist, w -> LogReg.log_likelihood(D ,w) )
            + expectation_V(initial_dist, initial_dist) 
            + 0.5 * log( det(2π * problem_params[:Σ_initial]) )
           )
@@ -296,6 +293,7 @@ function run(::Val{:logistic_regression} ;problem_params, alg_params, DIRNAME=""
     end
     file_prefix = savename( savenamedict )
 
+    sample_data = D
     if save
         tagsave(datadir(DIRNAME, file_prefix * ".bson"),
                 merge(alg_params, problem_params, 
