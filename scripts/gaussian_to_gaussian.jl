@@ -61,7 +61,7 @@ ALG_PARAMS = Dict(
     :n_iter => [1000],
     :kernel => [TransformedKernel(SqExponentialKernel(), ScaleTransform(1.))],
     :step_size => [0.05],
-    :n_particles => [50],
+    :n_particles => [20],
     :update_method => [:forward_euler, :naive_WAG, :naive_WNES],
     :α => @onlyif(:update_method == :naive_WAG, [3.1] ),
     :c₁ => @onlyif(:update_method == :naive_WNES, [.1] ),
@@ -71,4 +71,5 @@ ALG_PARAMS = Dict(
     :n_runs => 10,
 )
 
+include("run_funcs.jl")
 cmdline_run(ALG_PARAMS, PROBLEM_PARAMS, "gaussian_to_gaussian/covariance/", run)
