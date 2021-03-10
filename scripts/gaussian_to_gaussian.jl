@@ -36,14 +36,13 @@ using SVGD
 using Utils
 using Examples
 
-include("run_funcs.jl")
-
-problem_params = Dict(
+PROBLEM_PARAMS = Dict(
     :problem_type => [ :gauss_to_gauss ],
     :μ₀ => [[0., 0]],
     :μₚ => [[0, 0]],
     :Σₚ => [[1. 0; 0 1.]],
-    :Σ₀ => [10.0^i .* [1. 0; 0 1] for i in -5:1:5],
+    :Σ₀ => [10.0^i .* [1. 0; 0 1] for i in -3:1:3],
+    :random_seed => [ 0 ],
 )
 
 # plt = plot()
@@ -58,7 +57,7 @@ problem_params = Dict(
 #     display(plot_2D_results(initial_dist, target_dist, q, title=title))
 # end
 
-alg_params = Dict(
+ALG_PARAMS = Dict(
     :n_iter => [1000],
     :kernel => [TransformedKernel(SqExponentialKernel(), ScaleTransform(1.))],
     :step_size => [0.05],
@@ -69,7 +68,7 @@ alg_params = Dict(
     :c₂ => @onlyif(:update_method == :naive_WNES, [.3] ),
     :kernel_cb => [median_trick_cb!],
     # :callback => [plot_cb],
-    :n_runs => 20,
+    :n_runs => 10,
 )
 
-cmdline_run(alg_params, problem_params, "gaussian_to_gaussian/covariance10-03-21/", run)
+cmdline_run(ALG_PARAMS, PROBLEM_PARAMS, "gaussian_to_gaussian/covariance/", run)
