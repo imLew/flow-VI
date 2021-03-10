@@ -12,7 +12,7 @@ function kernel_gradient(k::Kernel, x, y)
 end
 
 function median_trick_cb!(kernel::Kernel, q)
-    kernel.transform.s .= 1/sqrt(2*median_trick(q))
+    kernel.transform.s .= sqrt(2/median_trick(q))
 end
 
 function median_cb!(kernel, q)
