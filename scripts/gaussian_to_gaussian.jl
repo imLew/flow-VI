@@ -61,7 +61,7 @@ alg_params = Dict(
     :n_iter => [1000],
     :kernel => [TransformedKernel(SqExponentialKernel(), ScaleTransform(1.))],
     :step_size => [0.05],
-    :n_particles => [100],
+    :n_particles => [50],
     :update_method => [:forward_euler, :naive_WAG, :naive_WNES],
     :α => @onlyif(:update_method == :naive_WAG, [3.1] ),
     :c₁ => @onlyif(:update_method == :naive_WNES, [.1] ),
