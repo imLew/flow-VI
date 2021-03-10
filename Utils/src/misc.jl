@@ -12,6 +12,7 @@ export KL_integral
 export get_pdmat
 export geometric_step_size_cb
 export filter_by_dict
+export get_savename
 
 ## step_size utils
 function geometric_step_size_cb(step_size, iter, factor, cutoff)

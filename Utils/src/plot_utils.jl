@@ -172,13 +172,13 @@ end
 function plot_integration(::Val{:bayesian_logistic_regression}, data; 
                           size=(375,375), legend=:bottomright, lw=3, 
                           ylims=(-Inf,Inf))
-    plt = plot()
-    plot_integration!(Val(:bayesian_logistic_regression), plt, data; size=size, 
+    plt = plot(size=size)
+    plot_integration!(Val(:bayesian_logistic_regression), plt, data; 
                       legend=legend, lw=lw, ylims=ylims)
 end
 
 function plot_integration!(::Val{:bayesian_logistic_regression}, 
-                           plt::Plots.Plot, data; size=(375,375),
+                           plt::Plots.Plot, data; 
                            legend=:bottomright, lw=3, ylims=(-Inf,Inf))
     # dKL_hist = data[:svgd_results][1]
     initial_dist = MvNormal(data[:μ_initial], data[:Σ_initial])
