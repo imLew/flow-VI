@@ -113,7 +113,7 @@ function calculate_phi_vectorized(kernel, q, grad_logp)
     if n == 1  
         ϕ = glp_mat * k_mat 
     else
-        ϕ =  1/n * ( glp_mat * k_mat + hcat( sum(grad_k, dims=2)... ) )
+        ϕ =  1/n * ( glp_mat * k_mat + grad_k )
     end
 end
 
@@ -185,7 +185,8 @@ function kernel_grad_matrix(kernel::KernelFunctions.Kernel, q)
         return 0
     end
     grad(f,x,y) = gradient(f,x,y)[1]
-	mapslices(x -> grad.(kernel, [x], eachcol(q)), q, dims = 1)
+	grad_k = mapslices(x -> grad.(kernel, [x], eachcol(q)), q, dims = 1)
+    hcat( sum(grad_k, dims=2)... )
 end
 
 function kernel_grad_matrix(kernel::TransformedKernel{SqExponentialKernel}, q)
@@ -193,8 +194,15 @@ function kernel_grad_matrix(kernel::TransformedKernel{SqExponentialKernel}, q)
         return 0
     end
     function kernel_gradient(k::TransformedKernel{SqExponentialKernel}, x, y)
-        h = 1/k.transform.s[1]^2
-        -2/h * (x-y) * exp(-h\norm(x-y))
+        - k.transform.s[1]^2 * (x-y) * k(x,y)
     end
-    hcat(map(y->map(x->kernel_gradient(kernel, x, y), eachcol(q)), eachcol(q))...)
+    ∇k = zeros(size(q))
+    for (j, y) in enumerate(eachcol(q))
+        for (i, x) in enumerate(eachcol(q))
+            ∇k[:,j] += kernel_gradient(kernel, x, y)
+        end
+    end
+    ∇k
 end
+
+export kernel_grad_matrix
