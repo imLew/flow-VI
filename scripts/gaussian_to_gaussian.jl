@@ -39,6 +39,7 @@ using Examples
 include("run_funcs.jl")
 
 problem_params = Dict(
+    :problem_type => [ :gauss_to_gauss ],
     :μ₀ => [[0., 0]],
     :μₚ => [[0, 0]],
     :Σₚ => [[1. 0; 0 1.]],
@@ -71,4 +72,4 @@ alg_params = Dict(
     :n_runs => 20,
 )
 
-cmdline_run(alg_params, problem_params, "gaussian_to_gaussian/covariance", run_gauss_to_gauss)
+cmdline_run(alg_params, problem_params, "gaussian_to_gaussian/covariance10-03-21/", run)

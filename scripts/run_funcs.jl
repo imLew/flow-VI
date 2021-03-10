@@ -36,7 +36,7 @@ const LogReg = Examples.LogisticRegression
 #     end
 # end
 
-function run_gauss_to_gauss(;problem_params, alg_params, DIRNAME, save=true)
+function run(::Val{:gauss_to_gauss} ;problem_params, alg_params, DIRNAME="", save=true)
     svgd_results = []
     svgd_hist = []
     estimation_rkhs = []
@@ -106,7 +106,7 @@ function fit_linear_regression(problem_params, alg_params, D::LinReg.RegressionD
     return initial_dist, q, hist
 end
 
-function run_linear_regression(problem_params, alg_params)
+function run(::Val{:linear_regression}; problem_params, alg_params, DIRNAME="", save=true)
     svgd_results = []
     svgd_hist = []
     estimation_rkhs = []
@@ -198,7 +198,7 @@ function fit_logistic_regression(problem_params, alg_params, D)
     return initial_dist, q, hist
 end
 
-function run_log_regression(;problem_params, alg_params, DIRNAME="", save=true)
+function run(;problem_params, alg_params, DIRNAME="", save=true)
     problem_params = copy(problem_params)
     alg_params = copy(alg_params)
     if DIRNAME=="" && save
@@ -208,6 +208,12 @@ function run_log_regression(;problem_params, alg_params, DIRNAME="", save=true)
         Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
         @info "GLOBAL_RNG random seed set" problem_params[:random_seed]
     end
+    run(Val(problem_params[:problem_type]), problem_params=problem_params, 
+        alg_params=alg_params, DIRNAME=DIRNAME, save=save)
+end
+
+
+function run(::Val{:logistic_regression} ;problem_params, alg_params, DIRNAME="", save=true)
     if haskey(problem_params, :sample_data_file)
         @info "Using data from file, make sure the problem params are correct"
         D = BSON.load(problem_params[:sample_data_file])[:D]
@@ -218,7 +224,6 @@ function run_log_regression(;problem_params, alg_params, DIRNAME="", save=true)
                         Σ₀=problem_params[:Σ₀], Σ₁=problem_params[:Σ₁],
                        )
     end
-    sample_data = D
 
     # arrays to hold results
     svgd_hist = []
@@ -261,9 +266,7 @@ function run_log_regression(;problem_params, alg_params, DIRNAME="", save=true)
 
     initial_dist = MvNormal(problem_params[:μ_initial], problem_params[:Σ_initial])
     H₀ = Distributions.entropy(initial_dist)
-    EV = ( num_expectation( initial_dist, 
-                                  w -> LogReg.log_likelihood(sample_data,w),
-                                 )
+    EV = ( num_expectation( initial_dist, w -> LogReg.log_likelihood(D ,w) )
            + expectation_V(initial_dist, initial_dist) 
            + 0.5 * log( det(2π * problem_params[:Σ_initial]) )
           )
@@ -290,6 +293,7 @@ function run_log_regression(;problem_params, alg_params, DIRNAME="", save=true)
     end
     file_prefix = savename( savenamedict )
 
+    sample_data = D
     if save
         tagsave(datadir(DIRNAME, file_prefix * ".bson"),
                 merge(alg_params, problem_params, 

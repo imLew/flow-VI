@@ -30,13 +30,13 @@ function estimate_logZ(H0, EV, int_KL)
 end
 
 function numerical_expectation(d::Distribution, f; n_samples=10000, rng=Random.GLOBAL_RNG)
-    sum( f, rand(rng, d, n_samples) ) / n_samples
+    mean([ v for v in [ f(x) for x in rand(rng, d, n_samples)] if isfinite(v)] ) 
 end
 
 # the other numerical_expectation function applies f to each element instead
 # of each col :/
 function num_expectation(d::Distribution, f; n_samples=10000, rng=Random.GLOBAL_RNG)
-    sum( f, eachcol(rand(rng, d, n_samples)) ) / n_samples
+    mean([ v for v in [ f(x) for x in eachcol(rand(rng, d, n_samples))] if isfinite(v)] ) 
 end
 
 function logZ(d::Distribution)

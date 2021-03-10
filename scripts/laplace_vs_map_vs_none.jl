@@ -29,7 +29,7 @@ ALG_PARAMS = Dict(
     )
 
 PROBLEM_PARAMS = Dict(
-    :problem_type => [ :bayesian_logistic_regression ],
+    :problem_type => [ :logistic_regression ],
     :MAP_start => [ false, true ],
     :Laplace_start => [false, @onlyif(:MAP_start == true,  true )],
     :n_dim => [ 2 ],
@@ -51,4 +51,10 @@ PROBLEM_PARAMS = Dict(
                          ],
 )
 
-cmdline_run(ALG_PARAMS, PROBLEM_PARAMS, DIRNAME, run_log_regression)
+# problem_params=dict_list(PROBLEM_PARAMS)[1] 
+# alg_params=dict_list(ALG_PARAMS)[1] 
+
+# include("run_funcs.jl")
+# run(problem_params=dict_list(PROBLEM_PARAMS)[1], alg_params=dict_list(ALG_PARAMS)[1], save=false)
+
+cmdline_run(ALG_PARAMS, PROBLEM_PARAMS, DIRNAME, run)
