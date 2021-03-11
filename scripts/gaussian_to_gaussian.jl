@@ -25,12 +25,11 @@ end
 
 using KernelFunctions
 using Plots
-using Distributions
-using LinearAlgebra
-using ValueHistories
-using BSON
-using ColorSchemes
-const colors = ColorSchemes.seaborn_colorblind
+# using Distributions
+# using LinearAlgebra
+# using ValueHistories
+# using ColorSchemes
+# const colors = ColorSchemes.seaborn_colorblind
 
 using SVGD
 using Utils
