@@ -150,6 +150,16 @@ function run(;problem_params, alg_params, DIRNAME="", save=true)
 end
 
 function run(::Val{:logistic_regression} ;problem_params, alg_params, DIRNAME="", save=true)
+    therm_logZ = if haskey(problem_params, :therm_params)
+        therm_integration(problem_params, D; problem_params[:therm_params]...)
+        if haskey(problem_params, :random_seed) 
+            Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
+            @info "GLOBAL_RNG random seed set again because thermodynamic integration used up randomness" problem_params[:random_seed]
+        end
+    else
+        nothing
+    end
+
     if haskey(problem_params, :sample_data_file)
         @info "Using data from file, make sure the problem params are correct"
         D = BSON.load(problem_params[:sample_data_file])[:D]
@@ -192,12 +202,6 @@ function run(::Val{:logistic_regression} ;problem_params, alg_params, DIRNAME=""
         problem_params[:Σ_initial] = inv(Symmetric(
                 inv(problem_params[:Σ_initial]) + D.z' * (y.*(1 .- y) .* D.z)
             ))
-    end
-
-    therm_logZ = if haskey(problem_params, :therm_params)
-        therm_integration(problem_params, D; problem_params[:therm_params]...)
-    else
-        nothing
     end
 
     initial_dist = MvNormal(problem_params[:μ_initial], problem_params[:Σ_initial])
