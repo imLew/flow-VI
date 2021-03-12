@@ -48,6 +48,7 @@ function get_savename(data)
     savenamedict = data
     delete!(savenamedict, :sample_data_file)
     delete!(savenamedict, :problem_type)
+    delete!(savenamedict, :callback)
     file_prefix = savename( savenamedict )
 end
 
