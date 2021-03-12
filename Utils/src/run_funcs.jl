@@ -3,6 +3,7 @@ using BSON
 using DrWatson
 using Distributions
 using Optim
+using LinearAlgebra
 
 using SVGD
 using Utils
@@ -10,7 +11,7 @@ using Examples
 const LinReg = Examples.LinearRegression
 const LogReg = Examples.LogisticRegression
 
-function run(::Val{:gauss_to_gauss} ;problem_params, alg_params, DIRNAME="", save=true)
+function run_svgd(::Val{:gauss_to_gauss} ;problem_params, alg_params, DIRNAME="", save=true)
     svgd_results = []
     svgd_hist = []
     estimation_rkhs = []
@@ -87,7 +88,7 @@ function fit_linear_regression(problem_params, alg_params, D::LinReg.RegressionD
     return initial_dist, q, hist
 end
 
-function run(::Val{:linear_regression}; problem_params, alg_params, 
+function run_svgd(::Val{:linear_regression}; problem_params, alg_params, 
              DIRNAME="", save=true)
     svgd_results = []
     svgd_hist = []
@@ -135,7 +136,7 @@ function run(::Val{:linear_regression}; problem_params, alg_params,
             safe=true, storepatch = false)
 end
 
-function run(;problem_params, alg_params, DIRNAME="", save=true)
+function run_svgd(;problem_params, alg_params, DIRNAME="", save=true)
     problem_params = copy(problem_params)
     alg_params = copy(alg_params)
     if DIRNAME=="" && save
@@ -145,11 +146,11 @@ function run(;problem_params, alg_params, DIRNAME="", save=true)
         Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
         @info "GLOBAL_RNG random seed set" problem_params[:random_seed]
     end
-    run(Val(problem_params[:problem_type]), problem_params=problem_params, 
+    run_svgd(Val(problem_params[:problem_type]), problem_params=problem_params, 
         alg_params=alg_params, DIRNAME=DIRNAME, save=save)
 end
 
-function run(::Val{:logistic_regression} ;problem_params, alg_params, DIRNAME="", save=true)
+function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params, DIRNAME="", save=true)
     therm_logZ = if haskey(problem_params, :therm_params)
         therm_integration(problem_params, D; problem_params[:therm_params]...)
         if haskey(problem_params, :random_seed) 
