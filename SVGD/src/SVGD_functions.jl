@@ -42,7 +42,7 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50,
     end
 
     hist = MVHistory()
-    y = copy(q) 
+    y = copy(q)  # needed for WAG and WNES
     ϕ = zeros(size(q))
     for i in 1:n_iter
         isnothing(kernel_cb!) ? nothing : kernel_cb!(kernel, q)
@@ -68,6 +68,24 @@ function push_to_hist!(hist, q, ϵ, ϕ, i, kernel; kwargs...)
         end
     end
     push!(hist, :kernel_width, kernel.transform.s)
+end
+
+function calculate_phi_vectorized(kernel, q, grad_logp)
+    n = size(q)[end]
+    k_mat = KernelFunctions.kernelmatrix(kernel, q)
+    grad_k = kernel_grad_matrix(kernel, q)
+    glp_mat = hcat( grad_logp.(eachcol(q))... )
+    if n == 1  
+        ϕ = glp_mat * k_mat 
+    else
+        ϕ =  1/n * ( glp_mat * k_mat + grad_k )
+    end
+end
+
+function update!(::Val{:scalar_adagrad}, q, ϕ, ϵ, iter, kernel, grad_logp; kwargs...)
+    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp)
+    N = size(ϕ, 1)
+    q += N*ϵ/norm(ϕ)^2*ϕ
 end
 
 function update!(::Val{:naive_WNES}, q, ϕ, ϵ, iter, kernel, grad_logp; kwargs...)
@@ -103,18 +121,6 @@ function calculate_phi(kernel, q, grad_logp)
         end
     end
     ϕ ./= size(q)[end]
-end
-
-function calculate_phi_vectorized(kernel, q, grad_logp)
-    n = size(q)[end]
-    k_mat = KernelFunctions.kernelmatrix(kernel, q)
-    grad_k = kernel_grad_matrix(kernel, q)
-    glp_mat = hcat( grad_logp.(eachcol(q))... )
-    if n == 1  
-        ϕ = glp_mat * k_mat 
-    else
-        ϕ =  1/n * ( glp_mat * k_mat + grad_k )
-    end
 end
 
 function compute_dKL(::Val{:KSD}, kernel::Kernel, q; grad_logp)
