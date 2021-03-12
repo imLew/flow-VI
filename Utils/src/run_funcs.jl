@@ -11,6 +11,8 @@ using Examples
 const LinReg = Examples.LinearRegression
 const LogReg = Examples.LogisticRegression
 
+export run_svgd
+
 function run_svgd(::Val{:gauss_to_gauss} ;problem_params, alg_params, DIRNAME="", save=true)
     svgd_results = []
     svgd_hist = []
