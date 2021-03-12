@@ -151,16 +151,6 @@ function run_svgd(;problem_params, alg_params, DIRNAME="", save=true)
 end
 
 function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params, DIRNAME="", save=true)
-    therm_logZ = if haskey(problem_params, :therm_params)
-        therm_integration(problem_params, D; problem_params[:therm_params]...)
-        if haskey(problem_params, :random_seed) 
-            Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
-            @info "GLOBAL_RNG random seed set again because thermodynamic integration used up randomness" problem_params[:random_seed]
-        end
-    else
-        nothing
-    end
-
     if haskey(problem_params, :sample_data_file)
         @info "Using data from file, make sure the problem params are correct"
         D = BSON.load(problem_params[:sample_data_file])[:D]
@@ -170,6 +160,17 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params, DIRNA
                         μ₀=problem_params[:μ₀], μ₁=problem_params[:μ₁], 
                         Σ₀=problem_params[:Σ₀], Σ₁=problem_params[:Σ₁],
                        )
+    end
+
+    therm_logZ = if haskey(problem_params, :therm_params)
+        therm_integration(problem_params, D; problem_params[:therm_params]...)
+    else
+        nothing
+    end
+
+    if haskey(problem_params, :random_seed) 
+        Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
+        @info "GLOBAL_RNG random seed set again because thermodynamic integration used up randomness" problem_params[:random_seed]
     end
 
     # arrays to hold results
