@@ -38,7 +38,8 @@ function run_svgd(::Val{:gauss_to_gauss} ;problem_params, alg_params, DIRNAME=""
             push!(estimation_rkhs, est_logZ_rkhs) 
         catch e
             failed_count += 1
-            @show e
+            @error "Something went wrong" exception=(e, catch_backtrace())
+            # @show e
         end
     end
 
