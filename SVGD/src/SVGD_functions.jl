@@ -46,7 +46,7 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50,
     ϕ = zeros(size(q))
     for i in 1:n_iter
         isnothing(kernel_cb!) ? nothing : kernel_cb!(kernel, q)
-        ϵ = isnothing(step_size_cb) ? step_size : step_size_cb(step_size, i)
+        ϵ = isnothing(step_size_cb) ? [step_size] : [step_size_cb(step_size, i)]
         update!(Val(update_method), q, ϕ, ϵ, i, kernel, grad_logp, y=y; kwargs...)
         push_to_hist!(hist, q, ϵ, ϕ, i, kernel; kwargs...)
         if !isnothing(callback)
@@ -85,13 +85,14 @@ end
 function update!(::Val{:scalar_adagrad}, q, ϕ, ϵ, iter, kernel, grad_logp; kwargs...)
     ϕ .= calculate_phi_vectorized(kernel, q, grad_logp)
     N = size(ϕ, 1)
-    q += N*ϵ/norm(ϕ)^2*ϕ
+    ϵ .= N*ϵ/(norm(ϕ) + 1)
+    q .+= ϵ .*ϕ
 end
 
 function update!(::Val{:naive_WNES}, q, ϕ, ϵ, iter, kernel, grad_logp; kwargs...)
     @unpack c₁, c₂, y = kwargs
     ϕ .= calculate_phi_vectorized(kernel, y, grad_logp)
-    q_new = y .+ ϵ*ϕ
+    q_new = y .+ ϵ.*ϕ
     y .= q_new .+ c₁*(c₂ - 1) * (q_new .- q)
     q .= q_new
 end
@@ -99,14 +100,14 @@ end
 function update!(::Val{:naive_WAG}, q, ϕ, ϵ, iter, kernel, grad_logp; kwargs...)
     @unpack α, y = kwargs
     ϕ .= calculate_phi_vectorized(kernel, y, grad_logp)
-    q_new = y .+ ϵ*ϕ
-    y .= q_new .+ (iter-1)/iter .* (y.-q) + (iter + α -2)/iter * ϵ * ϕ
+    q_new = y .+ ϵ.*ϕ
+    y .= q_new .+ (iter-1)/iter .* (y.-q) + (iter + α -2)/iter * ϵ .* ϕ
     q .= q_new
 end
 
 function update!(::Val{:forward_euler}, q, ϕ, ϵ, iter, kernel, grad_logp; kwargs...)
     ϕ .= calculate_phi_vectorized(kernel, q, grad_logp)
-    q .+= ϵ*ϕ
+    q .+= ϵ.*ϕ
 end
 
 function calculate_phi(kernel, q, grad_logp)

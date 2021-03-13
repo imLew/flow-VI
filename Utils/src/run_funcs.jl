@@ -31,7 +31,7 @@ function run_svgd(::Val{:gauss_to_gauss} ;problem_params, alg_params, DIRNAME=""
             H₀ = Distributions.entropy(initial_dist)
             EV = expectation_V( initial_dist, target_dist)
 
-            est_logZ_rkhs = estimate_logZ(H₀, EV, KL_integral(hist)[end])
+            est_logZ_rkhs = estimate_logZ(H₀, EV, KL_integral(hist)[end][1])
 
             push!(svgd_results, q)
             push!(svgd_hist, hist)
