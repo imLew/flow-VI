@@ -1,8 +1,10 @@
 using Distributions
 using LinearAlgebra
+using ValueHistories
 using PDMats
 
 export expectation_V
+export KL_integral
 export estimate_logZ
 export logZ
 export numerical_expectation
@@ -25,8 +27,33 @@ function expectation_V(initial_dist::MvNormal, target_dist::MvNormal)
     0.5 * ( tr(inv(Σₚ)*Σ₀) + invquad(Σₚ, μ₀-μₚ) )
 end
 
-function estimate_logZ(H0, EV, int_KL)
-    H0 - EV + int_KL
+function KL_integral(hist, method=:RKHS_norm)
+    cumsum(get(hist, :step_sizes)[2] .* get(hist, method)[2])[1]
+end
+
+function estimate_logZ(H₀, EV, int_KL)
+    H₀ .- EV .+ int_KL
+end
+
+function estimate_logZ(H₀, EV, hist::MVHistory, method=:RKHS_norm)
+    estimate_logZ(H₀, EV, KL_integral(hist, method))
+end
+
+function estimate_logZ(data::Dict{Symbol,Any}, method=:RKHS_norm)
+    estimate_logZ(Val(data[:problem_type]), data, method)
+end
+
+function estimate_logZ(::Val{:gauss_to_gauss}, data::Dict{Symbol,Any}, 
+                       method=:RKHS_norm)
+    initial_dist = MvNormal(data[:μ₀], data[:Σ₀])
+    target_dist = MvNormal(data[:μₚ], data[:Σₚ])
+    H₀ = Distributions.entropy(initial_dist)
+    EV = expectation_V( initial_dist, target_dist)
+    estimates = []
+    for dKL_hist in data[:svgd_hist]
+        push!(estimates, estimate_logZ(H₀, EV, dKL_hist, method))
+    end
+    return estimates
 end
 
 function numerical_expectation(d::Distribution, f; n_samples=10000, rng=Random.GLOBAL_RNG)

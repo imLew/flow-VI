@@ -8,7 +8,6 @@ using Zygote
 using ForwardDiff
 using PDMats
 
-export KL_integral
 export get_pdmat
 export geometric_step_size_cb
 export filter_by_dict
@@ -23,10 +22,6 @@ function geometric_step_size_cb(step_size, iter, factor, cutoff)
 end
 
 ## math utils
-function KL_integral(hist, key=:RKHS_norm)
-    cumsum(get(hist, :step_sizes)[2] .* get(hist, key)[2])
-end
-
 function get_pdmat(K)
     Kmax =maximum(K)
     α = eps(eltype(K))
