@@ -47,14 +47,23 @@ function estimate_logZ(::Val{:gauss_to_gauss}, data::Dict{Symbol,Any},
                        method=:RKHS_norm)
     initial_dist = MvNormal(data[:μ₀], data[:Σ₀])
     target_dist = MvNormal(data[:μₚ], data[:Σₚ])
+    estimate_logZ(initial_dist, target_dist, data, method)
+end
+
+function estimate_logZ(initial_dist::Distribution, target_dist::Distribution,
+                       data::Dict{Symbol,Any}, method=:RKHS_norm)
     H₀ = Distributions.entropy(initial_dist)
     EV = expectation_V( initial_dist, target_dist)
+    estimate_logZ(H₀, EV, data[:svgd_hist], method)
+end
+
+function estimate_logZ(H₀, EV, hist_array::Array{MVHistory}, method=:RKHS_norm)
     estimates = []
-    for dKL_hist in data[:svgd_hist]
+    for dKL_hist in hist_array
         push!(estimates, estimate_logZ(H₀, EV, dKL_hist, method))
     end
     return estimates
-end
+end        
 
 function numerical_expectation(d::Distribution, f; n_samples=10000, rng=Random.GLOBAL_RNG)
     mean([ v for v in [ f(x) for x in rand(rng, d, n_samples)] if isfinite(v)] ) 
