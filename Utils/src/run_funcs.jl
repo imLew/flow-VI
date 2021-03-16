@@ -4,6 +4,7 @@ using DrWatson
 using Distributions
 using Optim
 using LinearAlgebra
+using ProgressMeter
 
 using SVGD
 using Utils
@@ -205,15 +206,16 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
     initial_dist = MvNormal(problem_params[:μ_initial], 
                             problem_params[:Σ_initial])
     for i in 1:alg_params[:n_runs]
-        @info "Run $i/$(alg_params[:n_runs])"
-        q = rand(initial_dist, alg_params[:n_particles])
-        q, hist = svgd_fit(q, grad_logp; alg_params...)
+        try 
+            @info "Run $i/$(alg_params[:n_runs])"
+            q = rand(initial_dist, alg_params[:n_particles])
+            q, hist = svgd_fit(q, grad_logp; alg_params...)
 
-        push!(svgd_results, q)
-        push!(svgd_hist, hist)
-        est_logZ = estimate_logZ(H₀, EV, KL_integral(hist)[end])
-        push!(estimation_rkhs, est_logZ) 
-        @show est_logZ
+            push!(svgd_results, q)
+            push!(svgd_hist, hist)
+        catch e
+            @error "Something went wrong" exception=(e, catch_backtrace())
+        end
     end
 
     sample_data = D
