@@ -143,81 +143,72 @@ function plot_integration(data; size=(375,375), legend=:bottomright, lw=3,
                           ylims=(-Inf,Inf))
     plt = plot()
     plot_integration!(plt, data; size=size, legend=legend, lw=lw, ylims=ylims)
+    plot(plt)
 end
 
 function plot_integration!(plt::Plots.Plot, data; size=(375,375),
                            legend=:bottomright, lw=3, ylims=(-Inf,Inf))
-    # dKL_hist = data[:svgd_results][1]
-    initial_dist = MvNormal(data[:μ₀], data[:Σ₀])
-    target_dist = MvNormal(data[:μₚ], data[:Σₚ])
-    H₀ = Distributions.entropy(initial_dist)
-    EV = expectation_V( initial_dist, target_dist )
-    true_logZ = logZ(target_dist)
     plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw, ylims=ylims);
     if data[:n_runs] < 5
-        for dKL_hist in data[:svgd_hist]
-        est_logZ = estimate_logZ.([H₀], [EV], 
-                                  data[:step_size]*cumsum(get(dKL_hist, :RKHS_norm)[2]))
-        plot!(plt, est_logZ, label="", color=colors[1]);
-        end
+        plot!(plt, estimate_logZ(data), label="", color=colors[1]);
     else
-        est_logZ = [estimate_logZ.([H₀], [EV], 
-                                  data[:step_size]*cumsum(get(d, :RKHS_norm)[2]))
-                    for d in data[:svgd_hist]]
-        plot!(plt, mean(est_logZ), ribbon=std(est_logZ), label="", color=colors[1]);
+        est_logZ = estimate_logZ(data)
+        plot!(plt, mean(est_logZ), ribbon=std(est_logZ), label="",
+              color=colors[1]);
     end
-    hline!(plt, [true_logZ], labels="", color=colors[2], ls=:dash);
-end
-
-function plot_integration(::Val{:bayesian_logistic_regression}, data; 
-                          size=(375,375), legend=:bottomright, lw=3, 
-                          ylims=(-Inf,Inf))
-    plt = plot(size=size)
-    plot_integration!(Val(:bayesian_logistic_regression), plt, data; 
-                      legend=legend, lw=lw, ylims=ylims)
-end
-
-function plot_integration!(::Val{:bayesian_logistic_regression}, 
-                           plt::Plots.Plot, data; 
-                           legend=:bottomright, lw=3, ylims=(-Inf,Inf))
-    # dKL_hist = data[:svgd_results][1]
-    initial_dist = MvNormal(data[:μ_initial], data[:Σ_initial])
-    H₀ = Distributions.entropy(initial_dist)
-    EV = ( num_expectation( initial_dist, 
-                                  w -> LogReg.log_likelihood(data[:sample_data],w),
-                                 )
-           + expectation_V(initial_dist, initial_dist) 
-           + 0.5 * logdet(2π * data[:Σ_initial]) 
-          )
-    true_logZ = data[:therm_logZ]
-    plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw, ylims=ylims);
-    if data[:n_runs] < 5
-        for dKL_hist in data[:svgd_hist]
-        est_logZ = estimate_logZ.([H₀], [EV], 
-                                  data[:step_size]*cumsum(get(dKL_hist, :RKHS_norm)[2]))
-        plot!(plt, est_logZ, label="", color=colors[1]);
-        end
-    else
-        est_logZ = [estimate_logZ.([H₀], [EV], 
-                                  data[:step_size]*cumsum(get(d, :RKHS_norm)[2]))
-                    for d in data[:svgd_hist]]
-        plot!(plt, mean(est_logZ), ribbon=std(est_logZ), label="", color=colors[1]);
+    if !isnothing(data[:true_logZ])
+        hline!(plt, [data[:true_logZ]], labels="", color=colors[2], ls=:dash);
     end
-    hline!(plt, [true_logZ], labels="", color=colors[2], ls=:dash);
 end
 
-function plot_classes(::Val{:bayesian_logistic_regression}, sample_data; kwargs...)
+# function plot_integration(::Val{:logistic_regression}, data; 
+#                           size=(375,375), legend=:bottomright, lw=3, 
+#                           ylims=(-Inf,Inf))
+#     plt = plot(size=size)
+#     plot_integration!(Val(:logistic_regression), plt, data; 
+#                       legend=legend, lw=lw, ylims=ylims)
+# end
+
+# function plot_integration!(::Val{:logistic_regression}, 
+#                            plt::Plots.Plot, data; 
+#                            legend=:bottomright, lw=3, ylims=(-Inf,Inf))
+#     initial_dist = MvNormal(data[:μ_initial], data[:Σ_initial])
+#     H₀ = Distributions.entropy(initial_dist)
+#     EV = ( num_expectation( initial_dist, 
+#                                   w -> LogReg.log_likelihood(data[:sample_data],w),
+#                                  )
+#            + expectation_V(initial_dist, initial_dist) 
+#            + 0.5 * logdet(2π * data[:Σ_initial]) 
+#           )
+#     true_logZ = data[:therm_logZ]
+#     plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw, ylims=ylims);
+#     if data[:n_runs] < 5
+#         for dKL_hist in data[:svgd_hist]
+#             est_logZ = estimate_logZ.([H₀], [EV], 
+#                                       KL_integral(dKL_hist))
+#             plot!(plt, est_logZ, label="", color=colors[1]);
+#         end
+#     else
+#         est_logZ = [estimate_logZ.([H₀], [EV], KL_integral(dKL_hist))
+#                     for dKL_hist in data[:svgd_hist]]
+#         plot!(plt, mean(est_logZ), ribbon=std(est_logZ), label="",
+#               color=colors[1]);
+#     end
+#     hline!(plt, [true_logZ], labels="", color=colors[2], ls=:dash);
+# end
+
+function plot_classes(::Val{:logistic_regression}, sample_data; kwargs...)
     plt = plot(;kwargs...)
-    plot_classes!(Val(:bayesian_logistic_regression), plt, sample_data)
+    plot_classes!(Val(:logistic_regression), plt, sample_data)
     return plt
 end
 
-function plot_classes!(::Val{:bayesian_logistic_regression}, plt, sample_data)
+function plot_classes!(::Val{:logistic_regression}, plt, sample_data)
     scatter!(plt, sample_data.x[:,1], sample_data.x[:,2], legend=false, label="", 
             colorbar=false, zcolor=sample_data.t);
 end
 
-function plot_prediction!(::Val{:bayesian_logistic_regression}, plt, data)
+function plot_prediction!(::Val{:logistic_regression}, plt, data)
     xs = range(minimum(data[:sample_data].x[:,1]), 
                maximum(data[:sample_data].x[:,1]), length=100)
     ys = range(minimum(data[:sample_data].x[:,2]), 
