@@ -20,9 +20,9 @@ pdf_potential(d::Distribution, x) = -logpdf(d, x)
 
 pdf_potential(d::Exponential, x) = x / Distributions.params(d)[1] 
 
-pdf_potential(d::Normal, x) = (x-mean(d)^2 / 2var(d)
+pdf_potential(d::Normal, x) = (x-mean(d))^2 / 2var(d)
 
-pdf_potential(d::MvNormal, x) = invquad(cov(d), x-mean(d))/2
+pdf_potential(d::MvNormal, x) = invquad( PDMat(cov(d)), x-mean(d) )/2
 
 function expectation_V(initial_dist::Distribution, target_dist::Distribution) 
     numerical_expectation( initial_dist, x -> pdf_potential(target_dist, x) )
@@ -33,7 +33,7 @@ function expectation_V(q::Normal, p::Normal)
 end
 
 function expectation_V(q::MvNormal, p::MvNormal)
-    0.5 * ( tr(inv(cov(p))*cov(q)) + invquad(cov(p), mean(q)-mean(p)) )
+    0.5 * ( tr(inv(cov(p))*cov(q)) + invquad(PDMat(cov(p)), mean(q)-mean(p)) )
 end
 
 function expectation_V(initial_dist::Distribution, log_likelihood)
@@ -47,6 +47,22 @@ function expectation_V(initial_dist::MvNormal, log_likelihood)
       + expectation_V(initial_dist, initial_dist) 
       + 0.5 * logdet(2π * cov(initial_dist)) 
      )
+end
+
+function expectation_V(::Val{:gauss_to_gauss}, data)
+    expectation_V(MvNormal(data[:μ₀], data[:Σ₀]), 
+                  MvNormal(data[:μₚ], data[:Σₚ])
+                 )
+end
+
+function expectation_V(::Val{:logistic_regression}, data)
+    expectation_V( MvNormal(data[:μ_initial], PDMat(data[:Σ_initial])),
+                    w -> LogReg.log_likelihood(data[:sample_data], w),
+                   )
+end
+
+function expectation_V(data::Dict{Symbol,Any})
+    expectation_V(Val(data[:problem_type]), data)
 end
 
 function KL_integral(hist, method=:RKHS_norm)
@@ -76,16 +92,12 @@ function estimate_logZ(initial_dist::Distribution, target_dist::Distribution,
     estimate_logZ(H₀, EV, data[:svgd_hist], method)
 end
 
-function estimate_logZ(::Val{:bayesian_logistic_regression},
+function estimate_logZ(::Val{:logistic_regression},
                        data::Dict{Symbol,Any}, method=:RKHS_norm)
     initial_dist = MvNormal(data[:μ_initial], data[:Σ_initial])
     H₀ = Distributions.entropy(initial_dist)
-    EV = ( num_expectation(initial_dist, 
-                           w -> LogReg.log_likelihood(data[:sample_data],w),
-                           )
-           + expectation_V(initial_dist, initial_dist) 
-           + 0.5 * logdet(2π * data[:Σ_initial]) 
-          )
+    EV = expectation_V(data)
+    estimate_logZ(H₀, EV, data[:svgd_hist], method)
 end
 
 function estimate_logZ(::Val{:gauss_to_gauss}, data::Dict{Symbol,Any}, 
