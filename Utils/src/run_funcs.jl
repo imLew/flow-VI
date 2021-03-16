@@ -11,12 +11,13 @@ using Examples
 const LinReg = Examples.LinearRegression
 const LogReg = Examples.LogisticRegression
 
+export cmdline_run
 export run_svgd
 
-function run_svgd(::Val{:gauss_to_gauss} ;problem_params, alg_params, DIRNAME="", save=true)
+function run_svgd(::Val{:gauss_to_gauss} ;problem_params, alg_params, 
+                  DIRNAME="", save=true)
     svgd_results = []
-    svgd_hist = []
-    estimation_rkhs = []
+    svgd_hist = MVHistory[]
 
     initial_dist = MvNormal(problem_params[:μ₀], problem_params[:Σ₀])
     target_dist = MvNormal(problem_params[:μₚ], problem_params[:Σₚ])
@@ -28,37 +29,28 @@ function run_svgd(::Val{:gauss_to_gauss} ;problem_params, alg_params, DIRNAME=""
             q, hist = SVGD.svgd_sample_from_known_distribution( initial_dist,
                                 target_dist; alg_params=alg_params )
 
-            H₀ = Distributions.entropy(initial_dist)
-            EV = expectation_V( initial_dist, target_dist)
-
-            est_logZ_rkhs = estimate_logZ(H₀, EV, KL_integral(hist)[end][1])
-
             push!(svgd_results, q)
             push!(svgd_hist, hist)
-            push!(estimation_rkhs, est_logZ_rkhs) 
         catch e
             failed_count += 1
             @error "Something went wrong" exception=(e, catch_backtrace())
-            # @show e
         end
     end
 
     true_logZ = logZ(target_dist)
-
-    file_prefix = savename( merge(problem_params, alg_params) )
-
+    H₀ = Distributions.entropy(initial_dist)
+    EV = expectation_V(initial_dist, target_dist)
+    estimated_logZ = [est[end] for est in estimate_logZ(H₀, EV, svgd_hist)]
+    results = merge(alg_params, problem_params, 
+                    @dict(true_logZ, svgd_results, svgd_hist, failed_count,
+                          estimated_logZ)
+                   )
     if save
-        tagsave(datadir(DIRNAME, file_prefix * ".bson"),
-                    merge(alg_params, problem_params, 
-                          @dict(true_logZ, estimation_rkhs, svgd_results,
-                                svgd_hist, failed_count)),
-                    safe=true, storepatch=true)
-    else
-        merge(alg_params, problem_params, 
-              @dict(true_logZ, estimation_rkhs, svgd_results, svgd_hist, 
-                    failed_count)
-             )
+        file_prefix = savename( merge(problem_params, alg_params) )
+        tagsave(datadir(DIRNAME, file_prefix * ".bson"), results, safe=true,
+                storepatch=true)
     end
+    return results
 end
 
 function fit_linear_regression(problem_params, alg_params, D::LinReg.RegressionData)
@@ -94,7 +86,7 @@ end
 function run_svgd(::Val{:linear_regression}; problem_params, alg_params, 
              DIRNAME="", save=true)
     svgd_results = []
-    svgd_hist = []
+    svgd_hist = MVHistory[]
     estimation_rkhs = []
 
     true_model = LinReg.RegressionModel(problem_params[:true_ϕ],
@@ -153,7 +145,8 @@ function run_svgd(;problem_params, alg_params, DIRNAME="", save=true)
         alg_params=alg_params, DIRNAME=DIRNAME, save=save)
 end
 
-function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params, DIRNAME="", save=true)
+function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
+                  DIRNAME="", save=true)
     if haskey(problem_params, :sample_data_file)
         @info "Using data from file, make sure the problem params are correct"
         D = BSON.load(problem_params[:sample_data_file])[:D]
@@ -165,7 +158,7 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params, DIRNA
                        )
     end
 
-    therm_logZ = if haskey(problem_params, :therm_params)
+    true_logZ = if haskey(problem_params, :therm_params)
         therm_integration(problem_params, D; problem_params[:therm_params]...)
     else
         nothing
@@ -177,7 +170,7 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params, DIRNA
     end
 
     # arrays to hold results
-    svgd_hist = []
+    svgd_hist = MVHistory[]
     svgd_results = []
     estimation_rkhs = []
 
@@ -209,13 +202,8 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params, DIRNA
             ))
     end
 
-    initial_dist = MvNormal(problem_params[:μ_initial], problem_params[:Σ_initial])
-    H₀ = Distributions.entropy(initial_dist)
-    EV = ( num_expectation( initial_dist, w -> LogReg.log_likelihood(D ,w) )
-           + expectation_V(initial_dist, initial_dist) 
-           + 0.5 * log( det(2π * problem_params[:Σ_initial]) )
-          )
-    isnothing(therm_logZ) ? nothing : @show therm_logZ
+    initial_dist = MvNormal(problem_params[:μ_initial], 
+                            problem_params[:Σ_initial])
     for i in 1:alg_params[:n_runs]
         @info "Run $i/$(alg_params[:n_runs])"
         q = rand(initial_dist, alg_params[:n_particles])
@@ -227,29 +215,29 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params, DIRNA
         push!(estimation_rkhs, est_logZ) 
         @show est_logZ
     end
-    # trim dict to generate name for file
-    savenamedict = merge(problem_params, alg_params)
-    delete!(savenamedict, :sample_data_file)
-    if !problem_params[:MAP_start] || problem_params[:Laplace_start]
-        delete!(savenamedict, :MAP_start)
-    end
-    if !problem_params[:Laplace_start] 
-        delete!(savenamedict, :Laplace_start)
-    end
-    file_prefix = savename( savenamedict )
 
     sample_data = D
+    H₀ = Distributions.entropy(initial_dist)
+    EV = expectation_V(initial_dist, w -> LogReg.log_likelihood(D, w))
+    estimated_logZ = [est[end] for est in estimate_logZ(H₀, EV, svgd_hist)]
+    results = merge(alg_params, problem_params, 
+                    @dict(estimated_logZ, svgd_results, svgd_hist,
+                          sample_data, true_logZ))
     if save
-        tagsave(datadir(DIRNAME, file_prefix * ".bson"),
-                merge(alg_params, problem_params, 
-                    @dict(estimation_rkhs, svgd_results, svgd_hist,
-                          sample_data, therm_logZ)),
+        # trim dict to generate name for file
+        savenamedict = merge(problem_params, alg_params)
+        delete!(savenamedict, :sample_data_file)
+        if !problem_params[:MAP_start] || problem_params[:Laplace_start]
+            delete!(savenamedict, :MAP_start)
+        end
+        if !problem_params[:Laplace_start] 
+            delete!(savenamedict, :Laplace_start)
+        end
+        file_prefix = savename( savenamedict )
+        tagsave(datadir(DIRNAME, file_prefix * ".bson"), results,
                 safe=true, storepatch = false)
-    else
-        merge(alg_params, problem_params, 
-            @dict(estimation_rkhs, svgd_results, svgd_hist,
-                  sample_data, therm_logZ))
     end
+    return results
 end
 
 function therm_integration(problem_params, D; nSamples=3000, nSteps=30)
@@ -264,3 +252,75 @@ function therm_integration(problem_params, D; nSamples=3000, nSteps=30)
     samplepower_posterior(x->loglikelihood(x) + logprior(x), n_dim, alg.nSamples)
     alg(logprior, loglikelihood, n_dim)  # log Z estimate
 end
+
+function cmdline_run(ALG_PARAMS, PROBLEM_PARAMS, DIRNAME)
+    if length(ARGS) == 0 
+        @info "Number of tasks defined by current params" ( dict_list_count(PROBLEM_PARAMS) * dict_list_count(ALG_PARAMS) )
+        if haskey(ENV, "SGE_TASK_ID")
+    # for running in a job array on the gridengine cluster;
+    # assumes dictionaries with parameters have been created in _research/tmp
+    # and that they are indexed in tmp_dict_names.bson
+        dict_o_dicts = BSON.load(
+                        projectdir("_research","tmp",
+                            BSON.load( projectdir("tmp_dict_names.bson")
+                                )[ENV["SGE_TASK_ID"]][1]
+                            )
+                           )
+        @info "Sampling problem: $(dict_o_dicts[:problem_params])"
+        @info "Alg parameters: $(dict_o_dicts[:alg_params])"
+        @time run_svgd(problem_params=dict_o_dicts[:problem_params],
+                      alg_params=dict_o_dicts[:alg_params],
+                      DIRNAME)
+        end
+    elseif ARGS[1] == "make-dicts" 
+    # make dictionaries in a tmp directory containing the parameters for
+    # all the experiment we want to run
+    # also saves a dictionary mapping numbers 1 through #dicts to the dictionary
+    # names to index them
+        dnames = Dict()
+        for (i, alg_params) ∈ enumerate(dict_list(ALG_PARAMS))
+            for (j, problem_params) ∈ enumerate(dict_list(PROBLEM_PARAMS))
+                dname = tmpsave([@dict alg_params problem_params])
+                dnames["$((i-1)*dict_list_count(PROBLEM_PARAMS) + j )"] = dname
+            end
+        end
+        bson(projectdir("_research", "tmp_dict_names.bson"), dnames)
+    elseif ARGS[1] == "run"
+    # run the algorithm on the params specified in the second argument (bson)
+        dict_o_dicts = BSON.load(ARGS[2])
+        @info "Sampling problem: $(dict_o_dicts[:problem_params])"
+        @info "Alg parameters: $(dict_o_dicts[:alg_params])"
+        @time run_svgd(problem_params=dict_o_dicts[:problem_params],
+                      alg_params=dict_o_dicts[:alg_params],
+                      DIRNAME=DIRNAME)
+    elseif ARGS[1] == "run-all"
+        files = readdir(projectdir("_research", "tmp"), join=true)
+        @info "Number of tmp files to run" length(files)
+        Threads.@threads for (i, file) in collect(enumerate(files))
+            @info "experiment $i out of $(length(files))"
+            try 
+                run(`julia $PROGRAM_FILE run $file`)
+            catch e
+                println(e)
+            end
+        end
+    elseif ARGS[1] == "make-and-run-all"
+    # make the files containig the parameter dicts and start running them immediatly
+        run(`julia $PROGRAM_FILE make-dicts`)
+        run(`julia $PROGRAM_FILE run-all`)
+    elseif ARGS[1] == "run-single-file"
+    # run all experiments defined in the script from a single cmdline call
+        params = [ (pp, ap) for pp in dict_list(PROBLEM_PARAMS), ap in dict_list(ALG_PARAMS)]
+        p = Progress(length(params), 50)
+        Threads.@threads for (i, (pp, ap)) in collect(enumerate(params))
+            @info "experiment $i out of $(length(params))"
+            try 
+                @time run_svgd(problem_params=pp, alg_params=ap, DIRNAME=DIRNAME)
+            catch e
+                println(e)
+            end
+            next!(p)
+        end
+    end
+end
+
