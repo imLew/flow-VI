@@ -14,8 +14,6 @@ global_logger(EarlyFilteredLogger(not_AdvancedHMC_message_filter, global_logger(
 using Utils
 using SVGD
 
-include("run_funcs.jl")
-
 DIRNAME = "bayesian_logistic_regression/MAPvLaplacevNormal"
 
 ALG_PARAMS = Dict(
@@ -25,7 +23,7 @@ ALG_PARAMS = Dict(
     :step_size => [ 0.001 ],
     :n_iter => [ 1000 ],
     :n_particles => [ 50 ],
-    :n_runs => [ 20 ],
+    :n_runs => [ 10 ],
     )
 
 PROBLEM_PARAMS = Dict(
@@ -50,11 +48,5 @@ PROBLEM_PARAMS = Dict(
     "2dim_50:[0.0, 0.0]:[0.5 0.1; 0.1 0.2]_50:[0.0, 0.0]:[0.5 0.1; 0.1 0.2].bson")
                          ],
 )
-
-# problem_params=dict_list(PROBLEM_PARAMS)[1] 
-# alg_params=dict_list(ALG_PARAMS)[1] 
-
-# include("run_funcs.jl")
-# run(problem_params=dict_list(PROBLEM_PARAMS)[1], alg_params=dict_list(ALG_PARAMS)[1], save=false)
 
 cmdline_run(ALG_PARAMS, PROBLEM_PARAMS, DIRNAME, run)
