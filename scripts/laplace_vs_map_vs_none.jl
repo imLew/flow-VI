@@ -13,6 +13,7 @@ global_logger(EarlyFilteredLogger(not_AdvancedHMC_message_filter, global_logger(
 
 using Utils
 using SVGD
+using Examples
 
 DIRNAME = "bayesian_logistic_regression/MAPvLaplacevNormal"
 
@@ -44,9 +45,9 @@ PROBLEM_PARAMS = Dict(
                           :nSteps => 30
                          )],
     :random_seed => [ 0 ],
-    :sample_data_file => [datadir("classification_samples", 
-    "2dim_50:[0.0, 0.0]:[0.5 0.1; 0.1 0.2]_50:[0.0, 0.0]:[0.5 0.1; 0.1 0.2].bson")
-                         ],
+    # :sample_data_file => [datadir("classification_samples", 
+    # "2dim_50:[0.0, 0.0]:[0.5 0.1; 0.1 0.2]_50:[0.0, 0.0]:[0.5 0.1; 0.1 0.2].bson")
+    #                      ],
 )
 
 cmdline_run(ALG_PARAMS, PROBLEM_PARAMS, DIRNAME)
