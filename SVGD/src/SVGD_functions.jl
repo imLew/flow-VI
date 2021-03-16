@@ -69,7 +69,7 @@ end
 
 function push_to_hist!(hist, q, ϵ, ϕ, i, kernel; kwargs...)
     @unpack dKL_estimator = kwargs
-    push!(hist, :step_sizes, i, ϵ)
+    push!(hist, :step_sizes, i, ϵ[1])  # only store the actual value not array(value)
     push!(hist, :ϕ_norm, i, mean(norm(ϕ)))  # save average vector norm of phi
     if typeof(dKL_estimator) == Symbol
         push!(hist, dKL_estimator, i, compute_dKL(Val(dKL_estimator), kernel, q, ϕ=ϕ))
@@ -85,7 +85,7 @@ function calculate_phi_vectorized(kernel, q, grad_logp)
     n = size(q)[end]
     k_mat = KernelFunctions.kernelmatrix(kernel, q)
     grad_k = kernel_grad_matrix(kernel, q)
-    glp_mat = hcat( grad_logp.(eachcol(q))... )
+    glp_mat = mapreduce( grad_logp, hcat, (eachcol(q)) )
     if n == 1  
         ϕ = glp_mat * k_mat 
     else
@@ -230,7 +230,7 @@ function kernel_grad_matrix(kernel::KernelFunctions.Kernel, q)
     end
     grad(f,x,y) = gradient(f,x,y)[1]
 	grad_k = mapslices(x -> grad.(kernel, [x], eachcol(q)), q, dims = 1)
-    hcat( sum(grad_k, dims=2)... )
+    sum(grad_k, dims=2)
 end
 
 function kernel_grad_matrix(kernel::TransformedKernel{SqExponentialKernel}, q)
