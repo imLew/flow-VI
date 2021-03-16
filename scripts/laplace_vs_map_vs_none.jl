@@ -49,4 +49,4 @@ PROBLEM_PARAMS = Dict(
                          ],
 )
 
-cmdline_run(ALG_PARAMS, PROBLEM_PARAMS, DIRNAME, run)
+cmdline_run(ALG_PARAMS, PROBLEM_PARAMS, DIRNAME)
