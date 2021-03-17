@@ -18,7 +18,10 @@ using Examples
 DIRNAME = "bayesian_logistic_regression/MAPvLaplacevNormal"
 
 ALG_PARAMS = Dict(
-    :update_method => [ :forward_euler ],
+    :update_method => [:naive_WAG, :naive_WNES],
+    :α => @onlyif(:update_method == :naive_WAG, [3, 4, 7, 10] ),
+    :c₁ => @onlyif(:update_method == :naive_WNES, [.1, 1, 5] ),
+    :c₂ => @onlyif(:update_method == :naive_WNES, [.1, 1, 5] ),
     :kernel => [ TransformedKernel(SqExponentialKernel(), ScaleTransform(1.)) ],
     :kernel_cb => [ median_trick_cb! ],
     :step_size => [ 0.001 ],
