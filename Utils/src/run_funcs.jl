@@ -205,6 +205,7 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
 
     initial_dist = MvNormal(problem_params[:μ_initial], 
                             problem_params[:Σ_initial])
+    failed_count = 0
     for i in 1:alg_params[:n_runs]
         try 
             @info "Run $i/$(alg_params[:n_runs])"
@@ -214,6 +215,7 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
             push!(svgd_results, q)
             push!(svgd_hist, hist)
         catch e
+        failed_count += 1
             @error "Something went wrong" exception=(e, catch_backtrace())
         end
     end
@@ -224,7 +226,7 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
     estimated_logZ = [est[end] for est in estimate_logZ(H₀, EV, svgd_hist)]
     results = merge(alg_params, problem_params, 
                     @dict(estimated_logZ, svgd_results, svgd_hist,
-                          sample_data, true_logZ))
+                          sample_data, true_logZ, failed_count))
     if save
         # trim dict to generate name for file
         savenamedict = merge(problem_params, alg_params)
