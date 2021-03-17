@@ -18,6 +18,7 @@ export plot_convergence
 export plot_convergence!
 export plot_classes
 export plot_classes!
+export plot_prediction
 export plot_prediction!
 
 
@@ -206,6 +207,15 @@ end
 function plot_classes!(::Val{:logistic_regression}, plt, sample_data)
     scatter!(plt, sample_data.x[:,1], sample_data.x[:,2], legend=false, label="", 
             colorbar=false, zcolor=sample_data.t);
+end
+
+function plot_prediction(data)
+    plt = plot()
+    plot_prediction!(Val(data[:problem_type]), plt, data)
+end
+
+function plot_prediction!(plt, data)
+    plot_prediction!(Val(data[:problem_type]), plt, data)
 end
 
 function plot_prediction!(::Val{:logistic_regression}, plt, data)
