@@ -32,8 +32,8 @@ ALG_PARAMS = Dict(
 
 PROBLEM_PARAMS = Dict(
     :problem_type => [ :logistic_regression ],
-    :MAP_start => [ false, true ],
-    :Laplace_start => [false, @onlyif(:MAP_start == true,  true )],
+    :MAP_start => [  true ],
+    :Laplace_start => [ false,  true ],
     :n_dim => [ 2 ],
     :n₀ => [ 50 ],
     :n₁ => [ 50 ],
