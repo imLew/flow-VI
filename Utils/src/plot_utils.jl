@@ -141,13 +141,13 @@ end
 
 function plot_integration(data; size=(375,375), legend=:bottomright, lw=3, 
                           ylims=(-Inf,Inf))
-    plt = plot()
-    plot_integration!(plt, data; size=size, legend=legend, lw=lw, ylims=ylims)
+    plt = plot(size=size)
+    plot_integration!(plt, data; legend=legend, lw=lw, ylims=ylims)
     plot(plt)
 end
 
-function plot_integration!(plt::Plots.Plot, data; size=(375,375),
-                           legend=:bottomright, lw=3, ylims=(-Inf,Inf))
+function plot_integration!(plt::Plots.Plot, data; legend=:bottomright, 
+                           lw=3, ylims=(-Inf,Inf))
     plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw, ylims=ylims);
     if data[:n_runs] < 5
         plot!(plt, estimate_logZ(data), label="", color=colors[1]);
