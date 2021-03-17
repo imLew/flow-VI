@@ -40,7 +40,7 @@ function get_pdmat(K)
 end 
 
 function get_savename(data)
-    savenamedict = data
+    savenamedict = copy(data)
     delete!(savenamedict, :sample_data_file)
     delete!(savenamedict, :problem_type)
     delete!(savenamedict, :callback)
