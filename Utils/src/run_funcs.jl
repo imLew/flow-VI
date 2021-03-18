@@ -12,6 +12,7 @@ using Examples
 const LinReg = Examples.LinearRegression
 const LogReg = Examples.LogisticRegression
 
+export run_single_instance
 export cmdline_run
 export run_svgd
 
@@ -257,75 +258,95 @@ function therm_integration(problem_params, D; nSamples=3000, nSteps=30)
     alg(logprior, loglikelihood, n_dim)  # log Z estimate
 end
 
-function cmdline_run(ALG_PARAMS, PROBLEM_PARAMS, DIRNAME)
+function cmdline_run(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
     if length(ARGS) == 0 
-        @info "Number of tasks defined by current params" ( dict_list_count(PROBLEM_PARAMS) * dict_list_count(ALG_PARAMS) )
-        if haskey(ENV, "SGE_TASK_ID")
-    # for running in a job array on the gridengine cluster;
-    # assumes dictionaries with parameters have been created in _research/tmp
-    # and that they are indexed in tmp_dict_names.bson
-        dict_o_dicts = BSON.load(
-                        projectdir("_research","tmp",
-                            BSON.load( projectdir("tmp_dict_names.bson")
-                                )[ENV["SGE_TASK_ID"]][1]
-                            )
-                           )
-        @info "Sampling problem: $(dict_o_dicts[:problem_params])"
-        @info "Alg parameters: $(dict_o_dicts[:alg_params])"
-        @time run_svgd(problem_params=dict_o_dicts[:problem_params],
-                      alg_params=dict_o_dicts[:alg_params],
-                      DIRNAME)
-        end
+        run_on_gridengine(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
     elseif ARGS[1] == "make-dicts" 
     # make dictionaries in a tmp directory containing the parameters for
     # all the experiment we want to run
     # also saves a dictionary mapping numbers 1 through #dicts to the dictionary
     # names to index them
-        dnames = Dict()
-        for (i, alg_params) ∈ enumerate(dict_list(ALG_PARAMS))
-            for (j, problem_params) ∈ enumerate(dict_list(PROBLEM_PARAMS))
-                dname = tmpsave([@dict alg_params problem_params])
-                dnames["$((i-1)*dict_list_count(PROBLEM_PARAMS) + j )"] = dname
-            end
-        end
-        bson(projectdir("_research", "tmp_dict_names.bson"), dnames)
+        make_dicts(PROBLEM_PARAMS, ALG_PARAMS)
     elseif ARGS[1] == "run"
     # run the algorithm on the params specified in the second argument (bson)
-        dict_o_dicts = BSON.load(ARGS[2])
-        @info "Sampling problem: $(dict_o_dicts[:problem_params])"
-        @info "Alg parameters: $(dict_o_dicts[:alg_params])"
-        @time run_svgd(problem_params=dict_o_dicts[:problem_params],
-                      alg_params=dict_o_dicts[:alg_params],
-                      DIRNAME=DIRNAME)
+        run_file(DIRNAME)
     elseif ARGS[1] == "run-all"
-        files = readdir(projectdir("_research", "tmp"), join=true)
-        @info "Number of tmp files to run" length(files)
-        Threads.@threads for (i, file) in collect(enumerate(files))
-            @info "experiment $i out of $(length(files))"
-            try 
-                run(`julia $PROGRAM_FILE run $file`)
-            catch e
-                println(e)
-            end
-        end
+        run_all()
     elseif ARGS[1] == "make-and-run-all"
     # make the files containig the parameter dicts and start running them immediatly
         run(`julia $PROGRAM_FILE make-dicts`)
         run(`julia $PROGRAM_FILE run-all`)
     elseif ARGS[1] == "run-single-file"
     # run all experiments defined in the script from a single cmdline call
-        params = [ (pp, ap) for pp in dict_list(PROBLEM_PARAMS), 
-                                ap in dict_list(ALG_PARAMS)]
-        p = Progress(length(params), 50)
-        Threads.@threads for (i, (pp, ap)) in collect(enumerate(params))
-            @info "experiment $i out of $(length(params))"
-            try 
-                @time run_svgd(problem_params=pp, alg_params=ap, DIRNAME=DIRNAME)
-            catch e
-                println(e)
-            end
-            next!(p)
+        run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
+    end
+end
+
+function run_on_gridengine(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
+    @info "Number of tasks defined by current params" ( dict_list_count(PROBLEM_PARAMS) * dict_list_count(ALG_PARAMS) )
+    if haskey(ENV, "SGE_TASK_ID")
+        # for running in a job array on the gridengine cluster;
+        # assumes dictionaries with parameters have been created in _research/tmp
+        # and that they are indexed in tmp_dict_names.bson
+        dict_o_dicts = BSON.load(
+                                 projectdir("_research","tmp",
+                                            BSON.load( projectdir("tmp_dict_names.bson")
+                                                     )[ENV["SGE_TASK_ID"]][1]
+                                           )
+                                )
+        @info "Sampling problem: $(dict_o_dicts[:problem_params])"
+        @info "Alg parameters: $(dict_o_dicts[:alg_params])"
+        @time run_svgd(problem_params=dict_o_dicts[:problem_params],
+                       alg_params=dict_o_dicts[:alg_params],
+                       DIRNAME)
+    end
+end
+
+function make_dicts(PROBLEM_PARAMS, ALG_PARAMS)
+    dnames = Dict()
+    for (i, alg_params) ∈ enumerate(dict_list(ALG_PARAMS))
+        for (j, problem_params) ∈ enumerate(dict_list(PROBLEM_PARAMS))
+            dname = tmpsave([@dict alg_params problem_params])
+            dnames["$((i-1)*dict_list_count(PROBLEM_PARAMS) + j )"] = dname
         end
+    end
+    bson(projectdir("_research", "tmp_dict_names.bson"), dnames)
+end
+
+function run_file(DIRNAME)
+    dict_o_dicts = BSON.load(ARGS[2])
+    @info "Sampling problem: $(dict_o_dicts[:problem_params])"
+    @info "Alg parameters: $(dict_o_dicts[:alg_params])"
+    @time run_svgd(problem_params=dict_o_dicts[:problem_params],
+                   alg_params=dict_o_dicts[:alg_params],
+                   DIRNAME=DIRNAME)
+end
+
+function run_all()
+    files = readdir(projectdir("_research", "tmp"), join=true)
+    @info "Number of tmp files to run" length(files)
+    Threads.@threads for (i, file) in collect(enumerate(files))
+        @info "experiment $i out of $(length(files))"
+        try 
+            run_file(`julia $PROGRAM_FILE run $file`)
+        catch e
+            println(e)
+        end
+    end
+end
+
+function run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
+    params = [ (pp, ap) for pp in dict_list(PROBLEM_PARAMS), 
+              ap in dict_list(ALG_PARAMS)]
+    p = Progress(length(params), 50)
+    Threads.@threads for (i, (pp, ap)) in collect(enumerate(params))
+        @info "experiment $i out of $(length(params))"
+        try 
+            @time run_svgd(problem_params=pp, alg_params=ap, DIRNAME=DIRNAME)
+        catch e
+            @error "Something went wrong" exception=(e, catch_backtrace())
+        end
+        next!(p)
     end
 end
 
