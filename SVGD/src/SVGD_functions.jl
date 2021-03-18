@@ -31,16 +31,6 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50,
     kernel_cb! = get!(kwargs, :kernel_cb, nothing)
     step_size_cb = get!(kwargs, :step_size_cb, nothing)
     update_method = get!(kwargs, :update_method, :forward_euler)
-    update_params = get!(kwargs, :update_params, Dict())
-    α = get!(kwargs, :α, false)
-    c₁ = get!(kwargs, :c₁, false)
-    c₂ = get!(kwargs, :c₂, false)
-    if update_method == :naive_WNES && ( float(c₁) <= 0 || float(c₂) <= 0 )
-        throw(ArgumentError(α, "WNES updates require c₁, c₂ ∈ ℝ."))
-    end
-    if update_method == :naive_WAG && float(α) <= 3
-        throw(ArgumentError(α, "WAG updates require α>3."))
-    end
 
     aux_vars = Dict()
     if update_method in [:scalar_adagrad, :scalar_RMS_prop]
@@ -57,7 +47,7 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50,
         isnothing(kernel_cb!) ? nothing : kernel_cb!(kernel, q)
         ϵ = isnothing(step_size_cb) ? [step_size] : [step_size_cb(step_size, i)]
         update!(Val(update_method), q, ϕ, ϵ, kernel, grad_logp, aux_vars, 
-                update_params, iter=i; kwargs...)
+                iter=i; kwargs...)
         push_to_hist!(hist, q, ϵ, ϕ, i, kernel; kwargs...)
         if !isnothing(callback)
             callback(;hist=hist, q=q, ϵ=ϵ, ϕ=ϕ, i=i, kernel=kernel, 
@@ -68,7 +58,7 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50,
 end
 
 function push_to_hist!(hist, q, ϵ, ϕ, i, kernel; kwargs...)
-    @unpack dKL_estimator = kwargs
+    dKL_estimator = get(kwargs, :dKL_estimator, false)
     push!(hist, :step_sizes, i, ϵ[1])  # only store the actual value not array(value)
     push!(hist, :ϕ_norm, i, mean(norm(ϕ)))  # save average vector norm of phi
     if typeof(dKL_estimator) == Symbol
@@ -94,9 +84,10 @@ function calculate_phi_vectorized(kernel, q, grad_logp)
 end
 
 function update!(::Val{:scalar_Adam}, q, ϕ, ϵ, kernel, grad_logp, aux_vars, 
-                 update_params; kwargs...)
-    @unpack iter = kwargs
-    @unpack β₁, β₂ = update_params
+                 kwargs...)
+    iter = get(kwargs, :iter, false)
+    β₁ = get(kwargs, :β₁, false)
+    β₂ = get(kwargs, :β₂, false)
     ϕ .= calculate_phi_vectorized(kernel, q, grad_logp)
     aux_vars[:mₜ] .= (β₁ .* aux_vars[:mₜ] + (1-β₁) .* ϕ) 
     aux_vars[:vₜ] .= β₂ .* aux_vars[:vₜ] + (1-β₂) .* ϕ.^2 
@@ -106,8 +97,8 @@ function update!(::Val{:scalar_Adam}, q, ϕ, ϵ, kernel, grad_logp, aux_vars,
 end
 
 function update!(::Val{:scalar_RMS_prop}, q, ϕ, ϵ, kernel, grad_logp, aux_vars, 
-                 update_params; kwargs...)
-    @unpack γ = update_params
+                 kwargs...)
+    γ = get(kwargs, :γ, false)
     ϕ .= calculate_phi_vectorized(kernel, q, grad_logp)
     aux_vars[:Gₜ] .= γ * norm(ϕ)^2 .+ (1-γ) * aux_vars[:Gₜ]
     N = size(ϕ, 1)
@@ -115,8 +106,8 @@ function update!(::Val{:scalar_RMS_prop}, q, ϕ, ϵ, kernel, grad_logp, aux_vars
     q .+= ϵ .*ϕ
 end
 
-function update!(::Val{:scalar_adagrad}, q, ϕ, ϵ, kernel, grad_logp, aux_vars, 
-                 update_params; kwargs...)
+function update!(::Val{:scalar_adagrad}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
+                 kwargs...)
     ϕ .= calculate_phi_vectorized(kernel, q, grad_logp)
     aux_vars[:Gₜ] .+= norm(ϕ)^2
     N = size(ϕ, 1)
@@ -124,25 +115,28 @@ function update!(::Val{:scalar_adagrad}, q, ϕ, ϵ, kernel, grad_logp, aux_vars,
     q .+= ϵ .*ϕ
 end
 
-function update!(::Val{:naive_WNES}, q, ϕ, ϵ, kernel, grad_logp, aux_vars, 
-                 update_params; kwargs...)
-    @unpack c₁, c₂ = kwargs
+function update!(::Val{:naive_WNES}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
+                 kwargs...)
+    c₁ = get(kwargs, :c₁, false)
+    c₂ = get(kwargs, :c₂, false)
     ϕ .= calculate_phi_vectorized(kernel, aux_vars[:y], grad_logp)
     q_new = aux_vars[:y] .+ ϵ.*ϕ
     aux_vars[:y] .= q_new .+ c₁*(c₂ - 1) * (q_new .- q)
     q .= q_new
 end
 
-function update!(::Val{:naive_WAG}, q, ϕ, ϵ, kernel, grad_logp, aux_vars, 
-                 update_params; kwargs...)
-    @unpack α, iter = kwargs
+function update!(::Val{:naive_WAG}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
+                 kwargs...)
+    iter = get(kwargs, :iter, false)
+    α = get(kwargs, :α, false)
     ϕ .= calculate_phi_vectorized(kernel, aux_vars[:y], grad_logp)
     q_new = aux_vars[:y] .+ ϵ.*ϕ
     aux_vars[:y] .= q_new .+ (iter-1)/iter .* (aux_vars[:y].-q) + (iter + α -2)/iter * ϵ .* ϕ
     q .= q_new
 end
 
-function update!(::Val{:forward_euler}, q, ϕ, ϵ, kernel, grad_logp, aux_vars, update_params; kwargs...)
+function update!(::Val{:forward_euler}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
+                 kwargs...)
     ϕ .= calculate_phi_vectorized(kernel, q, grad_logp)
     q .+= ϵ.*ϕ
 end
