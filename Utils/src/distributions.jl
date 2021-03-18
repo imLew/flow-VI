@@ -56,7 +56,7 @@ function expectation_V(::Val{:gauss_to_gauss}, data)
 end
 
 function expectation_V(::Val{:logistic_regression}, data)
-    expectation_V( MvNormal(data[:μ_initial], PDMat(data[:Σ_initial])),
+    expectation_V( MvNormal(data[:μ_initial], PDMat(Symmetric(data[:Σ_initial]))),
                     w -> LogReg.log_likelihood(data[:sample_data], w),
                    )
 end
