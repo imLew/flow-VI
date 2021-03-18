@@ -314,7 +314,8 @@ function cmdline_run(ALG_PARAMS, PROBLEM_PARAMS, DIRNAME)
         run(`julia $PROGRAM_FILE run-all`)
     elseif ARGS[1] == "run-single-file"
     # run all experiments defined in the script from a single cmdline call
-        params = [ (pp, ap) for pp in dict_list(PROBLEM_PARAMS), ap in dict_list(ALG_PARAMS)]
+        params = [ (pp, ap) for pp in dict_list(PROBLEM_PARAMS), 
+                                ap in dict_list(ALG_PARAMS)]
         p = Progress(length(params), 50)
         Threads.@threads for (i, (pp, ap)) in collect(enumerate(params))
             @info "experiment $i out of $(length(params))"
