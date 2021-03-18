@@ -82,7 +82,7 @@ function calculate_phi_vectorized(kernel, q, grad_logp)
     end
 end
 
-function update!(::Val{:scalar_Adam}, q, ϕ, ϵ, kernel, grad_logp, aux_vars, 
+function update!(::Val{:scalar_Adam}, q, ϕ, ϵ, kernel, grad_logp, aux_vars; 
                  kwargs...)
     iter = get(kwargs, :iter, false)
     β₁ = get(kwargs, :β₁, false)
@@ -95,7 +95,7 @@ function update!(::Val{:scalar_Adam}, q, ϕ, ϵ, kernel, grad_logp, aux_vars,
     q .+= ϵ .* aux_vars[:mₜ]./(1-β₁^iter)
 end
 
-function update!(::Val{:scalar_RMS_prop}, q, ϕ, ϵ, kernel, grad_logp, aux_vars, 
+function update!(::Val{:scalar_RMS_prop}, q, ϕ, ϵ, kernel, grad_logp, aux_vars; 
                  kwargs...)
     γ = get(kwargs, :γ, false)
     ϕ .= calculate_phi_vectorized(kernel, q, grad_logp)
