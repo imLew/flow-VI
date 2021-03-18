@@ -28,6 +28,7 @@ ALG_PARAMS = Dict(
     :n_iter => [ 1000 ],
     :n_particles => [ 50 ],
     :n_runs => [ 10 ],
+    :dKL_estimator => [ :RKHS_norm ],
     )
 
 PROBLEM_PARAMS = Dict(
@@ -53,4 +54,4 @@ PROBLEM_PARAMS = Dict(
     #                      ],
 )
 
-cmdline_run(ALG_PARAMS, PROBLEM_PARAMS, DIRNAME)
+run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
