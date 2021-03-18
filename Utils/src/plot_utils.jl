@@ -141,10 +141,10 @@ function plot_convergence!(int_plot, dist_plot, norm_plot, data; kwargs...)
 end
 
 function plot_integration(data; size=(375,375), legend=:bottomright, lw=3, 
-                          ylims=(-Inf,Inf))
-    plt = plot(size=size)
+                          ylims=(-Inf,Inf), title="")
+    plt = plot(size=size, title=title)
     plot_integration!(plt, data; legend=legend, lw=lw, ylims=ylims)
-    plot(plt)
+    display(plot(plt))
 end
 
 function plot_integration!(plt::Plots.Plot, data; legend=:bottomright, 
