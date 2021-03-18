@@ -56,7 +56,7 @@ function expectation_V(::Val{:gauss_to_gauss}, data)
 end
 
 function expectation_V(::Val{:logistic_regression}, data)
-    expectation_V( MvNormal(data[:μ_initial], PDMat(Symmetric(data[:Σ_initial]))),
+    expectation_V( MvNormal(data[:μ_initial], PDMat(data[:Σ_initial])),
                     w -> LogReg.log_likelihood(data[:sample_data], w),
                    )
 end
@@ -77,9 +77,7 @@ function estimate_logZ(H₀, EV, hist::MVHistory, method=:RKHS_norm)
     estimate_logZ(H₀, EV, KL_integral(hist, method))
 end
 
-# for some reason the Array is not stored as Array{MVHistory} but as
-# Array{Any}
-function estimate_logZ(H₀, EV, hist_array::Array{Any}, method=:RKHS_norm)
+function estimate_logZ(H₀, EV, hist_array::Array{MVHistory}, method=:RKHS_norm)
     estimates = []
     for dKL_hist in hist_array
         push!(estimates, estimate_logZ(H₀, EV, dKL_hist, method))
