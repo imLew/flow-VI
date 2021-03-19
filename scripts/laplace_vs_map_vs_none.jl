@@ -18,7 +18,7 @@ using Examples
 DIRNAME = "bayesian_logistic_regression/MAPvLaplacevNormal"
 
 ALG_PARAMS = Dict(
-    :update_method => [:naive_WAG, :naive_WNES],
+    :update_method => [ :forward_euler ],
     :α => @onlyif(:update_method == :naive_WAG, [3, 4, 7, 10] ),
     :c₁ => @onlyif(:update_method == :naive_WNES, [.1, 1, 5] ),
     :c₂ => @onlyif(:update_method == :naive_WNES, [.1, 1, 5] ),
@@ -33,7 +33,7 @@ ALG_PARAMS = Dict(
 
 PROBLEM_PARAMS = Dict(
     :problem_type => [ :logistic_regression ],
-    :MAP_start => [  true ],
+    :MAP_start => [  true, false ],
     :Laplace_start => [ false,  true ],
     :n_dim => [ 2 ],
     :n₀ => [ 50 ],
