@@ -38,15 +38,8 @@ end
 
 function expectation_V(initial_dist::Distribution, log_likelihood)
     num_expectation(initial_dist, 
-                    w -> log_likelihood(w) + logpdf(initial_dist, w)
+                    w -> - log_likelihood(w) - logpdf(initial_dist, w)
                    )
-end
-
-function expectation_V(initial_dist::MvNormal, log_likelihood)
-    ( num_expectation(initial_dist, w -> log_likelihood(w))
-      + expectation_V(initial_dist, initial_dist) 
-      + 0.5 * logdet(2π * cov(initial_dist)) 
-     )
 end
 
 function expectation_V(::Val{:gauss_to_gauss}, data)
