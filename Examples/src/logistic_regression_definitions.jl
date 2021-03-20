@@ -4,8 +4,6 @@ module LogisticRegression
 using Random
 using Distributions
 
-σ(a) = 1 / (1 + exp(-a))
-
 module Structs
     struct Data
         t  # true value / target
@@ -28,10 +26,15 @@ Base.length(d::Data) = length(d.t)
 #         return nothing
 #     end
 # end
+
+σ(a) = 1 / (1 + exp(-a))
+
 y(w) = z -> σ.(z*w)
 y(D::Data, w) = y(w)(D.z)
 
-log_likelihood(D::Data, w) = sum( D.t .* log.(y(D, w)) + (1 .- D.t) .* log.(1 .- y(D,w)) )
+function log_likelihood(D::Data, w)
+    sum( D.t .* log.(y(D, w)) .+ (1 .- D.t) .* log.(1 .- y(D,w)) )
+end
 
 grad_log_likelihood(D::Data, w) = sum((D.t .- y(D,w)).*D.z, dims=1)'
 
