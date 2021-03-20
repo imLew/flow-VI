@@ -97,7 +97,7 @@ function plot_2D_gaussians_results(data; kwargs...)
     return plt
 end
 
-function plot_convergence(data; kwargs...)
+function plot_convergence(data, title=""; kwargs...)
     kwargs = Dict(kwargs...)
     legend = get!(kwargs, :legend, :bottomright)
     size = get!(kwargs, :size, (375, 375))
@@ -105,14 +105,14 @@ function plot_convergence(data; kwargs...)
     lw = get!(kwargs, :lw, 3)
     int_lims = get!(kwargs, :int_lims, (-Inf, Inf))
 
-    plt, int_plot, norm_plot = plot(), plot(), plot()
-    dist_plot = plot(legend=false) 
-    plot_convergence!(int_plot, dist_plot, norm_plot, data; kwargs...)
+    int_plot, norm_plot = plot(), plot();
+    results_plot = plot(legend=false);
+    plot_convergence!(int_plot, results_plot, norm_plot, data; kwargs...)
     layout = @layout [ i ; n b ]
-    plot(int_plot, norm_plot, dist_plot, layout=layout)
+    return plot(int_plot, norm_plot, results_plot, layout=layout, title=title)
 end
 
-function plot_convergence!(int_plot, dist_plot, norm_plot, data; kwargs...)
+function plot_convergence!(int_plot, results_plot, norm_plot, data; kwargs...)
     kwargs = Dict(kwargs...)
     size = get!(kwargs, :size, (375, 375))
     legend = get!(kwargs, :legend, :bottomright)
@@ -122,14 +122,19 @@ function plot_convergence!(int_plot, dist_plot, norm_plot, data; kwargs...)
 
     plot_integration!(int_plot, data, ylims=int_lims)
 
-    plot_2D_gaussians_results!(dist_plot, data)
+    if data[:problem_type] == :gauss_to_gauss
+        plot_2D_gaussians_results!(results_plot, data)
+    elseif data[:problem_type] == :logistic_regression
+        plot_classes!(results_plot, data)
+        plot_prediction!(results_plot, data)
+    end
     
     if data[:n_runs] < 4
 		for hist in data[:svgd_hist]
 			plot!(norm_plot, hist[:ϕ_norm],ylims=ylims,
-							 markeralpha=0, label="", title="", 
-							 xticks=0:data[:n_iter]÷4:data[:n_iter], color=colors[1],
-							 xlabel="iterations", ylabel="||φ||");
+                  markeralpha=0, label="", title="", 
+                  xticks=0:data[:n_iter]÷4:data[:n_iter], color=colors[1],
+                  xlabel="iterations", ylabel="||φ||");
 		end 
     else
         norms = [get(hist, :ϕ_norm)[2] for hist in data[:svgd_hist]]
@@ -142,14 +147,14 @@ end
 
 function plot_integration(data; size=(375,375), legend=:bottomright, lw=3, 
                           ylims=(-Inf,Inf), title="")
-    plt = plot(size=size, title=title)
+    plt = plot(size=size, title=title);
     plot_integration!(plt, data; legend=legend, lw=lw, ylims=ylims)
-    display(plot(plt))
 end
 
 function plot_integration!(plt::Plots.Plot, data; legend=:bottomright, 
                            lw=3, ylims=(-Inf,Inf))
-    plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw, ylims=ylims);
+    plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw, 
+          ylims=ylims);
     if data[:n_runs] < 5
         plot!(plt, estimate_logZ(data), label="", color=colors[1]);
     else
@@ -162,51 +167,28 @@ function plot_integration!(plt::Plots.Plot, data; legend=:bottomright,
     end
 end
 
-# function plot_integration(::Val{:logistic_regression}, data; 
-#                           size=(375,375), legend=:bottomright, lw=3, 
-#                           ylims=(-Inf,Inf))
-#     plt = plot(size=size)
-#     plot_integration!(Val(:logistic_regression), plt, data; 
-#                       legend=legend, lw=lw, ylims=ylims)
-# end
-
-# function plot_integration!(::Val{:logistic_regression}, 
-#                            plt::Plots.Plot, data; 
-#                            legend=:bottomright, lw=3, ylims=(-Inf,Inf))
-#     initial_dist = MvNormal(data[:μ_initial], data[:Σ_initial])
-#     H₀ = Distributions.entropy(initial_dist)
-#     EV = ( num_expectation( initial_dist, 
-#                                   w -> LogReg.log_likelihood(data[:sample_data],w),
-#                                  )
-#            + expectation_V(initial_dist, initial_dist) 
-#            + 0.5 * logdet(2π * data[:Σ_initial]) 
-#           )
-#     true_logZ = data[:therm_logZ]
-#     plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw, ylims=ylims);
-#     if data[:n_runs] < 5
-#         for dKL_hist in data[:svgd_hist]
-#             est_logZ = estimate_logZ.([H₀], [EV], 
-#                                       KL_integral(dKL_hist))
-#             plot!(plt, est_logZ, label="", color=colors[1]);
-#         end
-#     else
-#         est_logZ = [estimate_logZ.([H₀], [EV], KL_integral(dKL_hist))
-#                     for dKL_hist in data[:svgd_hist]]
-#         plot!(plt, mean(est_logZ), ribbon=std(est_logZ), label="",
-#               color=colors[1]);
-#     end
-#     hline!(plt, [true_logZ], labels="", color=colors[2], ls=:dash);
-# end
-
-function plot_classes(::Val{:logistic_regression}, sample_data; kwargs...)
-    plt = plot(;kwargs...)
-    plot_classes!(Val(:logistic_regression), plt, sample_data)
+function plot_classes(data; kwargs...)
+    plt = plot(;kwargs...);
+    plot_classes!(Val(:logistic_regression), plt, data)
     return plt
 end
 
-function plot_classes!(::Val{:logistic_regression}, plt, sample_data)
-    scatter!(plt, sample_data.x[:,1], sample_data.x[:,2], legend=false, label="", 
-            colorbar=false, zcolor=sample_data.t);
+function plot_classes(::Val{:logistic_regression}, data; kwargs...)
+    plt = plot(;kwargs...);
+    plot_classes!(Val(:logistic_regression), plt, data)
+    return plt
+end
+
+function plot_classes!(plt, data)
+    scatter!(plt, data[:sample_data].x[:,1], data[:sample_data].x[:,2], 
+             legend=false, label="", colorbar=false, 
+             zcolor=data[:sample_data].t);
+end
+
+function plot_classes!(::Val{:logistic_regression}, plt, data)
+    scatter!(plt, data[:sample_data].x[:,1], data[:sample_data].x[:,2], 
+             legend=false, label="", colorbar=false, 
+             zcolor=data[:sample_data].t);
 end
 
 function plot_prediction(data)
@@ -232,15 +214,14 @@ function plot_prediction!(::Val{:logistic_regression}, plt, data)
     avg_prediction = transpose(dropdims(mean(predictions, dims=3),dims=3))
     # heatmap() treats the y-direction as the first direction so the data needs
     # to be transposed before plotting it
-    heatmap!(plt, xs, ys, avg_prediction, alpha=0.5)
+    heatmap!(plt, xs, ys, avg_prediction, alpha=0.5);
 
     # for w in eachcol(q)
     for w in weights
         plot!(plt, x -> -(w[2]*x+w[1])/w[3], xs, legend=false, color=colors[1], 
               alpha=0.3, ylims=(minimum(ys), maximum(ys))
-             )
+             );
     end
-    display(plt)
 end
 
 # export color_point_by_prediction!
