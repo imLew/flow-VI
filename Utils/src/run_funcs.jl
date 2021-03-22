@@ -160,6 +160,12 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
                        )
     end
 
+    true_logZ = if haskey(problem_params, :therm_params)
+        therm_integration(problem_params, D; problem_params[:therm_params]...)
+    else
+        nothing
+    end
+
     if haskey(problem_params, :random_seed) 
         Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
         @info "GLOBAL_RNG random seed set again because thermodynamic integration used up randomness" problem_params[:random_seed]
@@ -197,12 +203,6 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
                             inv( problem_params[:Σ_initial] ) 
                             .+ D.z' * (y.*(1 .- y) .* D.z)
                            ))
-    end
-
-    true_logZ = if haskey(problem_params, :therm_params)
-        therm_integration(problem_params, D; problem_params[:therm_params]...)
-    else
-        nothing
     end
 
     initial_dist = MvNormal(problem_params[:μ_initial], 
@@ -248,9 +248,8 @@ end
 
 export therm_integration
 function therm_integration(problem_params, D; nSamples=3000, nSteps=30)
-    n_dim = problem_params[:n_dim] + 1
-    # prior = TuringDiagMvNormal(zeros(n_dim), ones(n_dim))
-    prior = MvNormal(zeros(n_dim), ones(n_dim))
+    n_dim = length(problem_params[:μ_prior]
+    prior = MvNormal(problem_params[:μ_prior], problem_params[:Σ_prior])
     logprior(θ) = logpdf(prior, θ)
     loglikelihood(θ) = LogReg.log_likelihood(D, θ)
     θ_init = randn(n_dim)
