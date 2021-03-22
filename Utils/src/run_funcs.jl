@@ -160,12 +160,6 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
                        )
     end
 
-    true_logZ = if haskey(problem_params, :therm_params)
-        therm_integration(problem_params, D; problem_params[:therm_params]...)
-    else
-        nothing
-    end
-
     if haskey(problem_params, :random_seed) 
         Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
         @info "GLOBAL_RNG random seed set again because thermodynamic integration used up randomness" problem_params[:random_seed]
@@ -200,8 +194,15 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
     if problem_params[:Laplace_start]
         y = LogReg.y(D, problem_params[:μ_initial])
         problem_params[:Σ_initial] = inv(Symmetric(
-                inv(problem_params[:Σ_initial]) + D.z' * (y.*(1 .- y) .* D.z)
-            ))
+                            inv( problem_params[:Σ_initial] ) 
+                            .+ D.z' * (y.*(1 .- y) .* D.z)
+                           ))
+    end
+
+    true_logZ = if haskey(problem_params, :therm_params)
+        therm_integration(problem_params, D; problem_params[:therm_params]...)
+    else
+        nothing
     end
 
     initial_dist = MvNormal(problem_params[:μ_initial], 
@@ -245,6 +246,7 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
     return results
 end
 
+export therm_integration
 function therm_integration(problem_params, D; nSamples=3000, nSteps=30)
     n_dim = problem_params[:n_dim] + 1
     # prior = TuringDiagMvNormal(zeros(n_dim), ones(n_dim))
@@ -349,4 +351,3 @@ function run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
         next!(p)
     end
 end
-
