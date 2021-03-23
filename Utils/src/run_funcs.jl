@@ -177,31 +177,31 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
     svgd_results = []
     estimation_rkhs = []
 
-    function logp(w)
+    function logjoint(w)
         ( LogReg.log_likelihood(D, w) 
-            + logpdf(MvNormal(problem_params[:μ_initial], 
-                              problem_params[:Σ_initial]), w)
+          + logpdf(MvNormal(problem_params[:μ_prior], 
+                            problem_params[:Σ_prior]), 
+                   w)
         )
     end  
     function grad_logp(w) 
         vec( LogReg.grad_log_likelihood(D, w)
-            .- inv(problem_params[:Σ_initial]) 
-            * (w-problem_params[:μ_initial])
-        )
+             .- inv(problem_params[:Σ_prior]) * (w-problem_params[:μ_prior])
+            )
     end
     grad_logp!(g, w) = g .= grad_logp(w)
 
     if problem_params[:MAP_start] || problem_params[:Laplace_start]
         problem_params[:μ_initial] = Optim.maximizer(
-                                Optim.maximize(logp, grad_logp!, 
-                                               problem_params[:μ_initial],
+                                Optim.maximize(logjoint, grad_logp!, 
+                                               problem_params[:μ_prior],
                                                LBFGS(),)
                                )
     end
     if problem_params[:Laplace_start]
         y = LogReg.y(D, problem_params[:μ_initial])
         problem_params[:Σ_initial] = inv(Symmetric(
-                            inv( problem_params[:Σ_initial] ) 
+                            inv( problem_params[:Σ_prior] ) 
                             .+ D.z' * (y.*(1 .- y) .* D.z)
                            ))
     end
@@ -224,14 +224,14 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
     end
 
     sample_data = D
+    
     H₀ = Distributions.entropy(initial_dist)
-    EV = expectation_V(initial_dist, w -> LogReg.log_likelihood(D, w))
+    EV = expectation_V(initial_dist, w -> -logjoint(w))
     estimated_logZ = [est[end] for est in estimate_logZ(H₀, EV, svgd_hist)]
     results = merge(alg_params, problem_params, 
                     @dict(estimated_logZ, svgd_results, svgd_hist,
                           sample_data, true_logZ, failed_count))
     if save
-        # trim dict to generate name for file
         savenamedict = merge(problem_params, alg_params)
         delete!(savenamedict, :sample_data_file)
         if !problem_params[:MAP_start] || problem_params[:Laplace_start]
@@ -251,7 +251,7 @@ function therm_integration(problem_params, D; nSamples=3000, nSteps=30)
     prior = MvNormal(problem_params[:μ_prior], problem_params[:Σ_prior])
     logprior(θ) = logpdf(prior, θ)
     loglikelihood(θ) = LogReg.log_likelihood(D, θ)
-    alg = ThermInt(n_samples=5000)
+    alg = ThermInt(nSteps, n_samples=nSamples)
     logZ = alg(logprior, loglikelihood, rand(prior))
 end
 
