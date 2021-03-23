@@ -5,6 +5,7 @@ using Distributions
 using Optim
 using LinearAlgebra
 using ProgressMeter
+using ThermodynamicIntegration
 
 using SVGD
 using Utils
@@ -246,17 +247,12 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
     return results
 end
 
-export therm_integration
 function therm_integration(problem_params, D; nSamples=3000, nSteps=30)
-    n_dim = length(problem_params[:μ_prior]
     prior = MvNormal(problem_params[:μ_prior], problem_params[:Σ_prior])
     logprior(θ) = logpdf(prior, θ)
     loglikelihood(θ) = LogReg.log_likelihood(D, θ)
-    θ_init = randn(n_dim)
-
-    alg = ThermoIntegration(nSamples = nSamples, nSteps=nSteps)
-    samplepower_posterior(x->loglikelihood(x) + logprior(x), n_dim, alg.nSamples)
-    alg(logprior, loglikelihood, n_dim)  # log Z estimate
+    alg = ThermInt(n_samples=5000)
+    logZ = alg(logprior, loglikelihood, rand(prior))
 end
 
 function cmdline_run(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
