@@ -36,10 +36,8 @@ function expectation_V(q::MvNormal, p::MvNormal)
     0.5 * ( tr(inv(cov(p))*cov(q)) + invquad(PDMat(cov(p)), mean(q)-mean(p)) )
 end
 
-function expectation_V(initial_dist::Distribution, log_likelihood)
-    num_expectation(initial_dist, 
-                    w -> - log_likelihood(w) - logpdf(initial_dist, w)
-                   )
+function expectation_V(initial_dist::Distribution, V)
+    num_expectation(initial_dist, V)
 end
 
 function expectation_V(::Val{:gauss_to_gauss}, data)
@@ -49,8 +47,10 @@ function expectation_V(::Val{:gauss_to_gauss}, data)
 end
 
 function expectation_V(::Val{:logistic_regression}, data)
-    expectation_V( MvNormal(data[:μ_initial], PDMat(Symmetric(data[:Σ_initial]))),
-                    w -> LogReg.log_likelihood(data[:sample_data], w),
+    expectation_V( MvNormal(data[:μ_initial], data[:Σ_initial]),
+                   w -> -LogReg.log_likelihood(data[:sample_data], w)
+                        - logpdf(MvNormal(data[:μ_prior],
+                                          data[:Σ_prior]), w)
                    )
 end
 
@@ -115,6 +115,7 @@ function num_expectation(d::Distribution, f; n_samples=10000,
                          rng=Random.GLOBAL_RNG)
     mean([ v for v in [ f(x) for x in eachcol(rand(rng, d, n_samples))] 
           if isfinite(v)] ) 
+    mean([ f(x) for x in eachcol(rand(rng, d, n_samples))])
 end
 
 function logZ(d::Distribution)
