@@ -120,51 +120,79 @@ function plot_convergence!(int_plot, results_plot, norm_plot, data; kwargs...)
     lw = get!(kwargs, :lw, 3)
     int_lims = get!(kwargs, :int_lims, (-Inf, Inf))
 
-    plot_integration!(int_plot, data, ylims=int_lims)
+    plot_integration!(int_plot, data, ylims=int_lims; kwargs...)
 
     if data[:problem_type] == :gauss_to_gauss
         plot_2D_gaussians_results!(results_plot, data)
     elseif data[:problem_type] == :logistic_regression
         plot_classes!(results_plot, data)
         plot_prediction!(results_plot, data)
+    elseif data[:problem_type] == :linear_regression
+        plot_fit!(results_plot, data)
     end
     
     if data[:n_runs] < 4
 		for hist in data[:svgd_hist]
-			plot!(norm_plot, hist[:ϕ_norm],ylims=ylims,
+			plot!(norm_plot, hist[:ϕ_norm], ylims=ylims,
                   markeralpha=0, label="", title="", 
                   xticks=0:data[:n_iter]÷4:data[:n_iter], color=colors[1],
-                  xlabel="iterations", ylabel="||φ||");
+                  xlabel="iterations", ylabel="||Δq||");
 		end 
     else
         norms = [get(hist, :ϕ_norm)[2] for hist in data[:svgd_hist]]
         plot!(norm_plot, mean(norms), ribbon=std(norms), ylims=ylims,
               markeralpha=0, label="", title="", 
               xticks=0:data[:n_iter]÷4:data[:n_iter], color=colors[1],
-              xlabel="iterations", ylabel="||φ||");
+              xlabel="iterations", ylabel="||Δq||");
     end
 end
 
 function plot_integration(data; size=(375,375), legend=:bottomright, lw=3, 
-                          ylims=(-Inf,Inf), title="")
+                            ylims=(-Inf,Inf), title="", kwargs...)
     plt = plot(size=size, title=title);
     plot_integration!(plt, data; legend=legend, lw=lw, ylims=ylims)
 end
 
 function plot_integration!(plt::Plots.Plot, data; legend=:bottomright, 
-                           lw=3, ylims=(-Inf,Inf))
+                            lw=3, ylims=(-Inf,Inf), kwargs...)
+    flow_label=get(kwargs, :flow_label, "")
+    true_label=get(kwargs, :true_label, "")
+    therm_label=get(kwargs, :therm_label, "")
     plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw, 
           ylims=ylims);
     if data[:n_runs] < 5
-        plot!(plt, estimate_logZ(data), label="", color=colors[1]);
+        plot!(plt, estimate_logZ(data), color=colors[1], label=flow_label);
     else
         est_logZ = estimate_logZ(data)
-        plot!(plt, mean(est_logZ), ribbon=std(est_logZ), label="",
-              color=colors[1]);
+        plot!(plt, mean(est_logZ), ribbon=std(est_logZ), color=colors[1], 
+              label=flow_label);
     end
     if !isnothing(data[:true_logZ])
-        hline!(plt, [data[:true_logZ]], labels="", color=colors[2], ls=:dash);
+        hline!(plt, [data[:true_logZ]], labels=true_label, color=colors[2], ls=:dash);
     end
+    if !isnothing(data[:therm_logZ])
+        hline!(plt, [data[:therm_logZ]], labels=therm_label, color=colors[3], ls=:dash);
+    end
+end
+
+function plot_fit!(plt, data)
+    x = range(data[:sample_range]..., length=100)
+    for q in data[:svgd_results]
+        for w in eachcol(q)
+            model = LinReg.RegressionModel(data[:ϕ], w, data[:true_β])
+            plot!(plt,x, LinReg.y(model), alpha=0.3, color=:orange, legend=:none)
+        end
+        plot!(plt, x, 
+              LinReg.y(
+               LinReg.RegressionModel(data[:ϕ], mean(q, dims=2), data[:true_β])
+              ), 
+              color=:red)
+    end
+    plot!(plt, x, 
+          LinReg.y(
+             LinReg.RegressionModel(data[:true_ϕ], data[:true_w], data[:true_β])
+          ), 
+          color=:green)
 end
 
 function plot_classes(data; kwargs...)
