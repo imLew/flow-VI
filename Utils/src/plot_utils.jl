@@ -180,15 +180,15 @@ function plot_classes(::Val{:logistic_regression}, data; kwargs...)
 end
 
 function plot_classes!(plt, data)
-    scatter!(plt, data[:sample_data].x[:,1], data[:sample_data].x[:,2], 
+    scatter!(plt, data[:D].x[:,1], data[:D].x[:,2], 
              legend=false, label="", colorbar=false, 
-             zcolor=data[:sample_data].t);
+             zcolor=data[:D].t);
 end
 
 function plot_classes!(::Val{:logistic_regression}, plt, data)
-    scatter!(plt, data[:sample_data].x[:,1], data[:sample_data].x[:,2], 
+    scatter!(plt, data[:D].x[:,1], data[:D].x[:,2], 
              legend=false, label="", colorbar=false, 
-             zcolor=data[:sample_data].t);
+             zcolor=data[:D].t);
 end
 
 function plot_prediction(data)
@@ -201,10 +201,10 @@ function plot_prediction!(plt, data)
 end
 
 function plot_prediction!(::Val{:logistic_regression}, plt, data)
-    xs = range(minimum(data[:sample_data].x[:,1]), 
-               maximum(data[:sample_data].x[:,1]), length=100)
-    ys = range(minimum(data[:sample_data].x[:,2]), 
-               maximum(data[:sample_data].x[:,2]), length=100)
+    xs = range(minimum(data[:D].x[:,1]), 
+               maximum(data[:D].x[:,1]), length=100)
+    ys = range(minimum(data[:D].x[:,2]), 
+               maximum(data[:D].x[:,2]), length=100)
     grid = [[1, x, y] for x in xs, y in ys]
 
     σ(a) = 1 / (1 + exp(-a))
@@ -226,16 +226,16 @@ end
 
 # export color_point_by_prediction!
 # function color_point_by_prediction!(plt, data)
-#     xs = range(minimum(data[:sample_data][:,2]), maximum(data[:sample_data][:,2]), length=100)
-#     ys = range(minimum(data[:sample_data][:,3]), maximum(data[:sample_data][:,3]), length=100)
+#     xs = range(minimum(data[:D][:,2]), maximum(data[:D][:,2]), length=100)
+#     ys = range(minimum(data[:D][:,3]), maximum(data[:D][:,3]), length=100)
 #     grid = [[1, x, y] for x in xs, y in ys]
 
 #     σ(a) = 1 / (1 + exp(-a))
 #     q = hcat(data[:svgd_results]...)
-#     predictions = [σ(point'*w) for point in eachrow([ones(200) data[:sample_data][:,2:end]]), w in eachcol(q)]
+#     predictions = [σ(point'*w) for point in eachrow([ones(200) data[:D][:,2:end]]), w in eachcol(q)]
 #     avg_prediction = mean(predictions, dims=3)
     
-#     scatter!(plt, data[:sample_data][:,2], data[:sample_data][:,3], zcolor=avg_prediction)
+#     scatter!(plt, data[:D][:,2], data[:D][:,3], zcolor=avg_prediction)
 # end
 
 function merge_series!(sp1::Plots.Subplot, sp2::Plots.Subplot)
