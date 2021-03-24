@@ -46,6 +46,16 @@ function expectation_V(::Val{:gauss_to_gauss}, data)
                  )
 end
 
+function expectation_V(::Val{:linear_regression}, data)
+    expectation_V( MvNormal(data[:μ_initial], data[:Σ_initial]),
+                   w -> -LinReg.log_likelihood(data[:D], 
+                           LinReg.RegressionModel(data[:ϕ], w, data[:true_β])
+                                             )
+                        - logpdf(MvNormal(data[:μ_prior],
+                                          data[:Σ_prior]), w)
+                   )
+end
+
 function expectation_V(::Val{:logistic_regression}, data)
     expectation_V( MvNormal(data[:μ_initial], data[:Σ_initial]),
                    w -> -LogReg.log_likelihood(data[:D], w)
@@ -85,10 +95,10 @@ function estimate_logZ(initial_dist::Distribution, target_dist::Distribution,
     estimate_logZ(H₀, EV, data[:svgd_hist], method)
 end
 
-function estimate_logZ(::Val{:logistic_regression},
-                       data::Dict{Symbol,Any}, method=:RKHS_norm)
+function estimate_logZ(::T, data::Dict{Symbol,Any}, method=:RKHS_norm
+    ) where T <: Union{Val{:logistic_regression}, Val{:linear_regression}}
     initial_dist = MvNormal(data[:μ_initial], data[:Σ_initial])
-    H₀ = Distributions.entropy(initial_dist)
+    H₀ = entropy(initial_dist)
     EV = expectation_V(data)
     estimate_logZ(H₀, EV, data[:svgd_hist], method)
 end
