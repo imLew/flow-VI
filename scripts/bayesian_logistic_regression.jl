@@ -1,33 +1,40 @@
-using DrWatson
+using DrWatson 
+@quickactivate
 using KernelFunctions
-using BSON
-using Distributions
 using LinearAlgebra
-using Plots
+using AdvancedHMC
+
+using LoggingExtras
+using Logging
+function not_AdvancedHMC_message_filter(log)
+    log._module != AdvancedHMC
+end
+global_logger(EarlyFilteredLogger(not_AdvancedHMC_message_filter, global_logger()))
 
 using Utils
 using SVGD
 using Examples
-const LogReg = Examples.LogisticRegression
 
-include("run_funcs.jl")
+DIRNAME = "bayesian_logistic_regression/MAPvLaplacevNormal"
 
-DIRNAME = "bayesian_logistic_regression"
-
-alg_params = Dict(
+ALG_PARAMS = Dict(
     :update_method => [ :forward_euler ],
+    :α => @onlyif(:update_method == :naive_WAG, [3, 4, 7, 10] ),
+    :c₁ => @onlyif(:update_method == :naive_WNES, [.1, 1, 5] ),
+    :c₂ => @onlyif(:update_method == :naive_WNES, [.1, 1, 5] ),
     :kernel => [ TransformedKernel(SqExponentialKernel(), ScaleTransform(1.)) ],
     :kernel_cb => [ median_trick_cb! ],
     :step_size => [ 0.001 ],
     :n_iter => [ 1000 ],
-    :n_particles => [ 20 ],
-    :n_runs => 1,
+    :n_particles => [ 50 ],
+    :n_runs => [ 10 ],
+    :dKL_estimator => [ :RKHS_norm ],
     )
 
-problem_params = Dict(
-    :problem_type => [ :bayesian_logistic_regression ],
-    :MAP_start => [ false ],
-    :Laplace_start => [ true ],
+PROBLEM_PARAMS = Dict(
+    :problem_type => [ :logistic_regression ],
+    :MAP_start => [  true, false ],
+    :Laplace_start => [ false,  true ],
     :n_dim => [ 2 ],
     :n₀ => [ 50 ],
     :n₁ => [ 50 ],
@@ -41,40 +48,10 @@ problem_params = Dict(
                           :nSamples => 3000,
                           :nSteps => 30
                          )],
-    )
+    :random_seed => [ 0 ],
+    # :sample_data_file => [datadir("classification_samples", 
+    # "2dim_50:[0.0, 0.0]:[0.5 0.1; 0.1 0.2]_50:[0.0, 0.0]:[0.5 0.1; 0.1 0.2].bson")
+    #                      ],
+)
 
-ap = dict_list(alg_params)[1]
-pp = dict_list(problem_params)[1]
-data = run_log_regression(pp, ap)
-
-plt = plot_classes(data[:sample_data])
-plot_prediction!(plt,data)
-
-initial_dist = MvNormal(data[:μ₀], data[:Σ₀])
-H₀ = Distributions.entropy(initial_dist)
-EV = ( numerical_expectation( initial_dist, 
-            w -> LogReg.log_likelihood(data[:sample_data],w) )
-       + expectation_V(initial_dist, initial_dist) 
-       + 0.5 * logdet(2π * data[:Σ_initial])
-) 
-
-est_logZ_rkhs = estimate_logZ.(H₀, EV, KL_integral(data[:svgd_hist][1]))
-
-norm_plot = plot(data[:svgd_hist][1][:ϕ_norm], title = "φ norm", yaxis = :log)
-int_plot = plot( estimate_logZ.(H₀, EV, KL_integral(data[:svgd_hist][1])) ,title = "log Z", label = "",)
-
-###############################################################################
-## compare results
-hist = data[:svgd_hist][1]
-
-norm_plot = plot(get(hist,:ϕ_norm)[2], title="||φ||", yaxis=:log);
-step_plot = plot(get(hist,:step_sizes)[2], title="ϵ", yaxis=:log);
-# step_plot = plot(hist[:step_sizes], title="ϵ", yaxis=:log);
-# cov_diff = norm.(get(hist, :Σ)[2][2:end] - get(hist, :Σ)[2][1:end-1])
-# cov_plot = plot(cov_diff, title="||ΔΣ||", yaxis=:log);
-int_plot = plot(title="log Z");
-plot!(int_plot, estimate_logZ.([H₀], [EV], KL_integral(hist)), label="rkhs",);
-# fit_plot = plot_results(plot(), q, problem_params);
-plot(norm_plot, int_plot, step_plot, layout=@layout [n i; s])
-
-@info "Value comparison" therm_logZ est_logZ_rkhs 
+run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)

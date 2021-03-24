@@ -72,51 +72,64 @@ function plot_results(plt, q, problem_params)
     return plt
 end
 
-ap = dict_list(alg_params)[1]
-pp = dict_list(problem_params)[1]
-data = run_linear_regression(pp, ap, N_RUNS)
+###############################################################################
+## ThermoIntegration
+## alg params 
+nSamples = 3000
+nSteps = 30
+## alg
+x = true_model.ϕ.(D.x)
+prior = TuringDiagMvNormal(zeros(n_dim), ones(n_dim))
+logprior(θ) = logpdf(prior, θ)
+function loglikelihood(θ)
+    (length(x)/2 * log(problem_params[:true_β]/2π) 
+     - problem_params[:true_β]/2 * sum( (D.t .- dot.([θ], x)).^2 )
+    )
+end
+θ_init = rand(n_dim)
 
-initial_dist = MvNormal(data[:μ₀], data[:Σ₀])
+alg = ThermoIntegration(nSamples = nSamples, nSteps=nSteps)
+samplepower_posterior(x->loglikelihood(x) + logprior(x), n_dim, alg.nSamples)
+therm_logZ = alg(logprior, loglikelihood, n_dim)
+
+
+true_model = LR.RegressionModel(problem_params[:true_ϕ],
+                             problem_params[:true_w], 
+                             problem_params[:true_β])
+
+D = LR.generate_samples(model=true_model, n_samples=problem_params[:n_samples],
+                     sample_range=problem_params[:sample_range])
+# scale = sum(extrema(D.t))
+# problem_params[:true_w] ./= scale
+# D.t ./= scale
+###############################################################################
+## SVGD integration
+
+alg_params = Dict(
+    :step_size => 0.00001,
+    :n_iter => 2000,
+    :n_particles => 100,
+    :kernel_width => "median_trick",
+)
+initial_dist, q, hist = LR.fit_linear_regression(problem_params, alg_params, D)
+
 H₀ = Distributions.entropy(initial_dist)
 EV = ( 
-      LinReg.true_gauss_expectation(initial_dist,  
-            LinReg.RegressionModel(data[:ϕ], mean(initial_dist), 
-                                   data[:true_β]),
-            data[:sample_data])
-       + expectation_V(initial_dist, initial_dist) 
-       + 0.5 * logdet(2π * data[:Σ₀])
+LR.true_gauss_expectation(initial_dist,  
+            LR.RegressionModel(problem_params[:ϕ], mean(initial_dist), 
+                            problem_params[:true_β]), D)
+        # num_expectation( initial_dist, 
+        #         w -> log_likelihood(D, RegressionModel(problem_params[:ϕ], w, 
+        #                                            problem_params[:true_β])) )
+       + SVGD.expectation_V(initial_dist, initial_dist) 
+       + 0.5 * logdet(2π * problem_params[:Σ_prior])
       )
-est_logZ_rkhs = estimate_logZ.(H₀, EV, KL_integral(data[:svgd_results][1][1]))
+est_logZ_rkhs = SVGD.estimate_logZ(H₀, EV, SVGD.KL_integral(hist)[end])
+# est_logZ_unbiased = SVGD.estimate_logZ(H₀, EV, KL_integral(hist, :dKL_unbiased)[end])
+# est_logZ_stein_discrep = SVGD.estimate_logZ(H₀, EV, KL_integral(hist, :dKL_stein_discrep)[end])
 
-norm_plot = plot(data[:svgd_results][1][1][:ϕ_norm], title = "φ norm", yaxis = :log)
-int_plot = plot( estimate_logZ.(H₀, EV, KL_integral(data[:svgd_results][1][1])) ,title = "log Z", label = "",)
-hline!(int_plot, 
-       [LinReg.regression_logZ(data[:Σ₀], data[:true_β], data[:true_ϕ], data[:sample_data].x)],
-      legend=false)
+###############################################################################
+## compare results
 
-fit_plot = plot_results(plot(size=(300,250)), data[:svgd_results][1][2], data)
-plot(fit_plot, norm_plot, int_plot, layout=@layout [f; n i])
-
-# runs = []
-# recent_runs = []
-# n_sets = dict_list_count(alg_params)*dict_list_count(problem_params)
-# for (i, ap) ∈ enumerate(dict_list(alg_params))
-#     for (j, pp) ∈ enumerate(dict_list(problem_params))
-#         # @show ap[:update_method]
-#         # if haskey(ap, :c₁) 
-#         #     @show (ap[:c₁], ap[:c₂]) 
-#         # end
-#         # if haskey(ap, :α) 
-#         #     @show ap[:α] 
-#         # end
-#         println("$(((i-1)*dict_list_count(problem_params)) + j) out of $n_sets")
-#         # name = run_gauss_to_gauss(problem_params=pp, alg_params=ap, 
-#         #                           n_runs=N_RUNS, DIRNAME=DIRNAME)
-#         push!(recent_runs, name)
-#         display(plot_convergence(name))
-#     end
-#     if readline() == "q"
-#         break
-#     end
-# end
-# push!(runs, recent_runs)
+true_logZ = LR.regression_logZ(problem_params[:Σ_prior], problem_params[:true_β], 
+                            problem_params[:true_ϕ], D.x)
