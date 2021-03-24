@@ -16,6 +16,7 @@ const LogReg = Examples.LogisticRegression
 export run_single_instance
 export cmdline_run
 export run_svgd
+export therm_integration
 
 function getMAP!(problem_params, logp, grad_logp, D)
     problem_params[:μ_initial] = (
@@ -91,6 +92,17 @@ function run_svgd(::Val{:linear_regression}; problem_params, alg_params,
                          sample_range=problem_params[:sample_range]
                         )
 
+    therm_logZ = if haskey(problem_params, :therm_params)
+        therm_integration(problem_params, D; problem_params[:therm_params]...)
+    else
+        nothing
+    end
+
+    if haskey(problem_params, :random_seed) 
+        Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
+        @info "GLOBAL_RNG random seed set again because thermodynamic integration used up randomness" problem_params[:random_seed]
+    end
+
     function logp(w)
         model = LinReg.RegressionModel(problem_params[:ϕ], w, problem_params[:true_β])
         ( LinReg.log_likelihood(D, model) 
@@ -135,7 +147,7 @@ function run_svgd(::Val{:linear_regression}; problem_params, alg_params,
 
     file_prefix = savename( merge(problem_params, alg_params) )
     results = merge(alg_params, problem_params, 
-                    @dict(true_logZ, estimated_logZ, 
+                    @dict(true_logZ, estimated_logZ, therm_logZ,
                           svgd_results, svgd_hist, D))
     if save
         tagsave(datadir(DIRNAME, file_prefix * ".bson"), results,
@@ -171,7 +183,7 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
                        )
     end
 
-    true_logZ = if haskey(problem_params, :therm_params)
+    therm_logZ = if haskey(problem_params, :therm_params)
         therm_integration(problem_params, D; problem_params[:therm_params]...)
     else
         nothing
@@ -228,7 +240,7 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
     estimated_logZ = [est[end] for est in estimate_logZ(H₀, EV, svgd_hist)]
     results = merge(alg_params, problem_params, 
                     @dict(estimated_logZ, svgd_results, svgd_hist,
-                          D, true_logZ, failed_count))
+                          D, therm_logZ,  failed_count))
     if save
         savenamedict = merge(problem_params, alg_params)
         delete!(savenamedict, :sample_data_file)
@@ -248,7 +260,16 @@ end
 function therm_integration(problem_params, D; nSamples=3000, nSteps=30)
     prior = MvNormal(problem_params[:μ_prior], problem_params[:Σ_prior])
     logprior(θ) = logpdf(prior, θ)
-    loglikelihood(θ) = LogReg.log_likelihood(D, θ)
+    loglikelihood(θ) = (
+        if problem_params[:problem_type] == :logistic_regression
+            LogReg.log_likelihood(D, θ)
+        elseif problem_params[:problem_type] == :linear_regression
+            LinReg.log_likelihood(D, 
+                LinReg.RegressionModel(problem_params[:ϕ], θ, 
+                                       problem_params[:true_β])
+               ) 
+        end
+       )
     alg = ThermInt(nSteps, n_samples=nSamples)
     logZ = alg(logprior, loglikelihood, rand(prior))
 end
