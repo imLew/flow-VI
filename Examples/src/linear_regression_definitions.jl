@@ -49,7 +49,7 @@ function posterior_mean(ϕ, β, D, μ₀, Σ₀)
     posterior_variance(ϕ, β, D.x, Σ₀) * ( inv(Σ₀)μ₀ + β * Φ(ϕ, D.x)' * D.t )
 end
 function regression_logZ(Σ₀, β, ϕ, X)
-    2 \ log( det( 2π * posterior_variance(ϕ, β, X, Σ₀) ) ) 
+    2 \ logdet( 2π * posterior_variance(ϕ, β, X, Σ₀) )
 end
 
 function true_gauss_expectation(d::MvNormal, m::RegressionModel, D::RegressionData)
