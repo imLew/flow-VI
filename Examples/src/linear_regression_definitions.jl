@@ -81,6 +81,4 @@ function grad_log_likelihood(D::RegressionData, model::RegressionModel)
     model.β * sum( ( D.t .- y(model).(D.x) ) .* model.ϕ.(D.x) )
 end
 
-
-
 end  # module
