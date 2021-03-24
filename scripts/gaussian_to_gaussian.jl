@@ -75,4 +75,4 @@ ALG_PARAMS = Dict(
     :n_runs => 10,
 )
 
-run_single_instance(ALG_PARAMS, PROBLEM_PARAMS, "gaussian_to_gaussian/method_compare")
+run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, "gaussian_to_gaussian/method_compare")
