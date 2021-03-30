@@ -15,28 +15,6 @@ using SVGD
 using Utils
 
 ##Cell
-function make_boxplots(data::Array{Any}; kwargs...)
-    kwargs = Dict(kwargs...)
-    param_keys = intersect(keys(data[1]), [:α, :c₁, :c₂, :β₁, :β₂, :γ])
-    if haskey(kwargs,:labels)
-        labels = pop!(kwargs, :labels)
-    else
-        labels = [join(["$(key)=$(d[key])" for key in param_keys], "; ") 
-                          for d in data] 
-    end
-    labels = reshape(labels, 1, length(data))
-    plt = boxplot([d[:estimated_logZ] for d in data],
-            labels=labels, colors=colors[1:length(data)],
-            legend=:outerright; kwargs...) 
-    hline!(plt, [data[1][:true_logZ]], label="true value", colors=colors[length(data)+1])
-    EV = expectation_V(data[1])
-    H₀ = entropy(MvNormal(data[1][:μ₀], data[1][:Σ₀]))
-    hline!(plt, [H₀ - EV], label="H₀ - E[V]", color=colors[length(data)+2])
-    return plt
-end
-##
-
-##Cell
 all_data = [BSON.load(n) for n in readdir(datadir("gaussian_to_gaussian", "method_compare"), join=true) ];
 all_data = [data for data in all_data if data[:failed_count]<10];
 for d in all_data
