@@ -123,6 +123,7 @@ function run_svgd(::Val{:linear_regression}; problem_params, alg_params,
         getMAP!(problem_params, logp, grad_logp, D)
     elseif problem_params[:Laplace_start]
         getLaplace!(problem_params, logp, grad_logp, D)
+        problem_params[:Σ_initial] .*= problem_params[:Laplace_factor]
     end
 
     svgd_results = []
