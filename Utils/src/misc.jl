@@ -39,7 +39,7 @@ function get_pdmat(K)
     return PDMat(K+α*I)
 end 
 
-function get_savename(dict::Dict{Any})
+function get_savename(dict)
     savenamedict = copy(dict)
     delete!(savenamedict, :sample_data_file)
     delete!(savenamedict, :problem_type)
