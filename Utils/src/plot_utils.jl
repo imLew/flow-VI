@@ -2,6 +2,9 @@ using Plots
 using Distributions
 using ColorSchemes
 const colors = ColorSchemes.seaborn_colorblind
+true_color = pop!(colors)
+therm_color = pop!(colors)
+start_color = pop!(colors)
 
 using Examples
 const LogReg = LogisticRegression
@@ -97,6 +100,32 @@ function plot_2D_gaussians_results(data; kwargs...)
     return plt
 end
 
+function make_boxplots(data::Array{Any}; kwargs...)
+    kwargs = Dict(kwargs...)
+    param_keys = intersect(keys(data[1]), [:α, :c₁, :c₂, :β₁, :β₂, :γ])
+    if haskey(kwargs,:labels)
+        labels = pop!(kwargs, :labels)
+    else
+        labels = [join(["$(key)=$(d[key])" for key in param_keys], "; ") 
+                          for d in data] 
+    end
+    labels = reshape(labels, 1, length(data))
+    plt = boxplot([d[:estimated_logZ] for d in data],
+            labels=labels, colors=colors[1:length(data)],
+            legend=:outerright; kwargs...) 
+    if haskey(data[1], :true_logZ)
+        hline!(plt, [data[1][:true_logZ]], label="true value", colors=true_color)
+    end
+    if haskey(data[1], :therm_logZ)
+        hline!(plt, [data[1][:therm_logZ]], label="therm value", 
+               colors=therm_color)
+    end
+    EV = expectation_V(data[1])
+    H₀ = entropy(MvNormal(data[1][:μ₀], data[1][:Σ₀]))
+    hline!(plt, [H₀ - EV], label="H₀ - E[V]", color=start_color)
+    return plt
+end
+
 function plot_convergence(data, title=""; kwargs...)
     kwargs = Dict(kwargs...)
     legend = get!(kwargs, :legend, :bottomright)
@@ -168,11 +197,18 @@ function plot_integration!(plt::Plots.Plot, data; legend=:bottomright,
               label=flow_label);
     end
     if !isnothing(data[:true_logZ])
-        hline!(plt, [data[:true_logZ]], labels=true_label, color=colors[2], ls=:dash);
+        hline!(plt, [data[:true_logZ]], labels=true_label, color=true_color, ls=:dash);
     end
     if !isnothing(data[:therm_logZ])
-        hline!(plt, [data[:therm_logZ]], labels=therm_label, color=colors[3], ls=:dash);
+        hline!(plt, [data[:therm_logZ]], labels=therm_label, color=therm_color, ls=:dash);
     end
+    EV = expectation_V(data)
+    if haskey(data, :μ₀)
+        H₀ = entropy(MvNormal(data[:μ₀], data[:Σ₀]))
+    else
+        H₀ = entropy(MvNormal(data[:μ_initial], data[:Σ_initial]))
+    end
+    hline!(plt, [H₀ - EV], label="H₀ - E[V]", color=start_color)
 end
 
 function plot_fit!(plt, data)
