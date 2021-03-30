@@ -39,17 +39,28 @@ function get_pdmat(K)
     return PDMat(K+α*I)
 end 
 
-function get_savename(data::Dict{Any})
-    savenamedict = copy(data)
+function get_savename(dict::Dict{Any})
+    savenamedict = copy(dict)
     delete!(savenamedict, :sample_data_file)
     delete!(savenamedict, :problem_type)
     delete!(savenamedict, :callback)
-    if !get!(data, :MAP_start, false)
+    if !get!(dict, :MAP_start, false)
         delete!(savenamedict, :MAP_start)
     end
-    if !get!(data, :Laplace_start, false)
+    if !get!(dict, :Laplace_start, false)
         delete!(savenamedict, :Laplace_start)
-        delete!(savenamedict, :MAP_start)
+    end
+    um = get!(dict, :update_method, :false)
+    if um != :scalar_RMS_prop
+        delete!(savenamedict, :γ)
+    elseif um != :naive_WNES
+        delete!(savenamedict, :c₁)
+        delete!(savenamedict, :c₂)
+    elseif um != :naive_WAG
+        delete!(savenamedict, :α)
+    elseif um != :scalar_Adam
+        delete!(savenamedict, :β₁)
+        delete!(savenamedict, :β₂)
     end
     file_prefix = savename( savenamedict )
 end

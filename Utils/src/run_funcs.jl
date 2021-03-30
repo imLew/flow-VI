@@ -146,7 +146,7 @@ function run_svgd(::Val{:linear_regression}; problem_params, alg_params,
     true_logZ = LinReg.regression_logZ(problem_params[:Σ_prior], true_model.β,
                                        true_model.ϕ, D.x)
 
-    file_prefix = savename( merge(problem_params, alg_params) )
+    file_prefix = get_savename( merge(problem_params, alg_params) )
     results = merge(alg_params, problem_params, 
                     @dict(true_logZ, estimated_logZ, therm_logZ,
                           svgd_results, svgd_hist, D))
