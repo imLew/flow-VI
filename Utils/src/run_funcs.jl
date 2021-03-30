@@ -129,14 +129,19 @@ function run_svgd(::Val{:linear_regression}; problem_params, alg_params,
     svgd_results = []
     svgd_hist = MVHistory[]
 
-    initial_dist = MvNormal(problem_params[:μ_initial], problem_params[:Σ_initial])
+    failed_count = 0
     for i in 1:alg_params[:n_runs]
-        @info "Run $i/$(alg_params[:n_runs])"
-        q = rand(initial_dist, alg_params[:n_particles])
-        q, hist = SVGD.svgd_fit(q, grad_logp; alg_params...)
+        try 
+            @info "Run $i/$(alg_params[:n_runs])"
+            q = rand(initial_dist, alg_params[:n_particles])
+            q, hist = svgd_fit(q, grad_logp; alg_params...)
 
-        push!(svgd_results, q)
-        push!(svgd_hist, hist)
+            push!(svgd_results, q)
+            push!(svgd_hist, hist)
+        catch e
+        failed_count += 1
+            @error "Something went wrong" exception=(e, catch_backtrace())
+        end
     end
 
     H₀ = Distributions.entropy(initial_dist)
@@ -149,26 +154,12 @@ function run_svgd(::Val{:linear_regression}; problem_params, alg_params,
     file_prefix = get_savename( merge(problem_params, alg_params) )
     results = merge(alg_params, problem_params, 
                     @dict(true_logZ, estimated_logZ, therm_logZ,
-                          svgd_results, svgd_hist, D))
+                          svgd_results, svgd_hist, D, failed_count))
     if save
         tagsave(datadir(DIRNAME, file_prefix * ".bson"), results,
                 safe=true, storepatch = false)
     end
     return results
-end
-
-function run_svgd(;problem_params, alg_params, DIRNAME="", save=true)
-    problem_params = copy(problem_params)
-    alg_params = copy(alg_params)
-    if DIRNAME=="" && save
-        throw(ArgumentError("Cannot save to empty DIRNAME"))
-    end
-    if haskey(problem_params, :random_seed)
-        Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
-        @info "GLOBAL_RNG random seed set" problem_params[:random_seed]
-    end
-    run_svgd(Val(problem_params[:problem_type]), problem_params=problem_params, 
-        alg_params=alg_params, DIRNAME=DIRNAME, save=save)
 end
 
 function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
@@ -256,6 +247,20 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
                 safe=true, storepatch = false)
     end
     return results
+end
+
+function run_svgd(;problem_params, alg_params, DIRNAME="", save=true)
+    problem_params = copy(problem_params)
+    alg_params = copy(alg_params)
+    if DIRNAME=="" && save
+        throw(ArgumentError("Cannot save to empty DIRNAME"))
+    end
+    if haskey(problem_params, :random_seed)
+        Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
+        @info "GLOBAL_RNG random seed set" problem_params[:random_seed]
+    end
+    run_svgd(Val(problem_params[:problem_type]), problem_params=problem_params, 
+        alg_params=alg_params, DIRNAME=DIRNAME, save=save)
 end
 
 function therm_integration(problem_params, D; nSamples=3000, nSteps=30)
