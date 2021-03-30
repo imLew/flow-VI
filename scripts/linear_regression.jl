@@ -1,10 +1,5 @@
 using DrWatson
-
-if haskey(ENV, "JULIA_ENVIRONMENT")  # on the cluster
-    quickactivate(ENV["JULIA_ENVIRONMENT"], "SVGD")
-else 
-    @quickactivate
-end
+@quickactivate
 
 using BSON
 using LinearAlgebra
@@ -35,39 +30,27 @@ PROBLEM_PARAMS = Dict(
     :μ_prior =>[ zeros(3) ],
     :Σ_prior =>[ I(3) ],
     :MAP_start =>[ true ],
-    :Laplace_start => [ true],
+    :Laplace_start => [ true, false ],
+    :Laplace_factor => [ 10., 0.1 ],
     :therm_params => [Dict(
-                          :nSamples => 3000,
-                          :nSteps => 30
+                          :nSamples => 2000,
+                          :nSteps => 20
                          )],
     :random_seed => [ 0 ],
 )
 
 ALG_PARAMS = Dict(
-    :n_iter => [ 500 ],
+    :n_iter => [ 1000 ],
     :kernel => [ TransformedKernel(SqExponentialKernel(), ScaleTransform(1.)) ],
-    :step_size => [ 0.001 ],
+    :step_size => [ 0.01, 0.005 ],
     :n_particles => [ 50 ],
-    :update_method => [:forward_euler],
-    :α => @onlyif(:update_method == :naive_WAG, [3.1, 3.5, 5] ),
-    :c₁ => @onlyif(:update_method == :naive_WNES, [.1, .5,] ),
-    :c₂ => @onlyif(:update_method == :naive_WNES, [3., 1] ),
+    :update_method => [ :scalar_RMS_prop, :naive_WNES ],
+    :γ => [ 0.8 ] ,
+    :c₁ => [ 0.1 ] ,
+    :c₂ => [ 0.1 ] ,
     :kernel_cb => [ median_trick_cb! ],
     :dKL_estimator => [ :RKHS_norm ],
-    :n_runs => [ 5 ],
-    # :callback => [plot_cb]
+    :n_runs => [ 10 ],
 )
 
-pp = dict_list(PROBLEM_PARAMS)[1]
-ap = dict_list(ALG_PARAMS)[1]
-
-d = run_svgd(problem_params=pp, alg_params=ap, save=false)
-plot_convergence(d)
-
-true_model = LinReg.RegressionModel(pp[:true_ϕ],
-                             pp[:true_w], 
-                             pp[:true_β])
-D = LinReg.generate_samples(model=true_model, 
-                     n_samples=pp[:n_samples],
-                     sample_range=pp[:sample_range]
-                    )
+run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
