@@ -129,6 +129,7 @@ function run_svgd(::Val{:linear_regression}; problem_params, alg_params,
     svgd_results = []
     svgd_hist = MVHistory[]
 
+    initial_dist = MvNormal(problem_params[:μ_initial], problem_params[:Σ_initial])
     failed_count = 0
     for i in 1:alg_params[:n_runs]
         try 
