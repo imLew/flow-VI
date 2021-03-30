@@ -2,9 +2,9 @@ using Plots
 using Distributions
 using ColorSchemes
 const colors = ColorSchemes.seaborn_colorblind
-true_color = pop!(colors)
-therm_color = pop!(colors)
-start_color = pop!(colors)
+true_color = colors[end-1]
+therm_color = colors[end-2]
+start_color = colors[end-3]
 
 using Examples
 const LogReg = LogisticRegression
