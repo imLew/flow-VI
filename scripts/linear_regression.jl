@@ -32,10 +32,10 @@ PROBLEM_PARAMS = Dict(
     :MAP_start =>[ true ],
     :Laplace_start => [ true, false ],
     :Laplace_factor => @onlyif(:Laplace_start == true, [ 10., 0.1 ]),
-    :therm_params => [Dict(
-                          :nSamples => 2000,
-                          :nSteps => 20
-                         )],
+    # :therm_params => [Dict(
+    #                       :nSamples => 2000,
+    #                       :nSteps => 20
+    #                      )],
     :random_seed => [ 0 ],
 )
 
