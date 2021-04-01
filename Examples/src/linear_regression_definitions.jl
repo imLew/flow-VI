@@ -39,14 +39,20 @@ y(model::RegressionModel, x) = y(model)(x)
 Φ(ϕ, X) = vcat( ϕ.(X)'... )
 Φ(m::RegressionModel, X) = Φ(m.ϕ, X) 
 # accuracy = inverse of variance
-function posterior_accuracy(ϕ, β, X, Σ₀)
+function posterior_accuracy(ϕ, β, X, Σ₀::Diagonal{Bool,Array{Bool,1}})
     inv(Σ₀) + β * Φ(ϕ, X)'Φ(ϕ, X)
 end
+function posterior_accuracy(ϕ, β, X, Σ₀)
+    inv(Symmetric(Σ₀)) + β * Φ(ϕ, X)'Φ(ϕ, X)
+end
 function posterior_variance(ϕ, β, X, Σ₀)
-    inv(posterior_accuracy(ϕ, β, X, Σ₀))
+    inv(Symmetric(posterior_accuracy(ϕ, β, X, Σ₀)))
+end
+function posterior_mean(ϕ, β, D, μ₀, Σ₀::Diagonal{Bool,Array{Bool,1}})
+    posterior_variance(ϕ, β, D.x, Σ₀) * ( inv(Σ₀)μ₀ + β * Φ(ϕ, D.x)' * D.t )
 end
 function posterior_mean(ϕ, β, D, μ₀, Σ₀)
-    posterior_variance(ϕ, β, D.x, Σ₀) * ( inv(Σ₀)μ₀ + β * Φ(ϕ, D.x)' * D.t )
+    posterior_variance(ϕ, β, D.x, Σ₀) * ( inv(Symmetric(Σ₀))μ₀ + β * Φ(ϕ, D.x)' * D.t )
 end
 function regression_logZ(Σ₀, β, ϕ, X)
     2 \ logdet( 2π * posterior_variance(ϕ, β, X, Σ₀) )
