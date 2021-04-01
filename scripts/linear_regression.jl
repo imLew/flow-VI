@@ -31,7 +31,7 @@ PROBLEM_PARAMS = Dict(
     :Σ_prior =>[ I(3) ],
     :MAP_start =>[ true ],
     :Laplace_start => [ true, false ],
-    :Laplace_factor => [ 10., 0.1 ],
+    :Laplace_factor => @onlyif(:Laplace_start == true, [ 10., 0.1 ]),
     :therm_params => [Dict(
                           :nSamples => 2000,
                           :nSteps => 20
