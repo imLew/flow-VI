@@ -284,7 +284,7 @@ function therm_integration(problem_params, D; nSamples=3000, nSteps=30)
                ) 
         end
        )
-    alg = ThermInt(nSteps, n_samples=nSamples)
+    alg = ThermInt(n_steps=nSteps, n_samples=nSamples)
     logZ = alg(logprior, loglikelihood, rand(prior))
 end
 
