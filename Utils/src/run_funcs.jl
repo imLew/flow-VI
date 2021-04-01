@@ -33,13 +33,18 @@ function getMAP!(problem_params, logp, grad_logp, D)
    )
 end
 
-function getLaplace!(problem_params, logp, grad_logp, D)
-    getMAP!(problem_params, logp, grad_logp, D)
-    y = LogReg.y(D, problem_params[:μ_initial])
-    problem_params[:Σ_initial] = inv(Symmetric(
-                                               inv( problem_params[:Σ_prior] ) 
-                                               .+ D.z' * (y.*(1 .- y) .* D.z)
-                                              ))
+function getLaplace!(p, logp, grad_logp, D)
+    getMAP!(p, logp, grad_logp, D)
+    if p[:problem_type] == :logistic_regression
+        y = LogReg.y(D, p[:μ_initial])
+        p[:Σ_initial] = inv(Symmetric(
+                                           inv( p[:Σ_prior] ) 
+                                           .+ D.z' * (y.*(1 .- y) .* D.z)
+                                          ))
+    elseif p[:problem_type] == :linear_regression
+        p[:Σ_initial] = LinReg.posterior_variance(p[:ϕ], p[:true_β], D.x,
+                                                  p[:Σ_prior])
+    end
 end
 
 function run_svgd(::Val{:gauss_to_gauss} ;problem_params, alg_params, 
@@ -121,9 +126,11 @@ function run_svgd(::Val{:linear_regression}; problem_params, alg_params,
 
     if problem_params[:MAP_start]
         getMAP!(problem_params, logp, grad_logp, D)
-    elseif problem_params[:Laplace_start]
+    end
+    if problem_params[:Laplace_start]
+        @info "using Laplace_start"
         getLaplace!(problem_params, logp, grad_logp, D)
-        problem_params[:Σ_initial] .*= problem_params[:Laplace_factor]
+        problem_params[:Σ_initial] *= problem_params[:Laplace_factor]
     end
 
     svgd_results = []
