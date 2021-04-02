@@ -173,11 +173,11 @@ function plot_convergence(data, title=""; kwargs...)
     lw = get!(kwargs, :lw, 3)
     int_lims = get!(kwargs, :int_lims, (-Inf, Inf))
 
-    int_plot, norm_plot = plot(), plot();
+    int_plot, norm_plot = plot(title=title), plot();
     results_plot = plot(legend=false);
     plot_convergence!(int_plot, results_plot, norm_plot, data; kwargs...)
     layout = @layout [ i ; n b ]
-    return plot(int_plot, norm_plot, results_plot, layout=layout, title=title)
+    return plot(int_plot, norm_plot, results_plot, layout=layout)
 end
 
 function plot_convergence!(int_plot, results_plot, norm_plot, data; kwargs...)
