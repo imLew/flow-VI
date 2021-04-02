@@ -51,8 +51,8 @@ ALG_PARAMS = Dict(
     :c₁ => [ 0.1 ] ,
     :c₂ => [ 0.1 ] ,
     :kernel_cb => [ median_trick_cb! ],
-    :dKL_estimator => [ [:KSD, :uKSD] ],
-    :n_runs => [ 10 ],
+    :dKL_estimator => [ [:RKHS_norm, :KSD] ],
+    :n_runs => [ 3 ],
 )
 
 run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
