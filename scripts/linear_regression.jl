@@ -51,7 +51,7 @@ ALG_PARAMS = Dict(
     :c₁ => [ 0.1 ] ,
     :c₂ => [ 0.1 ] ,
     :kernel_cb => [ median_trick_cb! ],
-    :dKL_estimator => [ :KSD, :uKSD ],
+    :dKL_estimator => [ [:KSD, :uKSD] ],
     :n_runs => [ 10 ],
 )
 
