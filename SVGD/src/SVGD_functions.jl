@@ -47,7 +47,7 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50,
         ϵ = isnothing(step_size_cb) ? [step_size] : [step_size_cb(step_size, i)]
         update!(Val(update_method), q, ϕ, ϵ, kernel, grad_logp, aux_vars, 
                 iter=i; kwargs...)
-        push_to_hist!(hist, q, ϵ, ϕ, i, kernel; kwargs...)
+        push_to_hist!(hist, q, ϵ, ϕ, i, kernel, grad_logp; kwargs...)
         if !isnothing(callback)
             callback(;hist=hist, q=q, ϵ=ϵ, ϕ=ϕ, i=i, kernel=kernel, 
                      grad_logp=grad_logp, aux_vars=aux_vars, kwargs...)
@@ -56,15 +56,17 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50,
     return q, hist
 end
 
-function push_to_hist!(hist, q, ϵ, ϕ, i, kernel; kwargs...)
+function push_to_hist!(hist, q, ϵ, ϕ, i, kernel, grad_logp; kwargs...)
     dKL_estimator = get(kwargs, :dKL_estimator, false)
     push!(hist, :step_sizes, i, ϵ[1])  # only store the actual value not array(value)
     push!(hist, :ϕ_norm, i, mean(norm(ϕ)))  # save average vector norm of phi
     if typeof(dKL_estimator) == Symbol
-        push!(hist, dKL_estimator, i, compute_dKL(Val(dKL_estimator), kernel, q, ϕ=ϕ))
+        push!(hist, dKL_estimator, i, compute_dKL(Val(dKL_estimator), kernel, 
+                                                  q, ϕ=ϕ, grad_logp=grad_logp))
     elseif typeof(dKL_estimator) == Array{Symbol,1}
         for estimator in dKL_estimator
-            push!(hist, estimator, i, compute_dKL(Val(estimator), kernel, q, ϕ=ϕ))
+            push!(hist, estimator, i, compute_dKL(Val(estimator), kernel, q, 
+                                                  ϕ=ϕ, grad_logp=grad_logp))
         end
     end
     push!(hist, :kernel_width, kernel.transform.s)
@@ -154,7 +156,7 @@ function calculate_phi(kernel, q, grad_logp)
     ϕ ./= size(q)[end]
 end
 
-function compute_dKL(::Val{:KSD}, kernel::Kernel, q; grad_logp)
+function compute_dKL(::Val{:KSD}, kernel::Kernel, q; grad_logp, kwargs...)
     n = size(q)[end]
     h = 1/kernel.transform.s[1]^2
     d = size(q)[1]
@@ -172,7 +174,7 @@ function compute_dKL(::Val{:KSD}, kernel::Kernel, q; grad_logp)
     dKL /= n^2
 end
 
-function compute_dKL(::Val{:uKSD}, kernel::Kernel, q; grad_logp)
+function compute_dKL(::Val{:uKSD}, kernel::Kernel, q; grad_logp, kwargs...)
     n = size(q)[end]
     h = 1/kernel.transform.s[1]^2
     d = size(q)[1]
@@ -193,7 +195,7 @@ function compute_dKL(::Val{:uKSD}, kernel::Kernel, q; grad_logp)
     dKL /= n*(n-1)
 end
 
-function compute_dKL(::Val{:RKHS_norm}, kernel::Kernel, q; ϕ)
+function compute_dKL(::Val{:RKHS_norm}, kernel::Kernel, q; ϕ, kwargs...)
     if size(q)[1] == 1
         invquad(kernelpdmat(kernel, q), vec(ϕ))
     else
