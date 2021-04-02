@@ -4,6 +4,9 @@ using Distributions, DistributionsAD
 using LinearAlgebra
 using ForwardDiff
 
+export ThermoIntegration
+export samplepower_posterior
+
 function samplepower_posterior(logπ, n_dim, nSamples) # From AdvancedHMC.jl README
     # Choose initial parameter value
     initial_θ = randn(n_dim)

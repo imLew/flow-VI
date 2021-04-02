@@ -8,9 +8,10 @@ using Zygote
 using ForwardDiff
 using PDMats
 
-export KL_integral
 export get_pdmat
 export geometric_step_size_cb
+export filter_by_dict
+export get_savename
 
 ## step_size utils
 function geometric_step_size_cb(step_size, iter, factor, cutoff)
@@ -21,10 +22,6 @@ function geometric_step_size_cb(step_size, iter, factor, cutoff)
 end
 
 ## math utils
-function KL_integral(hist, key=:RKHS_norm)
-    cumsum(get(hist, :step_sizes)[2] .* get(hist, key)[2])
-end
-
 function get_pdmat(K)
     Kmax =maximum(K)
     α = eps(eltype(K))
@@ -41,6 +38,54 @@ function get_pdmat(K)
     end
     return PDMat(K+α*I)
 end 
+
+function get_savename(dict)
+    savenamedict = copy(dict)
+    delete!(savenamedict, :sample_data_file)
+    delete!(savenamedict, :problem_type)
+    delete!(savenamedict, :callback)
+    if !get!(dict, :MAP_start, false)
+        delete!(savenamedict, :MAP_start)
+    end
+    if !get!(dict, :Laplace_start, false)
+        delete!(savenamedict, :Laplace_start)
+    end
+    um = get!(dict, :update_method, :false)
+    if um != :scalar_RMS_prop
+        delete!(savenamedict, :γ)
+    elseif um != :naive_WNES
+        delete!(savenamedict, :c₁)
+        delete!(savenamedict, :c₂)
+    elseif um != :naive_WAG
+        delete!(savenamedict, :α)
+    elseif um != :scalar_Adam
+        delete!(savenamedict, :β₁)
+        delete!(savenamedict, :β₂)
+    end
+    file_prefix = savename( savenamedict )
+end
+
+function data_filename(d)
+    "$(d[:n_particles])particles_mu0=$(d[:μ₀])_S0=$(d[:Σ₀])_mup=$(d[:μₚ])_Sp=$(d[:Σₚ])_$(d[:n_iter])iter_stepsize=$(d[:step_size])"
+end
+
+function filter_by_key(key, values, data_array)
+    out = []
+    for d in data_array
+        if d[key] ∈ values
+            push!(out, d)
+        end
+    end
+    return out
+end
+
+function filter_by_dict(dict, data_array)
+    out = data_array
+    for (k, v) in dict
+        out = filter_by_key(k, v, out)
+    end
+    return out 
+end
 
 # flatten_index(i, j, j_max) = j + j_max *(i-1)
 

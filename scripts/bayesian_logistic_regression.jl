@@ -1,69 +1,57 @@
-using DrWatson
+using DrWatson 
+@quickactivate
 using KernelFunctions
-using BSON
+using LinearAlgebra
+using AdvancedHMC
+
+using LoggingExtras
+using Logging
+function not_AdvancedHMC_message_filter(log)
+    log._module != AdvancedHMC
+end
+global_logger(EarlyFilteredLogger(not_AdvancedHMC_message_filter, global_logger()))
 
 using Utils
+using SVGD
+using Examples
 
-include("run_funcs.jl")
+DIRNAME = "bayesian_logistic_regression/MAPvLaplacevNormal"
 
-DIRNAME = "bayesian_logistic_regression"
-
-alg_params = Dict(
-    :kernel => TransformedKernel(SqExponentialKernel(), ScaleTransform(1.)),
-    :kernel_cb => median_trick_cb,
-    :step_size => 0.05,
-    :n_iter => 1000,
-    :n_particles => 100,
-    )
-
-problem_params = Dict(
-    :n_dim => 2,
-    :n₀ => 100,
-    :n₁ => 100,
-    :μ₀ => [0., 0],
-    :μ₁ => [5, 1],
-    :Σ₀ => [.5 0.1; 0.1 0.2],
-    :Σ₁ => [5 0.1; 0.1 2],
-    :μ_initial => [0., 0, 0],
-    :Σ_initial => [1. 0 0; 0 1 0; 0 0 1.],
-    )
-
-### Experiments - logistic regression on 2D vectors
 ALG_PARAMS = Dict(
-    :step_size => [0.05, 0.01, 0.005 ],
-    :n_iter => [ 50, 100 ],
-    :n_particles => [ 50, 100],
-    :norm_method => "RKHS_norm",
-    :kernel => TransformedKernel(SqExponentialKernel(), ScaleTransform(1.)),
-    :kernel_cb => median_trick_cb
+    :update_method => [ :forward_euler ],
+    :α => @onlyif(:update_method == :naive_WAG, [3, 4, 7, 10] ),
+    :c₁ => @onlyif(:update_method == :naive_WNES, [.1, 1, 5] ),
+    :c₂ => @onlyif(:update_method == :naive_WNES, [.1, 1, 5] ),
+    :kernel => [ TransformedKernel(SqExponentialKernel(), ScaleTransform(1.)) ],
+    :kernel_cb => [ median_trick_cb! ],
+    :step_size => [ 0.001 ],
+    :n_iter => [ 1000 ],
+    :n_particles => [ 50 ],
+    :n_runs => [ 10 ],
+    :dKL_estimator => [ :RKHS_norm ],
     )
 
 PROBLEM_PARAMS = Dict(
-    :n_dim => 2,
-    :n₀ => 100,
-    :n₁ => 100,
-    :μ₀ => [0., 0],
-    :μ₁ => [5, 1],
-    :Σ₀ => [.5 0.1; 0.1 0.2],
-    :Σ₁ => [5 0.1; 0.1 2],
-    :μ_initial => [ [0., 0, 0] ],
-    :Σ_initial => [ [9. 0.5 1; 0.5 8 2;1 2 1.],  [1. 0 0; 0 1 0; 0 0 1.]  ],
-    )
+    :problem_type => [ :logistic_regression ],
+    :MAP_start => [  true, false ],
+    :Laplace_start => [ false,  true ],
+    :n_dim => [ 2 ],
+    :n₀ => [ 50 ],
+    :n₁ => [ 50 ],
+    :μ₀ => [ [0., 0] ],
+    :μ₁ => [ [4., 3] ],
+    :Σ₀ => [ [0.5 0.1; 0.1 0.2] ],
+    :Σ₁ => [ [.5 0.1; 0.1 .2] ],
+    :μ_initial => [ [1., 1, 1] ],
+    :Σ_initial => [ I(3) ],
+    :therm_params => [Dict(
+                          :nSamples => 3000,
+                          :nSteps => 30
+                         )],
+    :random_seed => [ 0 ],
+    # :sample_data_file => [datadir("classification_samples", 
+    # "2dim_50:[0.0, 0.0]:[0.5 0.1; 0.1 0.2]_50:[0.0, 0.0]:[0.5 0.1; 0.1 0.2].bson")
+    #                      ],
+)
 
-N_RUNS = 1
-
-# n_alg = dict_list_count(ALG_PARAMS)
-# n_prob = dict_list_count(PROBLEM_PARAMS)
-# @info "$(n_alg*n_prob) total experiments"
-# for (i, pp) ∈ enumerate(dict_list(PROBLEM_PARAMS)), 
-#         (j, ap) ∈ enumerate(dict_list(ALG_PARAMS))
-#     @info "Experiment $((i-1)*n_alg + j) of $(n_alg*n_prob)"
-#     @info "Sampling problem: $pp"
-#     @info "Alg parameters: $ap"
-#     @time run_log_regression(
-#             problem_params=pp,
-#             alg_params=ap,
-#             n_runs=N_RUNS,
-#             DIRNAME=DIRNAME
-#             )
-# end
+run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)

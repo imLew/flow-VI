@@ -6,7 +6,8 @@ using KernelFunctions
 using LinearAlgebra
 using Random
 using Flux
-using Zygote
+# using Zygote
+using ForwardDiff
 using Distances
 using PDMats
 
@@ -26,66 +27,119 @@ Possible values for update_method are `:forward_euler`, `:naive_WNES`,
 function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50, 
                   callback=nothing, kwargs...)
     kwargs = Dict(kwargs...)
-    dKL_estimator = get!(kwargs, :dKL_estimator, :RKHS_norm)
     kernel_cb! = get!(kwargs, :kernel_cb, nothing)
     step_size_cb = get!(kwargs, :step_size_cb, nothing)
     update_method = get!(kwargs, :update_method, :forward_euler)
-    α = get!(kwargs, :α, false)
-    c₁ = get!(kwargs, :c₁, false)
-    c₂ = get!(kwargs, :c₂, false)
-    if update_method == :naive_WNES && ( float(c₁) <= 0 || float(c₂) <= 0 )
-        throw(ArgumentError(α, "WNES updates require c₁, c₂ ∈ ℝ."))
-    end
-    if update_method == :naive_WAG && float(α) <= 3
-        throw(ArgumentError(α, "WAG updates require α>3."))
-    end
 
+    aux_vars = Dict()
+    if update_method in [:scalar_adagrad, :scalar_RMS_prop]
+        aux_vars[:Gₜ] = [0.] 
+    elseif update_method == :scalar_Adam
+        aux_vars[:mₜ] = zeros(size(q))
+        aux_vars[:vₜ] = zeros(size(q))
+    elseif update_method in [:naive_WAG, :naive_WNES]
+        aux_vars[:y] = copy(q)  
+    end
     hist = MVHistory()
-    y = copy(q) 
     ϕ = zeros(size(q))
-    @showprogress for i in 1:n_iter
+    for i in 1:n_iter
         isnothing(kernel_cb!) ? nothing : kernel_cb!(kernel, q)
-        ϵ = isnothing(step_size_cb) ? step_size : step_size_cb(step_size, i)
-        update!(Val(update_method), q, ϕ, ϵ, i, kernel, grad_logp, y=y; kwargs...)
-        push_to_hist!(hist, q, ϵ, ϕ, i, kernel; kwargs...)
-        callback(;hist=hist, q=q, ϵ=ϵ, ϕ=ϕ, i=i, y=y, kernel=kernel, grad_logp=grad_logp, kwargs...)
+        ϵ = isnothing(step_size_cb) ? [step_size] : [step_size_cb(step_size, i)]
+        update!(Val(update_method), q, ϕ, ϵ, kernel, grad_logp, aux_vars, 
+                iter=i; kwargs...)
+        push_to_hist!(hist, q, ϵ, ϕ, i, kernel, grad_logp; kwargs...)
+        if !isnothing(callback)
+            callback(;hist=hist, q=q, ϵ=ϵ, ϕ=ϕ, i=i, kernel=kernel, 
+                     grad_logp=grad_logp, aux_vars=aux_vars, kwargs...)
+        end
     end
     return q, hist
 end
 
-function push_to_hist!(hist, q, ϵ, ϕ, i, kernel; kwargs...)
-    @unpack dKL_estimator = kwargs
-    push!(hist, :step_sizes, i, ϵ)
+function push_to_hist!(hist, q, ϵ, ϕ, i, kernel, grad_logp; kwargs...)
+    dKL_estimator = get(kwargs, :dKL_estimator, false)
+    push!(hist, :step_sizes, i, ϵ[1])  # only store the actual value not array(value)
     push!(hist, :ϕ_norm, i, mean(norm(ϕ)))  # save average vector norm of phi
     if typeof(dKL_estimator) == Symbol
-        push!(hist, dKL_estimator, i, compute_dKL(Val(dKL_estimator), kernel, q, ϕ=ϕ))
+        push!(hist, dKL_estimator, i, compute_dKL(Val(dKL_estimator), kernel, 
+                                                  q, ϕ=ϕ, grad_logp=grad_logp))
     elseif typeof(dKL_estimator) == Array{Symbol,1}
         for estimator in dKL_estimator
-            push!(hist, estimator, i, compute_dKL(Val(estimator), kernel, q, ϕ=ϕ))
+            push!(hist, estimator, i, compute_dKL(Val(estimator), kernel, q, 
+                                                  ϕ=ϕ, grad_logp=grad_logp))
         end
     end
     push!(hist, :kernel_width, kernel.transform.s)
 end
 
-function update!(::Val{:naive_WNES}, q, ϕ, ϵ, iter, kernel, grad_logp; kwargs...)
-    @unpack c₁, c₂, y = kwargs
-    ϕ .= calculate_phi_vectorized(kernel, y, grad_logp)
-    q_new = y .+ ϵ*ϕ
-    y .= q_new .+ c₁*(c₂ - 1) * (q_new .- q)
-    q .= q_new
+function calculate_phi_vectorized(kernel, q, grad_logp)
+    n = size(q)[end]
+    k_mat = KernelFunctions.kernelmatrix(kernel, q)
+    grad_k = kernel_grad_matrix(kernel, q)
+    glp_mat = mapreduce( grad_logp, hcat, (eachcol(q)) )
+    if n == 1  
+        ϕ = glp_mat * k_mat 
+    else
+        ϕ =  1/n * ( glp_mat * k_mat + grad_k )
+    end
 end
 
-function update!(::Val{:naive_WAG}, q, ϕ, ϵ, iter, kernel, grad_logp; kwargs...)
-    @unpack α, y = kwargs
-    ϕ .= calculate_phi_vectorized(kernel, y, grad_logp)
-    q_new = y .+ ϵ*ϕ
-    y .= q_new .+ (iter-1)/iter .* (y.-q) + (iter + α -2)/iter * ϵ * ϕ
-    q .= q_new
-end
-
-function update!(::Val{:forward_euler}, q, ϕ, ϵ, iter, kernel, grad_logp; kwargs...)
+function update!(::Val{:scalar_Adam}, q, ϕ, ϵ, kernel, grad_logp, aux_vars; 
+                 kwargs...)
+    iter = get(kwargs, :iter, false)
+    β₁ = get(kwargs, :β₁, false)
+    β₂ = get(kwargs, :β₂, false)
     ϕ .= calculate_phi_vectorized(kernel, q, grad_logp)
-    q .+= ϵ*ϕ
+    aux_vars[:mₜ] .= (β₁ .* aux_vars[:mₜ] + (1-β₁) .* ϕ) 
+    aux_vars[:vₜ] .= β₂ .* aux_vars[:vₜ] + (1-β₂) .* ϕ.^2 
+    N = size(ϕ, 1)
+    ϵ .= ϵ.*sqrt((1-β₂^iter)./(1-β₁^iter)) ./ mean(sqrt.(aux_vars[:vₜ]))
+    q .+= ϵ .* aux_vars[:mₜ]./(1-β₁^iter)
+end
+
+function update!(::Val{:scalar_RMS_prop}, q, ϕ, ϵ, kernel, grad_logp, aux_vars; 
+                 kwargs...)
+    γ = get(kwargs, :γ, false)
+    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp)
+    aux_vars[:Gₜ] .= γ * norm(ϕ)^2 .+ (1-γ) * aux_vars[:Gₜ]
+    N = size(ϕ, 1)
+    ϵ .= N*ϵ/(aux_vars[:Gₜ][1] + 1)
+    q .+= ϵ .*ϕ
+end
+
+function update!(::Val{:scalar_adagrad}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
+                 kwargs...)
+    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp)
+    aux_vars[:Gₜ] .+= norm(ϕ)^2
+    N = size(ϕ, 1)
+    ϵ .= N*ϵ/(aux_vars[:Gₜ][1] + 1)
+    q .+= ϵ .*ϕ
+end
+
+function update!(::Val{:naive_WNES}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
+                 kwargs...)
+    c₁ = get(kwargs, :c₁, false)
+    c₂ = get(kwargs, :c₂, false)
+    ϕ .= calculate_phi_vectorized(kernel, aux_vars[:y], grad_logp)
+    q_new = aux_vars[:y] .+ ϵ.*ϕ
+    aux_vars[:y] .= q_new .+ c₁*(c₂ - 1) * (q_new .- q)
+    q .= q_new
+end
+
+function update!(::Val{:naive_WAG}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
+                 kwargs...)
+    iter = get(kwargs, :iter, false)
+    α = get(kwargs, :α, false)
+    ϕ .= calculate_phi_vectorized(kernel, aux_vars[:y], grad_logp)
+    q_new = aux_vars[:y] .+ ϵ.*ϕ
+    aux_vars[:y] .= q_new .+ (iter-1)/iter .* (aux_vars[:y].-q) + (iter + α -2)/iter * ϵ .* ϕ
+    q .= q_new
+end
+
+function update!(::Val{:forward_euler}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
+                 kwargs...)
+    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp)
+    q .+= ϵ.*ϕ
 end
 
 function calculate_phi(kernel, q, grad_logp)
@@ -102,19 +156,7 @@ function calculate_phi(kernel, q, grad_logp)
     ϕ ./= size(q)[end]
 end
 
-function calculate_phi_vectorized(kernel, q, grad_logp)
-    n = size(q)[end]
-    k_mat = KernelFunctions.kernelmatrix(kernel, q)
-    grad_k = kernel_grad_matrix(kernel, q)
-    glp_mat = hcat( grad_logp.(eachcol(q))... )
-    if n == 1  
-        ϕ = glp_mat * k_mat 
-    else
-        ϕ =  1/n * ( glp_mat * k_mat + hcat( sum(grad_k, dims=2)... ) )
-    end
-end
-
-function compute_dKL(::Val{:KSD}, kernel::Kernel, q; grad_logp)
+function compute_dKL(::Val{:KSD}, kernel::Kernel, q; grad_logp, kwargs...)
     n = size(q)[end]
     h = 1/kernel.transform.s[1]^2
     d = size(q)[1]
@@ -132,7 +174,7 @@ function compute_dKL(::Val{:KSD}, kernel::Kernel, q; grad_logp)
     dKL /= n^2
 end
 
-function compute_dKL(::Val{:UKSD}, kernel::Kernel, q; grad_logp)
+function compute_dKL(::Val{:uKSD}, kernel::Kernel, q; grad_logp, kwargs...)
     n = size(q)[end]
     h = 1/kernel.transform.s[1]^2
     d = size(q)[1]
@@ -153,7 +195,7 @@ function compute_dKL(::Val{:UKSD}, kernel::Kernel, q; grad_logp)
     dKL /= n*(n-1)
 end
 
-function compute_dKL(::Val{:RKHS_norm}, kernel::Kernel, q; ϕ)
+function compute_dKL(::Val{:RKHS_norm}, kernel::Kernel, q; ϕ, kwargs...)
     if size(q)[1] == 1
         invquad(kernelpdmat(kernel, q), vec(ϕ))
     else
@@ -182,6 +224,24 @@ function kernel_grad_matrix(kernel::KernelFunctions.Kernel, q)
         return 0
     end
     grad(f,x,y) = gradient(f,x,y)[1]
-	mapslices(x -> grad.(kernel, [x], eachcol(q)), q, dims = 1)
+	grad_k = mapslices(x -> grad.(kernel, [x], eachcol(q)), q, dims = 1)
+    sum(grad_k, dims=2)
 end
 
+function kernel_grad_matrix(kernel::TransformedKernel{SqExponentialKernel}, q)
+    if size(q)[end] == 1
+        return 0
+    end
+    function kernel_gradient(k::TransformedKernel{SqExponentialKernel}, x, y)
+        - k.transform.s[1]^2 * (x-y) * k(x,y)
+    end
+    ∇k = zeros(size(q))
+    for (j, y) in enumerate(eachcol(q))
+        for (i, x) in enumerate(eachcol(q))
+            ∇k[:,j] += kernel_gradient(kernel, x, y)
+        end
+    end
+    ∇k
+end
+
+export kernel_grad_matrix
