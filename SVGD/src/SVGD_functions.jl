@@ -172,7 +172,7 @@ function compute_dKL(::Val{:KSD}, kernel::Kernel, q; grad_logp)
     dKL /= n^2
 end
 
-function compute_dKL(::Val{:UKSD}, kernel::Kernel, q; grad_logp)
+function compute_dKL(::Val{:uKSD}, kernel::Kernel, q; grad_logp)
     n = size(q)[end]
     h = 1/kernel.transform.s[1]^2
     d = size(q)[1]
