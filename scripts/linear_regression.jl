@@ -32,7 +32,7 @@ PROBLEM_PARAMS = Dict(
     :MAP_start =>[ true ],
     :Laplace_start => [ true, false ],
     :Laplace_factor => @onlyif(:Laplace_start == true, [ 10., 0.1 ]),
-    # :therm_params => [Dict(
+    # :therm_params => [Dict
     #                       :nSamples => 2000,
     #                       :nSteps => 20
     #                      )],
@@ -42,7 +42,7 @@ PROBLEM_PARAMS = Dict(
 ALG_PARAMS = Dict(
     :n_iter => [ 1000 ],
     :kernel => [ TransformedKernel(SqExponentialKernel(), ScaleTransform(1.)) ],
-    :step_size => [ 0.01, 0.005 ],
+    :step_size => [ 0.005 ],
     :n_particles => [ 50 ],
     :update_method => [ :scalar_RMS_prop, :naive_WNES, :scalar_Adam],
     :β₁ => [ 0.9 ],
@@ -51,7 +51,7 @@ ALG_PARAMS = Dict(
     :c₁ => [ 0.1 ] ,
     :c₂ => [ 0.1 ] ,
     :kernel_cb => [ median_trick_cb! ],
-    :dKL_estimator => [ :RKHS_norm ],
+    :dKL_estimator => [ :KSD, :uKSD ],
     :n_runs => [ 10 ],
 )
 
