@@ -15,11 +15,11 @@ using Utils
 using Examples
 const LinReg = Examples.LinearRegression
 
-DIRNAME = "linear_regression"
+DIRNAME = "linear_regression/extra-fine"
 
 PROBLEM_PARAMS = Dict(
     :problem_type => [ :linear_regression ],
-    :n_samples =>[ 20 ],
+    :n_samples =>[ 10 ],
     :sample_range =>[ [-3, 3] ],
     :true_ϕ =>[ x -> [1, x, x^2] ],
     :true_w =>[ [2, -1, 0.2] ],
@@ -40,9 +40,9 @@ PROBLEM_PARAMS = Dict(
 )
 
 ALG_PARAMS = Dict(
-    :n_iter => [ 1000 ],
+    :n_iter => [ 500, 1000 ],
     :kernel => [ TransformedKernel(SqExponentialKernel(), ScaleTransform(1.)) ],
-    :step_size => [ 0.005 ],
+    :step_size => [ 0.005, 0.0005, 0.001 ],
     :n_particles => [ 50 ],
     :update_method => [ :scalar_RMS_prop, :naive_WNES, :scalar_Adam],
     :β₁ => [ 0.9 ],
@@ -51,8 +51,8 @@ ALG_PARAMS = Dict(
     :c₁ => [ 0.1 ] ,
     :c₂ => [ 0.1 ] ,
     :kernel_cb => [ median_trick_cb! ],
-    :dKL_estimator => [ [:RKHS_norm, :KSD] ],
-    :n_runs => [ 3 ],
+    :dKL_estimator => [ :RKHS_norm ],
+    :n_runs => [ 10 ],
 )
 
 run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
