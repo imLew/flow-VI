@@ -136,6 +136,7 @@ function make_boxplots(data::Array{Any}; legend_keys=[], kwargs...)
     true_label=get(kwargs, :true_label, "")
     therm_label=get(kwargs, :therm_label, "")
     start_label=get(kwargs, :start_label, "")
+    dKL_estimator=get(kwargs, :dKL_estimator, :RKHS_norm)
     legend_keys = intersect(keys(data[1]), legend_keys)
     if haskey(kwargs,:labels)
         labels = pop!(kwargs, :labels)
@@ -144,7 +145,7 @@ function make_boxplots(data::Array{Any}; legend_keys=[], kwargs...)
                           for d in data] 
     end
     labels = reshape(labels, 1, length(data))
-    plt = boxplot([d[:estimated_logZ] for d in data],
+    plt = boxplot([estimate_logZ(d, dKL_estimator)[end] for d in data],
             labels=labels, colors=colors[1:length(data)],
             legend=:outerright; kwargs...) 
     if haskey(data[1], :true_logZ)
@@ -165,14 +166,7 @@ function make_boxplots(data::Array{Any}; legend_keys=[], kwargs...)
     return plt
 end
 
-function plot_convergence(data, title=""; kwargs...)
-    kwargs = Dict(kwargs...)
-    legend = get!(kwargs, :legend, :bottomright)
-    size = get!(kwargs, :size, (375, 375))
-    ylims = get!(kwargs, :ylims, (-Inf, Inf))
-    lw = get!(kwargs, :lw, 3)
-    int_lims = get!(kwargs, :int_lims, (-Inf, Inf))
-
+function plot_convergence(data; title="", kwargs...)
     int_plot, norm_plot = plot(title=title), plot();
     results_plot = plot(legend=false);
     plot_convergence!(int_plot, results_plot, norm_plot, data; kwargs...)
@@ -182,11 +176,11 @@ end
 
 function plot_convergence!(int_plot, results_plot, norm_plot, data; kwargs...)
     kwargs = Dict(kwargs...)
-    size = get!(kwargs, :size, (375, 375))
-    legend = get!(kwargs, :legend, :bottomright)
-    ylims = get!(kwargs, :ylims, (-Inf, Inf))
-    lw = get!(kwargs, :lw, 3)
-    int_lims = get!(kwargs, :int_lims, (-Inf, Inf))
+    size = get(kwargs, :size, (375, 375))
+    legend = get(kwargs, :legend, :bottomright)
+    ylims = get(kwargs, :ylims, (-Inf, Inf))
+    lw = get(kwargs, :lw, 3)
+    int_lims = get(kwargs, :int_lims, (-Inf, Inf))
 
     plot_integration!(int_plot, data, ylims=int_lims; kwargs...)
 
@@ -227,12 +221,13 @@ function plot_integration!(plt::Plots.Plot, data; legend=:bottomright,
     true_label=get(kwargs, :true_label, "")
     therm_label=get(kwargs, :therm_label, "")
     start_label=get(kwargs, :start_label, "")
+    dKL_estimator=get(kwargs, :dKL_estimator, :RKHS_norm)
     plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw, 
           ylims=ylims);
     if data[:n_runs] < 5
-        plot!(plt, estimate_logZ(data), color=colors[1], label=flow_label);
+        plot!(plt, estimate_logZ(data, dKL_estimator), color=colors[1], label=flow_label);
     else
-        est_logZ = estimate_logZ(data)
+        est_logZ = estimate_logZ(data, dKL_estimator)
         plot!(plt, mean(est_logZ), ribbon=std(est_logZ), color=colors[1], 
               label=flow_label);
     end
