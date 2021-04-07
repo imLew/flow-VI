@@ -69,7 +69,8 @@ function expectation_V(data::Dict{Symbol,Any})
 end
 
 export integrate
-function integrate(Δx::Array, f, integration_method=:trapz)
+function integrate(Δx::Array, f::Array; kwargs...)
+    integration_method = get(kwargs, :integration_method, :trapz)
     if integration_method == :upper_sum
         int = cumsum( Δx .* f)
     elseif integration_method == :lower_sum
@@ -81,54 +82,68 @@ function integrate(Δx::Array, f, integration_method=:trapz)
     int
 end
 
-function integrate(Δx::Number, f, integration_method=:trapz)
-    integrate( Δx .* ones(size(f)), f, integration_method)
+function integrate(Δx::Number, f::Array; kwargs...)
+    integrate( Δx .* ones(size(f)), f; kwargs...)
 end
 
-function KL_integral(hist::MVHistory, method=:RKHS_norm, integration_method=:trapz)
-    integrate(get(hist, :step_sizes)[2], get(hist, method)[2], integration_method)
+function KL_integral(hist::MVHistory, method=:RKHS_norm; kwargs...)
+    dKL_estimator = get(kwargs, :dKL_estimator, :RKHS_norm)
+    integrate(get(hist, :step_sizes)[2], get(hist, dKL_estimator)[2]; kwargs...)
 end
 
-function estimate_logZ(H₀, EV, int_KL)
+function estimate_logZ(
+    H₀::Number, 
+    EV::Number, 
+    int_KL::Union{T, Array{T}}
+) where T <: Number
     H₀ .- EV .+ int_KL
 end
 
-function estimate_logZ(H₀, EV, hist::MVHistory, method=:RKHS_norm)
-    estimate_logZ(H₀, EV, KL_integral(hist, method))
+function estimate_logZ(H₀::Number, EV::Number, hist::MVHistory; kwargs...)
+    estimate_logZ(H₀, EV, KL_integral(hist; kwargs...))
 end
 
-function estimate_logZ(H₀, EV, hist_array::Array{MVHistory}, method=:RKHS_norm)
+function estimate_logZ(
+        H₀::Number, EV::Number, hist_array::Array{MVHistory}; 
+        kwargs...
+)
     estimates = []
     for dKL_hist in hist_array
-        push!(estimates, estimate_logZ(H₀, EV, dKL_hist, method))
+        push!(estimates, estimate_logZ(H₀, EV, dKL_hist; kwargs...))
     end
     return estimates
 end        
 
-function estimate_logZ(initial_dist::Distribution, target_dist::Distribution,
-                       data::Dict{Symbol,Any}, method=:RKHS_norm)
+function estimate_logZ(
+    initial_dist::Distribution,
+    target_dist::Distribution, 
+    data::Dict{Symbol,Any}, 
+    ;kwargs...
+)
     H₀ = Distributions.entropy(initial_dist)
     EV = expectation_V( initial_dist, target_dist)
-    estimate_logZ(H₀, EV, data[:svgd_hist], method)
+    estimate_logZ(H₀, EV, data[:svgd_hist]; kwargs...)
 end
 
-function estimate_logZ(::T, data::Dict{Symbol,Any}, method=:RKHS_norm
-    ) where T <: Union{Val{:logistic_regression}, Val{:linear_regression}}
+function estimate_logZ(
+    ::T,
+    data::Dict{Symbol,Any},
+    ;kwargs...
+) where T <: Union{Val{:logistic_regression}, Val{:linear_regression}}
     initial_dist = MvNormal(data[:μ_initial], data[:Σ_initial])
     H₀ = entropy(initial_dist)
     EV = expectation_V(data)
-    estimate_logZ(H₀, EV, data[:svgd_hist], method)
+    estimate_logZ(H₀, EV, data[:svgd_hist]; kwargs...)
 end
 
-function estimate_logZ(::Val{:gauss_to_gauss}, data::Dict{Symbol,Any}, 
-                       method=:RKHS_norm)
+function estimate_logZ(::Val{:gauss_to_gauss}, data::Dict{Symbol,Any}; kwargs...)
     initial_dist = MvNormal(data[:μ₀], data[:Σ₀])
     target_dist = MvNormal(data[:μₚ], data[:Σₚ])
-    estimate_logZ(initial_dist, target_dist, data, method)
+    estimate_logZ(initial_dist, target_dist, data; kwargs...)
 end
 
-function estimate_logZ(data::Dict{Symbol,Any}, method=:RKHS_norm)
-    estimate_logZ(Val(data[:problem_type]), data, method)
+function estimate_logZ(data::Dict{Symbol,Any}; kwargs...)
+    estimate_logZ(Val(data[:problem_type]), data; kwargs...)
 end
 
 function numerical_expectation(d::Distribution, f; n_samples=10000, 

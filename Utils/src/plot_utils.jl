@@ -221,13 +221,12 @@ function plot_integration!(plt::Plots.Plot, data; legend=:bottomright,
     true_label=get(kwargs, :true_label, "")
     therm_label=get(kwargs, :therm_label, "")
     start_label=get(kwargs, :start_label, "")
-    dKL_estimator=get(kwargs, :dKL_estimator, :RKHS_norm)
     plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw, 
           ylims=ylims);
+    est_logZ = estimate_logZ(data; kwargs...)
     if data[:n_runs] < 5
-        plot!(plt, estimate_logZ(data, dKL_estimator), color=colors[1], label=flow_label);
+        plot!(plt, est_logZ, color=colors[1], label=flow_label);
     else
-        est_logZ = estimate_logZ(data, dKL_estimator)
         plot!(plt, mean(est_logZ), ribbon=std(est_logZ), color=colors[1], 
               label=flow_label);
     end
