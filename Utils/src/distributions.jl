@@ -68,8 +68,25 @@ function expectation_V(data::Dict{Symbol,Any})
     expectation_V(Val(data[:problem_type]), data)
 end
 
-function KL_integral(hist, method=:RKHS_norm)
-    cumsum(get(hist, :step_sizes)[2] .* get(hist, method)[2])
+export integrate
+function integrate(Δx::Array, f, integration_method=:trapz)
+    if integration_method == :upper_sum
+        int = cumsum( Δx .* f)
+    elseif integration_method == :lower_sum
+        int = cumsum( Δx[1:end-1] .* f[2:end])
+    elseif integration_method == :trapz
+        mean_f =  f[1:end-1] .- f[2:end]
+        int = cumsum( Δx[1:end-1] .* mean_f )
+    end
+    int
+end
+
+function integrate(Δx::Number, f, integration_method=:trapz)
+    integrate( Δx .* ones(size(f)), f, integration_method)
+end
+
+function KL_integral(hist::MVHistory, method=:RKHS_norm, integration_method=:trapz)
+    integrate(get(hist, :step_sizes)[2], get(hist, method)[2], integration_method)
 end
 
 function estimate_logZ(H₀, EV, int_KL)
