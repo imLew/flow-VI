@@ -33,9 +33,9 @@ function HE_loss(q, h::Number)
     D, N = size(q)
     function d(i,j)
         q[:,i] - q[:,j]
-    end
+    endI mean they use a normalized RBF kernel, but the 
     function e(i,j)
-        exp( - norm(d(i,j))^2 / (2h)  - D/2 * log(h) )
+        exp( - norm( d(i,j) )^2 / (2h)  - D/2 * log(h) )
     end
     function fsum(f)
         sum(f, 1:N)
