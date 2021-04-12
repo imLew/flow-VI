@@ -15,7 +15,7 @@ using Utils
 using Examples
 const LinReg = Examples.LinearRegression
 
-DIRNAME = "linear_regression/extra-fine"
+DIRNAME = "linear_regression/WNES_grid_search"
 
 PROBLEM_PARAMS = Dict(
     :problem_type => [ :linear_regression ],
@@ -40,16 +40,16 @@ PROBLEM_PARAMS = Dict(
 )
 
 ALG_PARAMS = Dict(
-    :n_iter => [ 500, 1000 ],
+    :n_iter => [ 1000 ],
     :kernel => [ TransformedKernel(SqExponentialKernel(), ScaleTransform(1.)) ],
-    :step_size => [ 0.005, 0.0005, 0.001 ],
+    :step_size => [ 0.010, 0.015 ],
     :n_particles => [ 50 ],
-    :update_method => [ :scalar_RMS_prop, :naive_WNES, :scalar_Adam],
+    :update_method => [ :naive_WNES],
     :β₁ => [ 0.9 ],
     :β₂ => [ 0.999 ],
     :γ => [ 0.8 ] ,
-    :c₁ => [ 0.1 ] ,
-    :c₂ => [ 0.1 ] ,
+    :c₁ => [ 0.3, 0.5, 0.1 ] ,
+    :c₂ => [ 0.3, 0.5, 0.1 ] ,
     :kernel_cb => [ median_trick_cb! ],
     :dKL_estimator => [ :RKHS_norm ],
     :n_runs => [ 10 ],
