@@ -104,8 +104,8 @@ function estimate_logZ(H₀::Number, EV::Number, hist::MVHistory; kwargs...)
 end
 
 function estimate_logZ(
-        H₀::Number, EV::Number, hist_array::Array{MVHistory}; 
-        kwargs...
+    H₀::Number, EV::Number, hist_array::Array{MVHistory},
+    ;kwargs...
 )
     estimates = []
     for dKL_hist in hist_array

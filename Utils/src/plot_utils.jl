@@ -136,7 +136,6 @@ function make_boxplots(data::Array{Any}; legend_keys=[], kwargs...)
     true_label=get(kwargs, :true_label, "")
     therm_label=get(kwargs, :therm_label, "")
     start_label=get(kwargs, :start_label, "")
-    dKL_estimator=get(kwargs, :dKL_estimator, :RKHS_norm)
     legend_keys = intersect(keys(data[1]), legend_keys)
     if haskey(kwargs,:labels)
         labels = pop!(kwargs, :labels)
@@ -145,7 +144,7 @@ function make_boxplots(data::Array{Any}; legend_keys=[], kwargs...)
                           for d in data] 
     end
     labels = reshape(labels, 1, length(data))
-    plt = boxplot([estimate_logZ(d, dKL_estimator)[end] for d in data],
+    plt = boxplot([[est[end] for est in estimate_logZ(d; kwargs...)] for d in data],
             labels=labels, colors=colors[1:length(data)],
             legend=:outerright; kwargs...) 
     if haskey(data[1], :true_logZ)
@@ -215,8 +214,13 @@ function plot_integration(data; size=(375,375), legend=:bottomright, lw=3,
     plot_integration!(plt, data; legend=legend, lw=lw, ylims=ylims)
 end
 
-function plot_integration!(plt::Plots.Plot, data; legend=:bottomright, 
-                            lw=3, ylims=(-Inf,Inf), kwargs...)
+function plot_integration!(
+    plt::Plots.Plot, data,
+    ; legend=:bottomright, 
+    lw=3, 
+    ylims=(-Inf,Inf), 
+    kwargs...
+)
     flow_label=get(kwargs, :flow_label, "")
     true_label=get(kwargs, :true_label, "")
     therm_label=get(kwargs, :therm_label, "")
@@ -230,10 +234,10 @@ function plot_integration!(plt::Plots.Plot, data; legend=:bottomright,
         plot!(plt, mean(est_logZ), ribbon=std(est_logZ), color=colors[1], 
               label=flow_label);
     end
-    if !isnothing(data[:true_logZ])
+    if haskey(data, :true_logZ)
         hline!(plt, [data[:true_logZ]], labels=true_label, color=true_color, ls=:dash);
     end
-    if !isnothing(data[:therm_logZ])
+    if haskey(data, :therm_logZ)
         hline!(plt, [data[:therm_logZ]], labels=therm_label, color=therm_color, ls=:dot);
     end
     EV = expectation_V(data)
