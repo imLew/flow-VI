@@ -21,12 +21,12 @@ export therm_integration
 function getMAP!(problem_params, logp, grad_logp, D)
     problem_params[:μ_initial] = (
         if problem_params[:problem_type] == :linear_regression
-            LinReg.posterior_mean(problem_params[:ϕ], problem_params[:true_β], D, 
+            LinReg.posterior_mean(problem_params[:ϕ], problem_params[:true_β], D,
                            problem_params[:μ_prior], problem_params[:Σ_prior])
         else
         Optim.maximizer(
             Optim.maximize(logp, grad_logp!,
-                           problem_params[:μ_prior], 
+                           problem_params[:μ_prior],
                            LBFGS())
            )
         end
@@ -38,7 +38,7 @@ function getLaplace!(p, logp, grad_logp, D)
     if p[:problem_type] == :logistic_regression
         y = LogReg.y(D, p[:μ_initial])
         p[:Σ_initial] = inv(Symmetric(
-                                           inv( p[:Σ_prior] ) 
+                                           inv( p[:Σ_prior] )
                                            .+ D.z' * (y.*(1 .- y) .* D.z)
                                           ))
     elseif p[:problem_type] == :linear_regression
@@ -47,7 +47,7 @@ function getLaplace!(p, logp, grad_logp, D)
     end
 end
 
-function run_svgd(::Val{:gauss_to_gauss} ;problem_params, alg_params, 
+function run_svgd(::Val{:gauss_to_gauss} ;problem_params, alg_params,
                   DIRNAME="", save=true)
     svgd_results = []
     svgd_hist = MVHistory[]
@@ -58,7 +58,7 @@ function run_svgd(::Val{:gauss_to_gauss} ;problem_params, alg_params,
     failed_count = 0
     for i in 1:alg_params[:n_runs]
         @info "Run $i/$(alg_params[:n_runs])"
-        try 
+        try
             q, hist = SVGD.svgd_sample_from_known_distribution( initial_dist,
                                 target_dist; alg_params=alg_params )
 
@@ -74,7 +74,7 @@ function run_svgd(::Val{:gauss_to_gauss} ;problem_params, alg_params,
     H₀ = Distributions.entropy(initial_dist)
     EV = expectation_V(initial_dist, target_dist)
     estimated_logZ = [est[end] for est in estimate_logZ(H₀, EV, svgd_hist)]
-    results = merge(alg_params, problem_params, 
+    results = merge(alg_params, problem_params,
                     @dict(true_logZ, svgd_results, svgd_hist, failed_count,
                           estimated_logZ)
                    )
@@ -86,13 +86,13 @@ function run_svgd(::Val{:gauss_to_gauss} ;problem_params, alg_params,
     return results
 end
 
-function run_svgd(::Val{:linear_regression}; problem_params, alg_params, 
+function run_svgd(::Val{:linear_regression}; problem_params, alg_params,
                   DIRNAME="", save=true)
 
     true_model = LinReg.RegressionModel(problem_params[:true_ϕ],
-                                 problem_params[:true_w], 
+                                 problem_params[:true_w],
                                  problem_params[:true_β])
-    D = LinReg.generate_samples(model=true_model, 
+    D = LinReg.generate_samples(model=true_model,
                          n_samples=problem_params[:n_samples],
                          sample_range=problem_params[:sample_range]
                         )
@@ -103,22 +103,22 @@ function run_svgd(::Val{:linear_regression}; problem_params, alg_params,
         nothing
     end
 
-    if haskey(problem_params, :random_seed) 
+    if haskey(problem_params, :random_seed)
         Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
         @info "GLOBAL_RNG random seed set again because thermodynamic integration used up randomness" problem_params[:random_seed]
     end
 
     function logp(w)
         model = LinReg.RegressionModel(problem_params[:ϕ], w, problem_params[:true_β])
-        ( LinReg.log_likelihood(D, model) 
-         + logpdf(MvNormal(problem_params[:μ_prior], 
-                           problem_params[:Σ_prior]), 
+        ( LinReg.log_likelihood(D, model)
+         + logpdf(MvNormal(problem_params[:μ_prior],
+                           problem_params[:Σ_prior]),
                   w)
         )
     end
     function grad_logp(w)
         model = LinReg.RegressionModel(problem_params[:ϕ], w, problem_params[:true_β])
-        ( LinReg.grad_log_likelihood(D, model) 
+        ( LinReg.grad_log_likelihood(D, model)
          .- inv(problem_params[:Σ_prior]) * (w-problem_params[:μ_prior])
         )
     end
@@ -139,7 +139,7 @@ function run_svgd(::Val{:linear_regression}; problem_params, alg_params,
     initial_dist = MvNormal(problem_params[:μ_initial], problem_params[:Σ_initial])
     failed_count = 0
     for i in 1:alg_params[:n_runs]
-        try 
+        try
             @info "Run $i/$(alg_params[:n_runs])"
             q = rand(initial_dist, alg_params[:n_particles])
             q, hist = svgd_fit(q, grad_logp; alg_params...)
@@ -160,7 +160,7 @@ function run_svgd(::Val{:linear_regression}; problem_params, alg_params,
                                        true_model.ϕ, D.x)
 
     file_prefix = get_savename( merge(problem_params, alg_params) )
-    results = merge(alg_params, problem_params, 
+    results = merge(alg_params, problem_params,
                     @dict(true_logZ, estimated_logZ, therm_logZ,
                           svgd_results, svgd_hist, D, failed_count))
     if save
@@ -178,7 +178,7 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
     else
         D = LogReg.generate_2class_samples_from_gaussian(
                         n₀=problem_params[:n₀], n₁=problem_params[:n₁],
-                        μ₀=problem_params[:μ₀], μ₁=problem_params[:μ₁], 
+                        μ₀=problem_params[:μ₀], μ₁=problem_params[:μ₁],
                         Σ₀=problem_params[:Σ₀], Σ₁=problem_params[:Σ₁],
                        )
     end
@@ -189,7 +189,7 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
         nothing
     end
 
-    if haskey(problem_params, :random_seed) 
+    if haskey(problem_params, :random_seed)
         Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
         @info "GLOBAL_RNG random seed set again because thermodynamic integration used up randomness" problem_params[:random_seed]
     end
@@ -199,13 +199,13 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
     svgd_results = []
 
     function logp(w)
-        ( LogReg.log_likelihood(D, w) 
-          + logpdf(MvNormal(problem_params[:μ_prior], 
-                            problem_params[:Σ_prior]), 
+        ( LogReg.log_likelihood(D, w)
+          + logpdf(MvNormal(problem_params[:μ_prior],
+                            problem_params[:Σ_prior]),
                    w)
         )
-    end  
-    function grad_logp(w) 
+    end
+    function grad_logp(w)
         vec( LogReg.grad_log_likelihood(D, w)
              .- inv(problem_params[:Σ_prior]) * (w-problem_params[:μ_prior])
             )
@@ -218,11 +218,11 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
         getLaplace!(problem_params, logp, grad_logp, D)
     end
 
-    initial_dist = MvNormal(problem_params[:μ_initial], 
+    initial_dist = MvNormal(problem_params[:μ_initial],
                             problem_params[:Σ_initial])
     failed_count = 0
     for i in 1:alg_params[:n_runs]
-        try 
+        try
             @info "Run $i/$(alg_params[:n_runs])"
             q = rand(initial_dist, alg_params[:n_particles])
             q, hist = svgd_fit(q, grad_logp; alg_params...)
@@ -238,7 +238,7 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
     H₀ = Distributions.entropy(initial_dist)
     EV = expectation_V(initial_dist, w -> -logp(w))
     estimated_logZ = [est[end] for est in estimate_logZ(H₀, EV, svgd_hist)]
-    results = merge(alg_params, problem_params, 
+    results = merge(alg_params, problem_params,
                     @dict(estimated_logZ, svgd_results, svgd_hist,
                           D, therm_logZ,  failed_count))
     if save
@@ -247,7 +247,7 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
         if !problem_params[:MAP_start] || problem_params[:Laplace_start]
             delete!(savenamedict, :MAP_start)
         end
-        if !problem_params[:Laplace_start] 
+        if !problem_params[:Laplace_start]
             delete!(savenamedict, :Laplace_start)
         end
         file_prefix = savename( savenamedict )
@@ -267,7 +267,7 @@ function run_svgd(;problem_params, alg_params, DIRNAME="", save=true)
         Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
         @info "GLOBAL_RNG random seed set" problem_params[:random_seed]
     end
-    run_svgd(Val(problem_params[:problem_type]), problem_params=problem_params, 
+    run_svgd(Val(problem_params[:problem_type]), problem_params=problem_params,
         alg_params=alg_params, DIRNAME=DIRNAME, save=save)
 end
 
@@ -278,10 +278,10 @@ function therm_integration(problem_params, D; nSamples=3000, nSteps=30)
         if problem_params[:problem_type] == :logistic_regression
             LogReg.log_likelihood(D, θ)
         elseif problem_params[:problem_type] == :linear_regression
-            LinReg.log_likelihood(D, 
-                LinReg.RegressionModel(problem_params[:ϕ], θ, 
+            LinReg.log_likelihood(D,
+                LinReg.RegressionModel(problem_params[:ϕ], θ,
                                        problem_params[:true_β])
-               ) 
+               )
         end
        )
     alg = ThermInt(n_steps=nSteps, n_samples=nSamples)
@@ -289,9 +289,9 @@ function therm_integration(problem_params, D; nSamples=3000, nSteps=30)
 end
 
 function cmdline_run(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
-    if length(ARGS) == 0 
+    if length(ARGS) == 0
         run_on_gridengine(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
-    elseif ARGS[1] == "make-dicts" 
+    elseif ARGS[1] == "make-dicts"
     # make dictionaries in a tmp directory containing the parameters for
     # all the experiment we want to run
     # also saves a dictionary mapping numbers 1 through #dicts to the dictionary
@@ -357,7 +357,7 @@ function run_all()
     @info "Number of tmp files to run" length(files)
     Threads.@threads for (i, file) in collect(enumerate(files))
         @info "experiment $i out of $(length(files))"
-        try 
+        try
             run_file(`julia $PROGRAM_FILE run $file`)
         catch e
             println(e)
@@ -366,12 +366,12 @@ function run_all()
 end
 
 function run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
-    params = [ (pp, ap) for pp in dict_list(PROBLEM_PARAMS), 
+    params = [ (pp, ap) for pp in dict_list(PROBLEM_PARAMS),
               ap in dict_list(ALG_PARAMS)]
     p = Progress(length(params), 50)
     Threads.@threads for (i, (pp, ap)) in collect(enumerate(params))
         @info "experiment $i out of $(length(params))"
-        try 
+        try
             @time run_svgd(problem_params=pp, alg_params=ap, DIRNAME=DIRNAME)
         catch e
             @error "Something went wrong" exception=(e, catch_backtrace())

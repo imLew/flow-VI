@@ -37,9 +37,9 @@ function samplepower_posterior(logπ, n_dim, nSamples) # From AdvancedHMC.jl REA
     return samples
 end
 
-struct ThermoIntegration 
+struct ThermoIntegration
     nSamples::Int # Number of samples per integration steps
-    nIntSteps::Int # Number of integration steps 
+    nIntSteps::Int # Number of integration steps
     schedule::Vector{Float64} # Integration schedule
 end
 

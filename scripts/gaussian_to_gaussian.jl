@@ -1,12 +1,12 @@
 #!/usr/bin/env julia
-#$ -binding linear:16 # request cpus 
+#$ -binding linear:16 # request cpus
 #$ -N gauss_to_gauss
-#$ -q all.q 
-#$ -cwd 
-#$ -V 
+#$ -q all.q
+#$ -cwd
+#$ -V
 #$ -t 1-16
 ### Run SVGD integration of KL divergence on the problem of smapling from
-### a Gaussian 
+### a Gaussian
 ########
 ### command line arguments:
 ### make-dicts - create the parameter dicts with DrWatson
@@ -62,7 +62,7 @@ ALG_PARAMS = Dict(
     :kernel => [TransformedKernel(SqExponentialKernel(), ScaleTransform(1.))],
     :step_size => [0.5, 0.05, 0.005],
     :n_particles => [20],
-    :update_method => [:forward_euler, :naive_WAG, :naive_WNES, 
+    :update_method => [:forward_euler, :naive_WAG, :naive_WNES,
                         :scalar_Adam, :scalar_RMS_prop,],
     :α => @onlyif(:update_method == :naive_WAG, [3, 4, 7] ),
     :c₁ => @onlyif(:update_method == :naive_WNES, [.1, 1, 5] ),

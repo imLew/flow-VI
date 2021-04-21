@@ -37,7 +37,7 @@ y(model::RegressionModel, x) = y(model)(x)
 # util functions for analytical solution
 # returns an array (indexed by x) of arrays containing ϕ(x)
 Φ(ϕ, X) = vcat( ϕ.(X)'... )
-Φ(m::RegressionModel, X) = Φ(m.ϕ, X) 
+Φ(m::RegressionModel, X) = Φ(m.ϕ, X)
 # accuracy = inverse of variance
 function posterior_accuracy(ϕ, β, X, Σ₀::Diagonal{Bool,Array{Bool,1}})
     inv(Σ₀) + β * Φ(ϕ, X)'Φ(ϕ, X)
@@ -66,9 +66,9 @@ function true_gauss_expectation(d::MvNormal, m::RegressionModel, D::RegressionDa
         + length(D) * log(m.β / 2π))
 end
 
-function generate_samples(;model::RegressionModel, n_samples=100, 
+function generate_samples(;model::RegressionModel, n_samples=100,
                           sample_range=[-10, 10])
-    samples =  rand(Uniform(sample_range...), n_samples) 
+    samples =  rand(Uniform(sample_range...), n_samples)
     noise = rand(Normal(0, 1/sqrt(model.β)), n_samples)
     target = y(model).(samples) .+ noise
     return RegressionData(samples, target)
@@ -83,7 +83,7 @@ function log_likelihood(D::RegressionData, model::RegressionModel)
     length(D)/2 * log(model.β/2π) - model.β * E(D, model)
 end
 
-function grad_log_likelihood(D::RegressionData, model::RegressionModel) 
+function grad_log_likelihood(D::RegressionData, model::RegressionModel)
     model.β * sum( ( D.t .- y(model).(D.x) ) .* model.ϕ.(D.x) )
 end
 

@@ -1,4 +1,4 @@
-using DrWatson 
+using DrWatson
 @quickactivate
 using KernelFunctions
 using LinearAlgebra
@@ -49,7 +49,7 @@ PROBLEM_PARAMS = Dict(
                           :nSteps => 30
                          )],
     :random_seed => [ 0 ],
-    # :sample_data_file => [datadir("classification_samples", 
+    # :sample_data_file => [datadir("classification_samples",
     # "2dim_50:[0.0, 0.0]:[0.5 0.1; 0.1 0.2]_50:[0.0, 0.0]:[0.5 0.1; 0.1 0.2].bson")
     #                      ],
 )

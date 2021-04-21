@@ -16,7 +16,7 @@ export get_savename
 ## step_size utils
 function geometric_step_size_cb(step_size, iter, factor, cutoff)
     if iter < cutoff
-       return step_size * factor^iter 
+       return step_size * factor^iter
    end
    return step_size * factor^cutoff
 end
@@ -29,15 +29,15 @@ function get_pdmat(K)
         α *= 2.0
     end
     if α >= 0.01*Kmax
-        throw(ErrorException("""Adding noise on the diagonal was not 
-                             sufficient to build a positive-definite 
-                             matrix:\n\t- Check that your kernel parameters 
-                             are not extreme\n\t- Check that your data is 
-                             sufficiently sparse\n\t- Maybe use a different 
+        throw(ErrorException("""Adding noise on the diagonal was not
+                             sufficient to build a positive-definite
+                             matrix:\n\t- Check that your kernel parameters
+                             are not extreme\n\t- Check that your data is
+                             sufficiently sparse\n\t- Maybe use a different
                              kernel"""))
     end
     return PDMat(K+α*I)
-end 
+end
 
 function get_savename(dict)
     savenamedict = copy(dict)
@@ -84,7 +84,7 @@ function filter_by_dict(dict, data_array)
     for (k, v) in dict
         out = filter_by_key(k, v, out)
     end
-    return out 
+    return out
 end
 
 # flatten_index(i, j, j_max) = j + j_max *(i-1)
@@ -96,7 +96,7 @@ end
 #         for l in 1:l_max
 #             for i in 1:i_max
 #                 for j in 1:j_max
-#                     K_flat[ flatten_index(d, i, i_max), 
+#                     K_flat[ flatten_index(d, i, i_max),
 #                             flatten_index(l, j, j_max) ] = K[d,l,i,j]
 #                 end
 #             end

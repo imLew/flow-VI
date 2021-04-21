@@ -21,10 +21,10 @@ export calculate_phi
 Fit the samples in q to the distribution corresponding to grad_logp.
 Possible values for dKL_estimator are `:RKHS_norm`, `:KSD`, `:UKSD`; they can be
 combined by putting them in array.
-Possible values for update_method are `:forward_euler`, `:naive_WNES`, 
-`:naive_WAG`. 
+Possible values for update_method are `:forward_euler`, `:naive_WNES`,
+`:naive_WAG`.
 """
-function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50, 
+function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50,
                   callback=nothing, kwargs...)
     kwargs = Dict(kwargs...)
     kernel_cb! = get!(kwargs, :kernel_cb, nothing)
@@ -33,23 +33,23 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50,
 
     aux_vars = Dict()
     if update_method in [:scalar_adagrad, :scalar_RMS_prop]
-        aux_vars[:Gₜ] = [0.] 
+        aux_vars[:Gₜ] = [0.]
     elseif update_method == :scalar_Adam
         aux_vars[:mₜ] = zeros(size(q))
         aux_vars[:vₜ] = zeros(size(q))
     elseif update_method in [:naive_WAG, :naive_WNES]
-        aux_vars[:y] = copy(q)  
+        aux_vars[:y] = copy(q)
     end
     hist = MVHistory()
     ϕ = zeros(size(q))
     for i in 1:n_iter
         isnothing(kernel_cb!) ? nothing : kernel_cb!(kernel, q)
         ϵ = isnothing(step_size_cb) ? [step_size] : [step_size_cb(step_size, i)]
-        update!(Val(update_method), q, ϕ, ϵ, kernel, grad_logp, aux_vars, 
+        update!(Val(update_method), q, ϕ, ϵ, kernel, grad_logp, aux_vars,
                 iter=i; kwargs...)
         push_to_hist!(hist, q, ϵ, ϕ, i, kernel, grad_logp; kwargs...)
         if !isnothing(callback)
-            callback(;hist=hist, q=q, ϵ=ϵ, ϕ=ϕ, i=i, kernel=kernel, 
+            callback(;hist=hist, q=q, ϵ=ϵ, ϕ=ϕ, i=i, kernel=kernel,
                      grad_logp=grad_logp, aux_vars=aux_vars, kwargs...)
         end
     end
@@ -61,11 +61,11 @@ function push_to_hist!(hist, q, ϵ, ϕ, i, kernel, grad_logp; kwargs...)
     push!(hist, :step_sizes, i, ϵ[1])  # only store the actual value not array(value)
     push!(hist, :ϕ_norm, i, mean(norm(ϕ)))  # save average vector norm of phi
     if typeof(dKL_estimator) == Symbol
-        push!(hist, dKL_estimator, i, compute_dKL(Val(dKL_estimator), kernel, 
+        push!(hist, dKL_estimator, i, compute_dKL(Val(dKL_estimator), kernel,
                                                   q, ϕ=ϕ, grad_logp=grad_logp))
     elseif typeof(dKL_estimator) == Array{Symbol,1}
         for estimator in dKL_estimator
-            push!(hist, estimator, i, compute_dKL(Val(estimator), kernel, q, 
+            push!(hist, estimator, i, compute_dKL(Val(estimator), kernel, q,
                                                   ϕ=ϕ, grad_logp=grad_logp))
         end
     end
@@ -77,27 +77,27 @@ function calculate_phi_vectorized(kernel, q, grad_logp)
     k_mat = KernelFunctions.kernelmatrix(kernel, q)
     grad_k = kernel_grad_matrix(kernel, q)
     glp_mat = mapreduce( grad_logp, hcat, (eachcol(q)) )
-    if n == 1  
-        ϕ = glp_mat * k_mat 
+    if n == 1
+        ϕ = glp_mat * k_mat
     else
         ϕ =  1/n * ( glp_mat * k_mat + grad_k )
     end
 end
 
-function update!(::Val{:scalar_Adam}, q, ϕ, ϵ, kernel, grad_logp, aux_vars; 
+function update!(::Val{:scalar_Adam}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
                  kwargs...)
     iter = get(kwargs, :iter, false)
     β₁ = get(kwargs, :β₁, false)
     β₂ = get(kwargs, :β₂, false)
     ϕ .= calculate_phi_vectorized(kernel, q, grad_logp)
-    aux_vars[:mₜ] .= (β₁ .* aux_vars[:mₜ] + (1-β₁) .* ϕ) 
-    aux_vars[:vₜ] .= β₂ .* aux_vars[:vₜ] + (1-β₂) .* ϕ.^2 
+    aux_vars[:mₜ] .= (β₁ .* aux_vars[:mₜ] + (1-β₁) .* ϕ)
+    aux_vars[:vₜ] .= β₂ .* aux_vars[:vₜ] + (1-β₂) .* ϕ.^2
     N = size(ϕ, 1)
     ϵ .= ϵ.*sqrt((1-β₂^iter)./(1-β₁^iter)) ./ mean(sqrt.(aux_vars[:vₜ]))
     q .+= ϵ .* aux_vars[:mₜ]./(1-β₁^iter)
 end
 
-function update!(::Val{:scalar_RMS_prop}, q, ϕ, ϵ, kernel, grad_logp, aux_vars; 
+function update!(::Val{:scalar_RMS_prop}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
                  kwargs...)
     γ = get(kwargs, :γ, false)
     ϕ .= calculate_phi_vectorized(kernel, q, grad_logp)
@@ -150,7 +150,7 @@ function calculate_phi(kernel, q, grad_logp)
             d = kernel(xj, xi) * glp_j
             # K = kernel_gradient( kernel, xj, xi )
             K = gradient( x->kernel(x, xi), xj )[1]
-            ϕ[:, i] .+= d .+ K 
+            ϕ[:, i] .+= d .+ K
         end
     end
     ϕ ./= size(q)[end]
@@ -204,7 +204,7 @@ function compute_dKL(::Val{:RKHS_norm}, kernel::Kernel, q; ϕ, kwargs...)
         # the second method should be the straight forward case for a
         # kernel that is a scalar f(x) times identity matrix
         norm = 0
-        try 
+        try
             k_mat = kernelpdmat(kernel, q)
             for f in eachrow(ϕ)
                 norm += invquad(k_mat, vec(f))

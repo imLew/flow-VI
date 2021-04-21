@@ -52,7 +52,7 @@ function make_include_string(basedir)
 
     output_string *= plot_string
     # end
-    
+
     clipboard(output_string)
     return output_string
 end

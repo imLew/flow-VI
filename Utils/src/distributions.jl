@@ -16,15 +16,15 @@ export num_expectation
 export pdf_potential
 
 # This potential is already normalized
-pdf_potential(d::Distribution, x) = -logpdf(d, x) 
+pdf_potential(d::Distribution, x) = -logpdf(d, x)
 
-pdf_potential(d::Exponential, x) = x / Distributions.params(d)[1] 
+pdf_potential(d::Exponential, x) = x / Distributions.params(d)[1]
 
 pdf_potential(d::Normal, x) = (x-mean(d))^2 / 2var(d)
 
 pdf_potential(d::MvNormal, x) = invquad( PDMat(cov(d)), x-mean(d) )/2
 
-function expectation_V(initial_dist::Distribution, target_dist::Distribution) 
+function expectation_V(initial_dist::Distribution, target_dist::Distribution)
     numerical_expectation( initial_dist, x -> pdf_potential(target_dist, x) )
 end
 
@@ -41,14 +41,14 @@ function expectation_V(initial_dist::Distribution, V)
 end
 
 function expectation_V(::Val{:gauss_to_gauss}, data)
-    expectation_V(MvNormal(data[:μ₀], data[:Σ₀]), 
+    expectation_V(MvNormal(data[:μ₀], data[:Σ₀]),
                   MvNormal(data[:μₚ], data[:Σₚ])
                  )
 end
 
 function expectation_V(::Val{:linear_regression}, data)
     expectation_V( MvNormal(data[:μ_initial], data[:Σ_initial]),
-                   w -> -LinReg.log_likelihood(data[:D], 
+                   w -> -LinReg.log_likelihood(data[:D],
                            LinReg.RegressionModel(data[:ϕ], w, data[:true_β])
                                              )
                         - logpdf(MvNormal(data[:μ_prior],
@@ -92,8 +92,8 @@ function KL_integral(hist::MVHistory, method=:RKHS_norm; kwargs...)
 end
 
 function estimate_logZ(
-    H₀::Number, 
-    EV::Number, 
+    H₀::Number,
+    EV::Number,
     int_KL::Union{T, Array{T}}
 ) where T <: Number
     H₀ .- EV .+ int_KL
@@ -112,12 +112,12 @@ function estimate_logZ(
         push!(estimates, estimate_logZ(H₀, EV, dKL_hist; kwargs...))
     end
     return estimates
-end        
+end
 
 function estimate_logZ(
     initial_dist::Distribution,
-    target_dist::Distribution, 
-    data::Dict{Symbol,Any}, 
+    target_dist::Distribution,
+    data::Dict{Symbol,Any},
     ;kwargs...
 )
     H₀ = Distributions.entropy(initial_dist)
@@ -146,17 +146,17 @@ function estimate_logZ(data::Dict{Symbol,Any}; kwargs...)
     estimate_logZ(Val(data[:problem_type]), data; kwargs...)
 end
 
-function numerical_expectation(d::Distribution, f; n_samples=10000, 
+function numerical_expectation(d::Distribution, f; n_samples=10000,
                                rng=Random.GLOBAL_RNG)
-    mean([ v for v in [ f(x) for x in rand(rng, d, n_samples)] if isfinite(v)] ) 
+    mean([ v for v in [ f(x) for x in rand(rng, d, n_samples)] if isfinite(v)] )
 end
 
 # the other numerical_expectation function applies f to each element instead
 # of each col :/
-function num_expectation(d::Distribution, f; n_samples=10000, 
+function num_expectation(d::Distribution, f; n_samples=10000,
                          rng=Random.GLOBAL_RNG)
-    mean([ v for v in [ f(x) for x in eachcol(rand(rng, d, n_samples))] 
-          if isfinite(v)] ) 
+    mean([ v for v in [ f(x) for x in eachcol(rand(rng, d, n_samples))]
+          if isfinite(v)] )
     mean([ f(x) for x in eachcol(rand(rng, d, n_samples))])
 end
 
@@ -170,6 +170,6 @@ function logZ(d::T) where T <: Union{Normal, MvNormal}
 end
 
 function logZ(d::Exponential)
-    λ = 1/Distributions.params(d)[1] 
+    λ = 1/Distributions.params(d)[1]
     1/λ
 end
