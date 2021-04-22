@@ -30,6 +30,7 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50,
     kernel_cb! = get!(kwargs, :kernel_cb, nothing)
     step_size_cb = get!(kwargs, :step_size_cb, nothing)
     update_method = get!(kwargs, :update_method, :forward_euler)
+    annealing_schedule = get!(kwargs, :annealing_schedule, nothing)
 
     aux_vars = Dict()
     if update_method in [:scalar_adagrad, :scalar_RMS_prop]
@@ -45,8 +46,9 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50,
     for i in 1:n_iter
         isnothing(kernel_cb!) ? nothing : kernel_cb!(kernel, q)
         ϵ = isnothing(step_size_cb) ? [step_size] : [step_size_cb(step_size, i)]
+        γₐ = isnothing(annealing_schedule) ? [1.] : [annealing_schedule(i)]
         update!(Val(update_method), q, ϕ, ϵ, kernel, grad_logp, aux_vars,
-                iter=i; kwargs...)
+                iter=i, γₐ=γₐ; kwargs...)
         push_to_hist!(hist, q, ϵ, ϕ, i, kernel, grad_logp; kwargs...)
         if !isnothing(callback)
             callback(;hist=hist, q=q, ϵ=ϵ, ϕ=ϕ, i=i, kernel=kernel,
@@ -72,15 +74,16 @@ function push_to_hist!(hist, q, ϵ, ϕ, i, kernel, grad_logp; kwargs...)
     push!(hist, :kernel_width, kernel.transform.s)
 end
 
-function calculate_phi_vectorized(kernel, q, grad_logp)
+function calculate_phi_vectorized(kernel, q, grad_logp; kwargs...)
+    γₐ = get(kwargs, :γₐ, [1.])
     n = size(q)[end]
     k_mat = KernelFunctions.kernelmatrix(kernel, q)
     grad_k = kernel_grad_matrix(kernel, q)
     glp_mat = mapreduce( grad_logp, hcat, (eachcol(q)) )
     if n == 1
-        ϕ = glp_mat * k_mat
+        ϕ = γₐ .* glp_mat * k_mat
     else
-        ϕ =  1/n * ( glp_mat * k_mat + grad_k )
+        ϕ =  1/n * (γₐ .* glp_mat * k_mat + grad_k )
     end
 end
 
@@ -89,7 +92,7 @@ function update!(::Val{:scalar_Adam}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
     iter = get(kwargs, :iter, false)
     β₁ = get(kwargs, :β₁, false)
     β₂ = get(kwargs, :β₂, false)
-    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp)
+    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp; kwargs...)
     aux_vars[:mₜ] .= (β₁ .* aux_vars[:mₜ] + (1-β₁) .* ϕ)
     aux_vars[:vₜ] .= β₂ .* aux_vars[:vₜ] + (1-β₂) .* ϕ.^2
     N = size(ϕ, 1)
@@ -100,7 +103,7 @@ end
 function update!(::Val{:scalar_RMS_prop}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
                  kwargs...)
     γ = get(kwargs, :γ, false)
-    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp)
+    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp; kwargs...)
     aux_vars[:Gₜ] .= γ * norm(ϕ)^2 .+ (1-γ) * aux_vars[:Gₜ]
     N = size(ϕ, 1)
     ϵ .= N*ϵ/(aux_vars[:Gₜ][1] + 1)
@@ -109,7 +112,7 @@ end
 
 function update!(::Val{:scalar_adagrad}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
                  kwargs...)
-    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp)
+    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp; kwargs...)
     aux_vars[:Gₜ] .+= norm(ϕ)^2
     N = size(ϕ, 1)
     ϵ .= N*ϵ/(aux_vars[:Gₜ][1] + 1)
@@ -120,7 +123,7 @@ function update!(::Val{:naive_WNES}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
                  kwargs...)
     c₁ = get(kwargs, :c₁, false)
     c₂ = get(kwargs, :c₂, false)
-    ϕ .= calculate_phi_vectorized(kernel, aux_vars[:y], grad_logp)
+    ϕ .= calculate_phi_vectorized(kernel, aux_vars[:y], grad_logp; kwargs...)
     q_new = aux_vars[:y] .+ ϵ.*ϕ
     aux_vars[:y] .= q_new .+ c₁*(c₂ - 1) * (q_new .- q)
     q .= q_new
@@ -130,7 +133,7 @@ function update!(::Val{:naive_WAG}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
                  kwargs...)
     iter = get(kwargs, :iter, false)
     α = get(kwargs, :α, false)
-    ϕ .= calculate_phi_vectorized(kernel, aux_vars[:y], grad_logp)
+    ϕ .= calculate_phi_vectorized(kernel, aux_vars[:y], grad_logp; kwargs...)
     q_new = aux_vars[:y] .+ ϵ.*ϕ
     aux_vars[:y] .= q_new .+ (iter-1)/iter .* (aux_vars[:y].-q) + (iter + α -2)/iter * ϵ .* ϕ
     q .= q_new
@@ -138,7 +141,7 @@ end
 
 function update!(::Val{:forward_euler}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
                  kwargs...)
-    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp)
+    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp; kwargs...)
     q .+= ϵ.*ϕ
 end
 
