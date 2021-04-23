@@ -31,6 +31,7 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50,
     step_size_cb = get!(kwargs, :step_size_cb, nothing)
     update_method = get!(kwargs, :update_method, :forward_euler)
     annealing_schedule = get!(kwargs, :annealing_schedule, nothing)
+    annealing_params = get!(kwargs, :annealing_params, [])
 
     aux_vars = Dict()
     if update_method in [:scalar_adagrad, :scalar_RMS_prop]
@@ -46,21 +47,26 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50,
     for i in 1:n_iter
         isnothing(kernel_cb!) ? nothing : kernel_cb!(kernel, q)
         ϵ = isnothing(step_size_cb) ? [step_size] : [step_size_cb(step_size, i)]
-        γₐ = isnothing(annealing_schedule) ? [1.] : [annealing_schedule(i)]
+        γₐ = if isnothing(annealing_schedule)
+            [1.]
+        else
+            [annealing_schedule(i, n_iter; annealing_params...)]
+        end
         update!(Val(update_method), q, ϕ, ϵ, kernel, grad_logp, aux_vars,
                 iter=i, γₐ=γₐ; kwargs...)
-        push_to_hist!(hist, q, ϵ, ϕ, i, kernel, grad_logp; kwargs...)
+        push_to_hist!(hist, q, ϵ, ϕ, i, γₐ, kernel, grad_logp; kwargs...)
         if !isnothing(callback)
-            callback(;hist=hist, q=q, ϵ=ϵ, ϕ=ϕ, i=i, kernel=kernel,
+            callback(;hist=hist, q=q, ϕ=ϕ, i=i, kernel=kernel,
                      grad_logp=grad_logp, aux_vars=aux_vars, kwargs...)
         end
     end
     return q, hist
 end
 
-function push_to_hist!(hist, q, ϵ, ϕ, i, kernel, grad_logp; kwargs...)
+function push_to_hist!(hist, q, ϵ, ϕ, i, γₐ, kernel, grad_logp; kwargs...)
     dKL_estimator = get(kwargs, :dKL_estimator, false)
     push!(hist, :step_sizes, i, ϵ[1])  # only store the actual value not array(value)
+    push!(hist, :annealing, i, γₐ[1])
     push!(hist, :ϕ_norm, i, mean(norm(ϕ)))  # save average vector norm of phi
     if typeof(dKL_estimator) == Symbol
         push!(hist, dKL_estimator, i, compute_dKL(Val(dKL_estimator), kernel,
