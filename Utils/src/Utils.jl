@@ -1,5 +1,6 @@
 module Utils
     include("include_plots_dir.jl")
+    include("annealing_schedules.jl")
     include("distributions.jl")
     include("kernel.jl")
     include("misc.jl")
