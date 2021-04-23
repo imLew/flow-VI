@@ -3,12 +3,13 @@ export hyperbolic_annealing
 export cyclic_annealing
 
 function annealing(::Val{:cyclic}, iter, max_iter; kwargs...)
-    @unpack p, C = kwargs
+    p = get(kwargs, :p, 10)
+    C = get(kwargs, :C, 5)
     return ( (mod(iter, max_iter/C)+1)/(max_iter/C) )^p
 end
 
 function annealing(::Val{:hyperbolic}, iter, max_iter; kwargs...)
-    @unpack p = kwargs
+    p = get(kwargs, :p, 10)
     return tanh( (1.3 * (iter/max_iter))^p )
 end
 
