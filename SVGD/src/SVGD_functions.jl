@@ -51,7 +51,7 @@ function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50,
                 iter=i, γₐ=γₐ; kwargs...)
         push_to_hist!(hist, q, ϵ, ϕ, i, kernel, grad_logp; kwargs...)
         if !isnothing(callback)
-            callback(;hist=hist, q=q, ϵ=ϵ, ϕ=ϕ, i=i, kernel=kernel,
+            callback(;hist=hist, q=q, ϵ=ϵ, ϕ=ϕ, i=i, kernel=kernel, γₐ= γₐ,
                      grad_logp=grad_logp, aux_vars=aux_vars, kwargs...)
         end
     end
