@@ -237,7 +237,8 @@ function plot_integration!(
     if haskey(data, :true_logZ)
         hline!(plt, [data[:true_logZ]], labels=true_label, color=true_color, ls=:dash);
     end
-    if haskey(data, :therm_logZ)
+    if haskey(data, :therm_logZ) && !isnothing(data[:therm_logZ])
+        println("wtf")
         hline!(plt, [data[:therm_logZ]], labels=therm_label, color=therm_color, ls=:dot);
     end
     EV = expectation_V(data)
@@ -254,17 +255,20 @@ function plot_fit!(plt, data)
     for q in data[:svgd_results]
         for w in eachcol(q)
             model = LinReg.RegressionModel(data[:ϕ], w, data[:true_β])
-            plot!(plt,x, LinReg.y(model), alpha=0.3, color=:orange, legend=:none)
+            plot!(plt,x, x -> LinReg.y(model, x), alpha=0.3, color=:orange,
+                  legend=:none)
         end
         plot!(plt, x,
-              LinReg.y(
-               LinReg.RegressionModel(data[:ϕ], mean(q, dims=2), data[:true_β])
+              x -> LinReg.y(
+               LinReg.RegressionModel(data[:ϕ], mean(q, dims=2), data[:true_β]),
+               x
               ),
               color=:red)
     end
     plot!(plt, x,
-          LinReg.y(
-             LinReg.RegressionModel(data[:true_ϕ], data[:true_w], data[:true_β])
+          x -> LinReg.y(
+             LinReg.RegressionModel(data[:true_ϕ], data[:true_w], data[:true_β]),
+             x
           ),
           color=:green)
 end
