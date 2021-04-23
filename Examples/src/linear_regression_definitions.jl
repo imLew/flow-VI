@@ -31,8 +31,8 @@ function Base.iterate(d::RegressionData, state)
         return nothing
     end
 end
-y(model::RegressionModel) = x -> dot(model.w, model.ϕ(x))
-y(model::RegressionModel, x) = y(model)(x)
+# y(model::RegressionModel) = x -> dot(model.w, model.ϕ(x))
+y(model::RegressionModel, x) = dot(model.w, model.ϕ(x))
 
 # util functions for analytical solution
 # returns an array (indexed by x) of arrays containing ϕ(x)
@@ -70,7 +70,8 @@ function generate_samples(;model::RegressionModel, n_samples=100,
                           sample_range=[-10, 10])
     samples =  rand(Uniform(sample_range...), n_samples)
     noise = rand(Normal(0, 1/sqrt(model.β)), n_samples)
-    target = y(model).(samples) .+ noise
+    @show samples
+    target = y.([model], samples) .+ noise
     return RegressionData(samples, target)
 end
 
@@ -78,13 +79,13 @@ function likelihood(D::RegressionData, model::RegressionModel)
     prod( D-> pdf( Normal(y(model, D.x), 1/sqrt(model.β)), D.t), D )
 end
 
-E(D, model) = 2 \ sum( (D.t .- y(model).(D.x)).^2 )
+E(D, model) = 2 \ sum( (D.t .- y.([model], D.x)).^2 )
 function log_likelihood(D::RegressionData, model::RegressionModel)
     length(D)/2 * log(model.β/2π) - model.β * E(D, model)
 end
 
 function grad_log_likelihood(D::RegressionData, model::RegressionModel)
-    model.β * sum( ( D.t .- y(model).(D.x) ) .* model.ϕ.(D.x) )
+    model.β * sum( ( D.t .- y.([model], D.x) ) .* model.ϕ.(D.x) )
 end
 
 end  # module
