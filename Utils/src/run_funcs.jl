@@ -142,7 +142,8 @@ function run_svgd(::Val{:linear_regression}; problem_params, alg_params,
         try
             @info "Run $i/$(alg_params[:n_runs])"
             q = rand(initial_dist, alg_params[:n_particles])
-            q, hist = svgd_fit(q, grad_logp; alg_params...)
+            q, hist = svgd_fit(q, grad_logp, problem_params=problem_params,
+                               D=D; alg_params...)
 
             push!(svgd_results, q)
             push!(svgd_hist, hist)
@@ -225,7 +226,8 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
         try
             @info "Run $i/$(alg_params[:n_runs])"
             q = rand(initial_dist, alg_params[:n_particles])
-            q, hist = svgd_fit(q, grad_logp; alg_params...)
+            q, hist = svgd_fit(q, grad_logp, problem_params=problem_params;
+                               alg_params...)
 
             push!(svgd_results, q)
             push!(svgd_hist, hist)

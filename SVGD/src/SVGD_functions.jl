@@ -24,9 +24,11 @@ combined by putting them in array.
 Possible values for update_method are `:forward_euler`, `:naive_WNES`,
 `:naive_WAG`.
 """
-function svgd_fit(q, grad_logp; kernel, n_iter=100, step_size=1, n_particles=50,
-                  callback=nothing, kwargs...)
+function svgd_fit(q, grad_logp; kernel, callback=nothing, kwargs...)
     kwargs = Dict(kwargs...)
+    n_iter = get(kwargs, :n_iter, 1)
+    n_particles = get(kwargs, :n_particles, 1)
+    step_size = get(kwargs, :step_size, 1)
     kernel_cb! = get!(kwargs, :kernel_cb, nothing)
     step_size_cb = get!(kwargs, :step_size_cb, nothing)
     update_method = get!(kwargs, :update_method, :forward_euler)
