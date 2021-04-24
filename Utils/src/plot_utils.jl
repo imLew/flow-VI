@@ -7,7 +7,8 @@ therm_color = colors[end-2]
 start_color = colors[end-3]
 
 using Examples
-const LogReg = LogisticRegression
+LogReg = LogisticRegression
+LinReg = LinearRegression
 
 # export plot_known_dists
 export plot_2D_results
@@ -79,16 +80,29 @@ function plot_2D_results!(plt, initial_dist::Distribution,
     return plt
 end
 
-function plot_2D_results(initial_dist::Distribution, target_dist::Distribution,
-                         q; kwargs...)
+function plot_2D_results(
+    initial_dist::Distribution,
+    target_dist::Distribution,
+    q,
+    ;kwargs...
+)
     plt = plot(legend=false; kwargs...)
     plot_2D_results!(plt, initial_dist, target_dist, q)
     return plt
 end
 
 function plot_2D_gaussians_results!(plt, data)
-    initial_dist = MvNormal(data[:μ₀], data[:Σ₀])
-    target_dist = MvNormal(data[:μₚ], data[:Σₚ])
+    if data[:problem_type] == :gauss_to_gauss
+        initial_dist = MvNormal(data[:μ₀], data[:Σ₀])
+        target_dist = MvNormal(data[:μₚ], data[:Σₚ])
+    elseif data[:problem_type] == :linear_regression
+        initial_dist = MvNormal(data[:μ_initial], data[:Σ_initial])
+        Σ = LinReg.posterior_variance(data[:true_ϕ], data[:true_β],
+                                      data[:D].x, data[:Σ_prior])
+        μ = LinReg.posterior_mean(data[:true_ϕ], data[:true_β], data[:D],
+                                      data[:μ_prior], data[:Σ_prior])
+        target_dist = MvNormal(μ, Σ)
+    end
     for q in data[:svgd_results]
         plot_2D_results!(plt, initial_dist, target_dist, q);
     end
@@ -169,19 +183,34 @@ function plot_convergence(data; title="", kwargs...)
     int_plot, norm_plot = plot(title=title), plot();
     results_plot = plot(legend=false);
     plot_convergence!(int_plot, results_plot, norm_plot, data; kwargs...)
-    layout = @layout [ i ; n b ]
-    return plot(int_plot, norm_plot, results_plot, layout=layout)
+    if data[:problem_type]==:linear_regression && length(data[:μ_initial])==2
+        gamma_plot = plot(get(data[:svgd_hist][1], :annealing)[2]);
+        dist_plot = plot_2D_gaussians_results(data)
+        layout = @layout [ i ; n g ; f d ]
+        return plot(int_plot, norm_plot, gamma_plot, results_plot, dist_plot,
+                    layout=layout)
+    else
+        layout = @layout [ i ; n b ]
+        return plot(int_plot, norm_plot, results_plot, layout=layout)
+    end
 end
 
-function plot_convergence!(int_plot, results_plot, norm_plot, data; kwargs...)
+function plot_convergence!(
+    int_plot,
+    results_plot,
+    norm_plot,
+    data,
+    ;kwargs...
+)
     kwargs = Dict(kwargs...)
     size = get(kwargs, :size, (375, 375))
     legend = get(kwargs, :legend, :bottomright)
     ylims = get(kwargs, :ylims, (-Inf, Inf))
+    xlims = get(kwargs, :xlims, (0, Inf))
     lw = get(kwargs, :lw, 3)
     int_lims = get(kwargs, :int_lims, (-Inf, Inf))
 
-    plot_integration!(int_plot, data, ylims=int_lims; kwargs...)
+    plot_integration!(int_plot, data, xlims=xlims, ylims=int_lims; kwargs...)
 
     if data[:problem_type] == :gauss_to_gauss
         plot_2D_gaussians_results!(results_plot, data)
@@ -195,21 +224,28 @@ function plot_convergence!(int_plot, results_plot, norm_plot, data; kwargs...)
     if data[:n_runs] < 4
 		for hist in data[:svgd_hist]
 			plot!(norm_plot, hist[:ϕ_norm], ylims=ylims,
-                  markeralpha=0, label="", title="",
+                  markeralpha=0, label="", title="", xlims=xlims,
                   xticks=0:data[:n_iter]÷4:data[:n_iter], color=colors[1],
                   xlabel="iterations", ylabel="||Δq||");
 		end
     else
         norms = [get(hist, :ϕ_norm)[2] for hist in data[:svgd_hist]]
         plot!(norm_plot, mean(norms), ribbon=std(norms), ylims=ylims,
-              markeralpha=0, label="", title="",
+              markeralpha=0, label="", title="", xlims=xlims,
               xticks=0:data[:n_iter]÷4:data[:n_iter], color=colors[1],
               xlabel="iterations", ylabel="||Δq||");
     end
 end
 
-function plot_integration(data; size=(375,375), legend=:bottomright, lw=3,
-                            ylims=(-Inf,Inf), title="", kwargs...)
+function plot_integration(
+    data,
+    ;size=(375,375),
+    legend=:bottomright,
+    lw=3,
+    ylims=(-Inf,Inf),
+    title="",
+    kwargs...
+)
     plt = plot(size=size, title=title);
     plot_integration!(plt, data; legend=legend, lw=lw, ylims=ylims)
 end
@@ -235,7 +271,8 @@ function plot_integration!(
               label=flow_label);
     end
     if haskey(data, :true_logZ)
-        hline!(plt, [data[:true_logZ]], labels=true_label, color=true_color, ls=:dash);
+        hline!(plt, [data[:true_logZ]], labels=true_label, color=true_color,
+               ls=:dash);
     end
     if haskey(data, :therm_logZ) && !isnothing(data[:therm_logZ])
         println("wtf")
