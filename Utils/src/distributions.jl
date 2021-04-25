@@ -76,7 +76,7 @@ function integrate(Δx::Array, f::Array; kwargs...)
     elseif integration_method == :lower_sum
         int = cumsum( Δx[1:end-1] .* f[2:end])
     elseif integration_method == :trapz
-        mean_f =  f[1:end-1] .- f[2:end]
+        mean_f =  vec(mean([f[1:end-1] f[2:end]], dims=2))
         int = cumsum( Δx[1:end-1] .* mean_f )
     end
     int
