@@ -22,7 +22,7 @@ Fit the samples in q to the distribution corresponding to grad_logp.
 Possible values for dKL_estimator are `:RKHS_norm`, `:KSD`, `:UKSD`; they can be
 combined by putting them in array.
 Possible values for update_method are `:forward_euler`, `:naive_WNES`,
-`:naive_WAG`.
+':scalar_Adam', ':scalar_RMS_prop', ':scalar_adagrad' `:naive_WAG`.
 """
 function svgd_fit(q, grad_logp; kernel, callback=nothing, kwargs...)
     kwargs = Dict(kwargs...)
