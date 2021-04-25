@@ -96,7 +96,7 @@ function estimate_logZ(
     EV::Number,
     int_KL::Union{T, Array{T}}
 ) where T <: Number
-    H₀ .- EV .+ int_KL
+    H₀ .- EV .- int_KL
 end
 
 function estimate_logZ(H₀::Number, EV::Number, hist::MVHistory; kwargs...)

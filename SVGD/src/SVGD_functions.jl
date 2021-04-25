@@ -192,7 +192,7 @@ function compute_dKL(::Val{:KSD}, kernel::Kernel, q; grad_logp, kwargs...)
             dKL += k_mat[i,j] * ( 2*d/h - 4/h^2 * SqEuclidean()(x,y))
         end
     end
-    dKL /= n^2
+    -dKL / (n^2)
 end
 
 function compute_dKL(::Val{:uKSD}, kernel::Kernel, q; grad_logp, kwargs...)
@@ -213,12 +213,12 @@ function compute_dKL(::Val{:uKSD}, kernel::Kernel, q; grad_logp, kwargs...)
         end
     end
     # dKL += sum(k_mat .* ( 2*d/h .- 4/h^2 * pairwise(SqEuclidean(), q)))
-    dKL /= n*(n-1)
+    -dKL / (n*(n-1))
 end
 
 function compute_dKL(::Val{:RKHS_norm}, kernel::Kernel, q; ϕ, kwargs...)
     if size(q)[1] == 1
-        invquad(kernelpdmat(kernel, q), vec(ϕ))
+        - invquad(kernelpdmat(kernel, q), vec(ϕ))
     else
         # this first method tries to flatten the tensor equation
         # invquad(flat_matrix_kernel_matrix(kernel, q), vec(ϕ))
@@ -230,7 +230,7 @@ function compute_dKL(::Val{:RKHS_norm}, kernel::Kernel, q; ϕ, kwargs...)
             for f in eachrow(ϕ)
                 norm += invquad(k_mat, vec(f))
             end
-            return norm
+            return - norm
         catch e
             if e isa PosDefException
                 @show kernel
