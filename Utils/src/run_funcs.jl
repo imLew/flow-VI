@@ -59,8 +59,9 @@ function run_svgd(::Val{:gauss_to_gauss} ;problem_params, alg_params,
     for i in 1:alg_params[:n_runs]
         @info "Run $i/$(alg_params[:n_runs])"
         try
-            q, hist = SVGD.svgd_sample_from_known_distribution( initial_dist,
-                                target_dist; alg_params=alg_params )
+            q, hist = SVGD.svgd_sample_from_known_distribution(
+                        initial_dist, problem_params=problem_params,
+                        target_dist; alg_params=alg_params )
 
             push!(svgd_results, q)
             push!(svgd_hist, hist)
@@ -227,7 +228,7 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
             @info "Run $i/$(alg_params[:n_runs])"
             q = rand(initial_dist, alg_params[:n_particles])
             q, hist = svgd_fit(q, grad_logp, problem_params=problem_params;
-                               alg_params...)
+                               D=D, alg_params...)
 
             push!(svgd_results, q)
             push!(svgd_hist, hist)

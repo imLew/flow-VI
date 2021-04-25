@@ -23,11 +23,11 @@ function grad_logp(d::Distribution, x)
 end
 
 function svgd_sample_from_known_distribution(initial_dist, target_dist;
-                                             alg_params)
+                                             alg_params, kwargs...)
     glp(x) = grad_logp(target_dist, x)
     q = rand( initial_dist, alg_params[:n_particles] )
     if length(size(q)) == 1
         q = reshape(q, (1, length(q)))
     end
-    q, hist = svgd_fit( q, glp; alg_params... )
+    q, hist = svgd_fit( q, glp; alg_params... , kwargs...)
 end
