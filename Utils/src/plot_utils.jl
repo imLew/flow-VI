@@ -2,9 +2,10 @@ using Plots
 using Distributions
 using ColorSchemes
 const colors = ColorSchemes.seaborn_colorblind
-true_color = colors[end-1]
-therm_color = colors[end-2]
-start_color = colors[end-3]
+TRUE_COLOR = colors[end-1]
+THERM_COLOR = colors[end-2]
+START_COLOR = colors[end-3]
+INT_COLOR = colors[end-4]
 
 using Examples
 LogReg = LogisticRegression
@@ -246,8 +247,8 @@ function plot_integration(
     title="",
     kwargs...
 )
-    plt = plot(size=size, title=title);
-    plot_integration!(plt, data; legend=legend, lw=lw, ylims=ylims)
+    plt = plot(size=size, title=title; kwargs...);
+    plot_integration!(plt, data, legend=legend, lw=lw, ylims=ylims; kwargs...)
 end
 
 function plot_integration!(
@@ -257,17 +258,21 @@ function plot_integration!(
     ylims=(-Inf,Inf),
     kwargs...
 )
-    flow_label=get(kwargs, :flow_label, "")
-    true_label=get(kwargs, :true_label, "")
-    therm_label=get(kwargs, :therm_label, "")
-    start_label=get(kwargs, :start_label, "")
+    flow_label = get(kwargs, :flow_label, "")
+    true_label = get(kwargs, :true_label, "")
+    therm_label = get(kwargs, :therm_label, "")
+    start_label = get(kwargs, :start_label, "")
+    therm_color = get(kwargs, :therm_color, THERM_COLOR)
+    int_color = get(kwargs, :int_color, INT_COLOR)
+    true_color = get(kwargs, :true_color, TRUE_COLOR)
+    start_color = get(kwargs, :start_color, TRUE_COLOR)
     plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw,
           ylims=ylims);
     est_logZ = estimate_logZ(data; kwargs...)
     if data[:n_runs] < 5
-        plot!(plt, est_logZ, color=colors[1], label=flow_label);
+        plot!(plt, est_logZ, color=int_color, label=flow_label);
     else
-        plot!(plt, mean(est_logZ), ribbon=std(est_logZ), color=colors[1],
+        plot!(plt, mean(est_logZ), ribbon=std(est_logZ), color=int_color,
               label=flow_label);
     end
     if haskey(data, :true_logZ)
