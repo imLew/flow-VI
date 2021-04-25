@@ -67,19 +67,29 @@ end
 
 function push_to_hist!(hist, q, ϵ, ϕ, i, γₐ, kernel, grad_logp; kwargs...)
     dKL_estimator = get(kwargs, :dKL_estimator, false)
-    push!(hist, :step_sizes, i, ϵ[1])  # only store the actual value not array(value)
+    push!(hist, :step_sizes, i, ϵ[1])
     push!(hist, :annealing, i, γₐ[1])
     push!(hist, :ϕ_norm, i, mean(norm(ϕ)))  # save average vector norm of phi
     if typeof(dKL_estimator) == Symbol
-        push!(hist, dKL_estimator, i, compute_dKL(Val(dKL_estimator), kernel,
-                                                  q, ϕ=ϕ, grad_logp=grad_logp))
+        dKL = compute_dKL(Val(dKL_estimator), kernel, q, ϕ=ϕ, grad_logp=grad_logp)
+        dKL += dKL_annealing_correction(ϕ, grad_logp, q, γₐ)
+        push!(hist, dKL_estimator, i, dKL)
     elseif typeof(dKL_estimator) == Array{Symbol,1}
         for estimator in dKL_estimator
-            push!(hist, estimator, i, compute_dKL(Val(estimator), kernel, q,
-                                                  ϕ=ϕ, grad_logp=grad_logp))
+            dKL = compute_dKL(Val(estimator), kernel, q, ϕ=ϕ, grad_logp=grad_logp)
+            dKL += dKL_annealing_correction(ϕ, grad_logp, q, γₐ)
+            push!(hist, estimator, i, dKL)
         end
     end
     push!(hist, :kernel_width, kernel.transform.s)
+end
+
+function dKL_annealing_correction(ϕ, grad_logp, q, γₐ)
+    c = 0
+    for (xᵢ, ϕᵢ) in zip(eachcol(ϕ), eachcol(q))
+        c += dot(ϕᵢ, grad_logp(xᵢ))
+    end
+    (1-γₐ[1])*c
 end
 
 function calculate_phi_vectorized(kernel, q, grad_logp; kwargs...)
