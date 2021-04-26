@@ -89,7 +89,7 @@ function dKL_annealing_correction(ϕ, grad_logp, q, γₐ)
     for (xᵢ, ϕᵢ) in zip(eachcol(ϕ), eachcol(q))
         c += dot(ϕᵢ, grad_logp(xᵢ))
     end
-    (1-γₐ[1])*c
+    -(1-γₐ[1])*c
 end
 
 function calculate_phi_vectorized(kernel, q, grad_logp; kwargs...)
