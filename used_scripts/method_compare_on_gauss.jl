@@ -1,4 +1,5 @@
 ##Cell
+using DrWatson
 using BSON
 using Distributions
 using Plots
@@ -6,15 +7,30 @@ using StatsPlots
 using KernelFunctions
 using ValueHistories
 using LinearAlgebra
-using DrWatson
 using PrettyTables
 using ColorSchemes
-const colors = ColorSchemes.seaborn_colorblind
+const colors = ColorSchemes.seaborn_colorblind;
 
 using SVGD
 using Utils
 
-# # Comparison of different initial covariances
+## # WNES vs WAG vs Euler
+
+##Cell - load data
+all_data = [
+    BSON.load(n) for n in readdir(datadir("gaussian_to_gaussian",
+                                          "WNESvWAGvEuler"), join=true) ];
+
+##Cell - set up target dir for plots
+target_root = "/home/lew/Documents/BCCN_Master/SVGD-stuff/Thesis/bayesian-inference-thesis/texfiles/"
+plotdir = joinpath(target_root, "plots/gauss/WNESvWAGvEuler/")
+
+##Cell - plot everything to get an overview
+for d in all_data
+    plot_convergence(d)
+end
+
+## # Comparison of different initial covariances
 
 ##Cell - load data
 all_data = [BSON.load(n) for n in readdir(datadir("gaussian_to_gaussian", "covariance"), join=true) ];
@@ -58,7 +74,7 @@ open(table_file, "w") do io
     )
 end
 
-# # Grid search over methods and some parameters
+## # Grid search over methods and some parameters
 ##Cell - load data
 all_data = [BSON.load(n) for n in readdir(datadir("gaussian_to_gaussian", "method_compare"), join=true)];
 all_data = [data for data in all_data if data[:failed_count]<10];
@@ -171,7 +187,7 @@ end
 
 # The smallest step size gave the best results
 
-# # Using trapezoid integration instead of upper Riemann sum
+## # Using trapezoid integration instead of upper Riemann sum
 ##Cell
 target_root = "/home/lew/Documents/BCCN_Master/SVGD-stuff/Thesis/bayesian-inference-thesis/texfiles/"
 plotdir = joinpath(target_root, "plots/gauss/integration_method_compare/")
