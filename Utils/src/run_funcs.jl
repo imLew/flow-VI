@@ -18,7 +18,7 @@ export cmdline_run
 export run_svgd
 export therm_integration
 
-function getMAP!(problem_params, logp, grad_logp, D)
+function getMAP!(problem_params, logp, grad_logp!, D)
     problem_params[:μ_initial] = (
         if problem_params[:problem_type] == :linear_regression
             LinReg.posterior_mean(problem_params[:ϕ], problem_params[:true_β], D,
@@ -33,8 +33,8 @@ function getMAP!(problem_params, logp, grad_logp, D)
    )
 end
 
-function getLaplace!(p, logp, grad_logp, D)
-    getMAP!(p, logp, grad_logp, D)
+function getLaplace!(p, logp, grad_logp!, D)
+    getMAP!(p, logp, grad_logp!, D)
     if p[:problem_type] == :logistic_regression
         y = LogReg.y(D, p[:μ_initial])
         p[:Σ_initial] = inv(Symmetric(
@@ -126,11 +126,11 @@ function run_svgd(::Val{:linear_regression}; problem_params, alg_params,
     grad_logp!(g, w) = g .= grad_logp(w)
 
     if problem_params[:MAP_start]
-        getMAP!(problem_params, logp, grad_logp, D)
+        getMAP!(problem_params, logp, grad_logp!, D)
     end
     if problem_params[:Laplace_start]
         @info "using Laplace_start"
-        getLaplace!(problem_params, logp, grad_logp, D)
+        getLaplace!(problem_params, logp, grad_logp!, D)
         problem_params[:Σ_initial] *= problem_params[:Laplace_factor]
     end
 
@@ -215,9 +215,9 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
     grad_logp!(g, w) = g .= grad_logp(w)
 
     if problem_params[:MAP_start]
-        getMAP!(problem_params, logp, grad_logp, D)
+        getMAP!(problem_params, logp, grad_logp!, D)
     elseif problem_params[:Laplace_start]
-        getLaplace!(problem_params, logp, grad_logp, D)
+        getLaplace!(problem_params, logp, grad_logp!, D)
     end
 
     initial_dist = MvNormal(problem_params[:μ_initial],
