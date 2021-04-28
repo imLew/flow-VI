@@ -46,6 +46,7 @@ function svgd_fit(q, grad_logp; kernel, callback=nothing, kwargs...)
     end
     hist = MVHistory()
     ϕ = zeros(size(q))
+    p = Progress(n_iter, 1)
     for i in 1:n_iter
         isnothing(kernel_cb!) ? nothing : kernel_cb!(kernel, q)
         ϵ = isnothing(step_size_cb) ? [step_size] : [step_size_cb(step_size, i)]
@@ -61,6 +62,7 @@ function svgd_fit(q, grad_logp; kernel, callback=nothing, kwargs...)
             callback(;hist=hist, q=q, ϕ=ϕ, i=i, kernel=kernel,
                      grad_logp=grad_logp, aux_vars=aux_vars, kwargs...)
         end
+        next!(p)
     end
     return q, hist
 end
