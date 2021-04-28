@@ -358,7 +358,7 @@ end
 function run_all()
     files = readdir(projectdir("_research", "tmp"), join=true)
     @info "Number of tmp files to run" length(files)
-    Threads.@threads for (i, file) in collect(enumerate(files))
+    for (i, file) in collect(enumerate(files))
         @info "experiment $i out of $(length(files))"
         try
             run_file(`julia $PROGRAM_FILE run $file`)
@@ -372,8 +372,10 @@ function run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
     params = [ (pp, ap) for pp in dict_list(PROBLEM_PARAMS),
               ap in dict_list(ALG_PARAMS)]
     p = Progress(length(params), 50)
-    Threads.@threads for (i, (pp, ap)) in collect(enumerate(params))
+    for (i, (pp, ap)) in collect(enumerate(params))
         @info "experiment $i out of $(length(params))"
+        @show pp
+        @show ap
         try
             @time run_svgd(problem_params=pp, alg_params=ap, DIRNAME=DIRNAME)
         catch e
