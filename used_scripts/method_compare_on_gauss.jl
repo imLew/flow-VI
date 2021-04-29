@@ -16,19 +16,190 @@ using Utils
 
 ## # WNES vs WAG vs Euler
 
+# PROBLEM_PARAMS = Dict(
+#     :problem_type => [ :gauss_to_gauss ],
+#     :μ₀ => [[0., 0]],
+#     :μₚ => [[0, 0]],
+#     :Σₚ => [[1. 0; 0 1.]],
+#     :Σ₀ => [ 0.1*I(2), 10.0*I(2) ],
+#     :random_seed => [ 0 ],
+# )
+
+# ALG_PARAMS = Dict(
+#     :dKL_estimator => [ :RKHS_norm ],
+#     :n_iter => [2000],
+#     :kernel => [TransformedKernel(SqExponentialKernel(), ScaleTransform(1.))],
+#     :step_size => [0.05, 0.005],
+#     :n_particles => [100],
+#     :update_method => [:forward_euler, :naive_WAG, :naive_WNES],
+#     :α => @onlyif(:update_method == :naive_WAG, [3.1, 4, 7] ),
+#     :c₁ => @onlyif(:update_method == :naive_WNES, [.1, 1, .5] ),
+#     :c₂ => @onlyif(:update_method == :naive_WNES, [.1, 1, .5] ),
+#     :kernel_cb => [median_trick_cb!],
+#     :n_runs => 10,
+# )
+
 ##Cell - load data
-all_data = [
-    BSON.load(n) for n in readdir(datadir("gaussian_to_gaussian",
-                                          "WNESvWAGvEuler"), join=true) ];
+all_data = load_data("gaussian_to_gaussian", "WNESvWAGvEuler");
 
 ##Cell - set up target dir for plots
 target_root = "/home/lew/Documents/BCCN_Master/SVGD-stuff/Thesis/bayesian-inference-thesis/texfiles/"
 plotdir = joinpath(target_root, "plots/gauss/WNESvWAGvEuler/")
+mkpath(plotdir)
+
+##Cell
+function show_params(data)
+    @show data[:update_method]
+    try @show data[:α] catch end
+    try @show data[:c₁] catch end
+    try @show data[:c₂] catch end
+    @show data[:step_size]
+    @show data[:Σ₀]
+end
 
 ##Cell - plot everything to get an overview
 for d in all_data
-    plot_convergence(d)
+    display(plot_integration(d))
+    show_params(d)
+    if readline() == "q"
+        break
+    end
 end
+
+##Cell
+plt1, plt2 = plot(), plot()
+data = filter_by_dict( Dict( :update_method => [:naive_WNES],
+                             :step_size => [0.05],
+                             :Σ₀ => [ 0.1*I(2) ],
+                            ),
+                      all_data);
+make_boxplots(data, legend_keys=[:c₁, :c₂])
+
+keys = [:c₁, :c₂]
+labels = [join(["$(key)=$(d[key])" for key in keys], "; ") for d in data]
+make_boxplots!(plt1, data, xticks=(1:9, labels), xrotation=60, ylabel="log Z",
+               ylims=(0,4.5), title="ϵ = 0.05")
+
+# the pattern in this plot is that WNES performs best if c₁ ≤ c₂, the plots
+# for which this is true are the 5 that are clearly closest to the target
+# it also slightly suggests that larger c₂ also helps (the three plots closest
+# to the target have c₂=1 which was the largest value used in this experiment
+
+data = filter_by_dict( Dict( :update_method => [:naive_WNES],
+                             :step_size => [0.005],
+                             :Σ₀ => [ 0.1*I(2) ],
+                            ),
+                      all_data);
+make_boxplots(data, legend_keys=[:c₁, :c₂])
+labels = [join(["$(key)=$(d[key])" for key in keys], "; ") for d in data]
+make_boxplots!(plt2, data, xticks=(1:9, labels), xrotation=60, ylabel="log Z",
+               ylims=(0,4.5), title="ϵ = 0.005")
+
+# the same pattern exists with the smaller step size with the difference that
+# the fit is now even closer to the true value
+
+plot(plt1, plt2, size=(600,500))
+savefig(joinpath(plotdir, "WNES_S0.1.png"))
+
+##Cell
+plt1, plt2 = plot(), plot()
+data = filter_by_dict( Dict( :update_method => [:naive_WNES],
+                             :step_size => [0.05],
+                             :Σ₀ => [ 10*I(2) ],
+                            ),
+                      all_data);
+
+keys = [:c₁, :c₂]
+labels = [join(["$(key)=$(d[key])" for key in keys], "; ") for d in data]
+make_boxplots!(plt1, data, xticks=(1:9, labels), xrotation=60, ylabel="log Z",
+               ylims=(-5,10), title="ϵ = 0.05")
+
+data = filter_by_dict( Dict( :update_method => [:naive_WNES],
+                             :step_size => [0.005],
+                             :Σ₀ => [ 10*I(2) ],
+                            ),
+                      all_data);
+labels = [join(["$(key)=$(d[key])" for key in keys], "; ") for d in data]
+make_boxplots!(plt2, data, xticks=(1:9, labels), xrotation=60, ylabel="log Z",
+               ylims=(-5,10), title="ϵ = 0.005")
+
+plot(plt1, plt2, size=(600,500))
+savefig(joinpath(plotdir, "WNES_S10.png"))
+
+##Cell
+plt1, plt2 = plot(), plot()
+data = filter_by_dict( Dict( :update_method => [:naive_WAG],
+                             :step_size => [0.05],
+                             :Σ₀ => [ 10*I(2) ],
+                            ),
+                      all_data);
+
+keys = [:α]
+labels = [join(["$(key)=$(d[key])" for key in keys], "; ") for d in data]
+make_boxplots!(plt1, data, xticks=(1:3, labels), xrotation=60, ylabel="log Z",
+               ylims=(-5,10), title="ϵ = 0.05")
+
+data = filter_by_dict( Dict( :update_method => [:naive_WAG],
+                             :step_size => [0.005],
+                             :Σ₀ => [ 10*I(2) ],
+                            ),
+                      all_data);
+labels = [join(["$(key)=$(d[key])" for key in keys], "; ") for d in data]
+make_boxplots!(plt2, data, xticks=(1:3, labels), xrotation=60, ylabel="log Z",
+               ylims=(-5,10), title="ϵ = 0.005")
+
+plot(plt1, plt2, size=(600,500))
+# savefig(joinpath(plotdir, "WNES_S10.png"))
+
+##Cell
+plt1, plt2 = plot(), plot()
+data = filter_by_dict( Dict( :update_method => [:forward_euler],
+                             :step_size => [0.05],
+                             # :Σ₀ => [ 10*I(2) ],
+                            ),
+                      all_data);
+make_boxplots(data)
+
+keys = [:α]
+labels = [join(["$(key)=$(d[key])" for key in keys], "; ") for d in data]
+make_boxplots!(plt1, data, xticks=(1:3, labels), xrotation=60, ylabel="log Z",
+               ylims=(-5,10), title="ϵ = 0.05")
+
+data = filter_by_dict( Dict( :update_method => [:forward_euler],
+                             :step_size => [0.005],
+                             :Σ₀ => [ 10*I(2) ],
+                            ),
+                      all_data);
+labels = [join(["$(key)=$(d[key])" for key in keys], "; ") for d in data]
+make_boxplots!(plt2, data, xticks=(1:3, labels), xrotation=60, ylabel="log Z",
+               ylims=(-5,10), title="ϵ = 0.005")
+
+plot(plt1, plt2, size=(600,500))
+# savefig(joinpath(plotdir, "WNES_S10.png"))
+
+##Cell
+data = filter_by_dict( Dict( :update_method => [:naive_WNES],
+                             :step_size => [0.05],
+                             :Σ₀ => [ 10*I(2) ],
+                            ),
+                      all_data);
+data = filter_by_dict( Dict( :c₁ => [ 1.0 ], :c₂ => [ 0.1 ]), data);
+plot_integration(data[1])
+
+##Cell
+data = filter_by_dict( Dict( :update_method => [:naive_WNES],
+                             :step_size => [0.005],
+                             :Σ₀ => [ 0.1*I(2) ],
+                            ),
+                      all_data);
+make_boxplots(data, legend_keys=[:c₁, :c₂])
+
+
+
+
+
+
+
 
 ## # Comparison of different initial covariances
 
