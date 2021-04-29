@@ -26,6 +26,7 @@ export plot_classes!
 export plot_prediction
 export plot_prediction!
 export make_boxplots
+export make_boxplots!
 
 function plot_1D(initial_dist::Distribution, target_dist::Distribution, q)
     n_bins = length(q) ÷ 5
@@ -147,11 +148,21 @@ function make_legend(labels; kwargs...)
 end
 
 function make_boxplots(data::Array{Any}; legend_keys=[], kwargs...)
+    plt = plot()
+    make_boxplots!(plt, data, legend_keys=legend_keys; kwargs...)
+end
+
+function make_boxplots!(plt, data::Array{Any}; legend_keys=[], kwargs...)
     kwargs = Dict(kwargs...)
     true_label=get(kwargs, :true_label, "")
     therm_label=get(kwargs, :therm_label, "")
     start_label=get(kwargs, :start_label, "")
+    int_color = get(kwargs, :int_color, INT_COLOR)
+    true_color = get(kwargs, :true_color, TRUE_COLOR)
+    therm_color = get(kwargs, :therm_color, THERM_COLOR)
+    start_color = get(kwargs, :start_color, START_COLOR)
     legend_keys = intersect(keys(data[1]), legend_keys)
+    !haskey(kwargs, :xticks) ? kwargs[:xticks] = [] : nothing
     if haskey(kwargs,:labels)
         labels = pop!(kwargs, :labels)
     else
@@ -159,9 +170,10 @@ function make_boxplots(data::Array{Any}; legend_keys=[], kwargs...)
                           for d in data]
     end
     labels = reshape(labels, 1, length(data))
-    plt = boxplot([[est[end] for est in estimate_logZ(d; kwargs...)] for d in data],
-            labels=labels, colors=colors[1:length(data)],
-            legend=:outerright; kwargs...)
+    boxplot!(plt,
+            [[est[end] for est in estimate_logZ(d; kwargs...)] for d in data],
+            labels=labels, legend=:outerright; kwargs...
+           )
     if haskey(data[1], :true_logZ)
         hline!(plt, [data[1][:true_logZ]], label=true_label, ls=:dash,
                colors=true_color)
@@ -265,7 +277,7 @@ function plot_integration!(
     therm_color = get(kwargs, :therm_color, THERM_COLOR)
     int_color = get(kwargs, :int_color, INT_COLOR)
     true_color = get(kwargs, :true_color, TRUE_COLOR)
-    start_color = get(kwargs, :start_color, TRUE_COLOR)
+    start_color = get(kwargs, :start_color, START_COLOR)
     plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw,
           ylims=ylims);
     est_logZ = estimate_logZ(data; kwargs...)
