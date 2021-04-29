@@ -33,4 +33,4 @@ ALG_PARAMS = Dict(
     :n_runs => 10,
 )
 
-run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, "gaussian_to_gaussian/WNESvWAGvEuler")
+run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, "gaussian_to_gaussian/covariance")
