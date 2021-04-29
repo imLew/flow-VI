@@ -8,12 +8,12 @@ using Zygote
 using ForwardDiff
 using PDMats
 
+export load_data
 export get_pdmat
 export geometric_step_size_cb
 export filter_by_dict
 export get_savename
 
-## step_size utils
 function geometric_step_size_cb(step_size, iter, factor, cutoff)
     if iter < cutoff
        return step_size * factor^iter
@@ -21,7 +21,14 @@ function geometric_step_size_cb(step_size, iter, factor, cutoff)
    return step_size * factor^cutoff
 end
 
-## math utils
+function load_data(args...)
+    data = [ BSON.load(n) for n in readdir(datadir(args...), join=true) ]
+    for d in data
+        d[:svgd_hist] = convert(Array{MVHistory}, d[:svgd_hist])
+    end
+    return data
+end
+
 function get_pdmat(K)
     Kmax =maximum(K)
     α = eps(eltype(K))
