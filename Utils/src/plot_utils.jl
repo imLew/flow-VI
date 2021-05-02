@@ -49,11 +49,6 @@ function plot_1D(initial_dist::Distribution, target_dist::Distribution, q)
     return dist_plot
 end
 
-function extrema_2D(f, X, Y)
-    G = [f(z[1], z[2]) for z in hcat([[(x,y) for x in X] for y in Y]...)]
-    return minimum(G), maximum(G)
-end
-
 function plot_2D_results!(
     plt,
     initial_dist::Distribution,

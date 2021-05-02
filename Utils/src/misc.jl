@@ -13,12 +13,33 @@ export get_pdmat
 export geometric_step_size_cb
 export filter_by_dict
 export get_savename
+export show_params
+export saveplot
 
 function geometric_step_size_cb(step_size, iter, factor, cutoff)
     if iter < cutoff
        return step_size * factor^iter
    end
    return step_size * factor^cutoff
+end
+
+function show_params(data::Array)
+    [show_params(d) for d in data]
+    return nothing
+end
+
+function show_params(data::Dict{Symbol, Any})
+    @show data[:update_method]
+    try @show data[:α] catch end
+    try @show data[:γ] catch end
+    try @show data[:β₁] catch end
+    try @show data[:β₂] catch end
+    try @show data[:c₁] catch end
+    try @show data[:c₂] catch end
+    @show data[:n_iter]
+    @show data[:step_size]
+    @show data[:Σ₀]
+    return nothing
 end
 
 function load_data(args...)
