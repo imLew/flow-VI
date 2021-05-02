@@ -49,36 +49,49 @@ function plot_1D(initial_dist::Distribution, target_dist::Distribution, q)
     return dist_plot
 end
 
-function plot_2D_results!(plt, initial_dist::Distribution,
-                          target_dist::Distribution, q)
-    scatter!(plt, q[1,:], q[2,:], legend=false, label="", msw=0.0, alpha=0.5, color=colors[1]);
+function extrema_2D(f, X, Y)
+    G = [f(z[1], z[2]) for z in hcat([[(x,y) for x in X] for y in Y]...)]
+    return minimum(G), maximum(G)
+end
+
+function plot_2D_results!(
+    plt,
+    initial_dist::Distribution,
+    target_dist::Distribution,
+    q
+)
+    scatter!(plt, q[1,:], q[2,:], legend=false, label="",
+             markerstrokewidths=0.0, alpha=0.5, color=colors[1],
+             markersize=1);
     # get range to cover both distributions and the particles
     min_x = minimum([
-                     minimum(q[1]) - 0.2 * abs(minimum(q[1])),
-                     mean(initial_dist)[1] - 3*params(initial_dist)[2][1,1],
-                     mean(target_dist)[1] - 3*params(target_dist)[2][1,1]
-                   ])
+                     minimum(q[1]) - 0.1 * abs(minimum(q[1])),
+                     mean(initial_dist)[1] - params(initial_dist)[2][1,1],
+                     mean(target_dist)[1] - params(target_dist)[2][1,1]
+                    ])
     max_x = maximum([
-                     maximum(q[1]) + 0.2 * abs(maximum(q[1])),
-                    mean(initial_dist)[1] + 3*params(initial_dist)[2][1,1],
-                    mean(target_dist)[1] + 3*params(target_dist)[2][1,1]
-                   ])
+                     maximum(q[1]) + 0.1 * abs(maximum(q[1])),
+                     mean(initial_dist)[1] + params(initial_dist)[2][1,1],
+                     mean(target_dist)[1] + params(target_dist)[2][1,1]
+                    ])
     min_y = minimum([
-                     minimum(q[2]) - 0.2 * abs(minimum(q[2])),
-                    mean(initial_dist)[2] - 3*params(initial_dist)[2][2,2],
-                    mean(target_dist)[2] - 3*params(target_dist)[2][2,2]
-                   ])
+                     minimum(q[2]) - 0.1 * abs(minimum(q[2])),
+                     mean(initial_dist)[2] - params(initial_dist)[2][2,2],
+                     mean(target_dist)[2] - params(target_dist)[2][2,2]
+                    ])
     max_y = maximum([
-                     maximum(q[2]) + 0.2 * abs(maximum(q[2])),
-                    mean(initial_dist)[2] + 3*params(initial_dist)[2][2,2],
-                    mean(target_dist)[2] + 3*params(target_dist)[2][2,2]
-                   ])
-    x = min_x:0.05:max_x
-    y = min_y:0.05:max_y
-    contour!(plt, x, y, (x,y)->pdf(target_dist, [x, y]), color=colors[2],
-             label="", levels=5, msw=0.0, alpha=0.6)
-    contour!(plt, x, y, (x,y)->pdf(initial_dist, [x, y]), color=colors[1],
-             label="", levels=5, msw=0.0, alpha=0.6)
+                     maximum(q[2]) + 0.1 * abs(maximum(q[2])),
+                     mean(initial_dist)[2] + params(initial_dist)[2][2,2],
+                     mean(target_dist)[2] + params(target_dist)[2][2,2]
+                    ])
+    x = min_x:abs(max_x-min_x)/50:max_x
+    y = min_y:abs(max_y-min_y)/50:max_y
+    f(x,y) = pdf(target_dist, [x, y]) / pdf(target_dist, [mean(target_dist)...])
+    g(x,y) = pdf(initial_dist, [x, y]) / pdf(initial_dist, [mean(initial_dist)...])
+    contour!(plt, x, y, f, color=colors[2], label="", levels=5,
+             markerstrokewidths=0.0, alpha=0.6, )
+    contour!(plt, x, y, g, color=colors[1], label="", levels=5,
+             markerstrokewidths=0.0, alpha=0.6, )
     return plt
 end
 
