@@ -18,18 +18,17 @@ PROBLEM_PARAMS = Dict(
 
 ALG_PARAMS = Dict(
     :dKL_estimator => [ :RKHS_norm ],
-    :n_iter => [2000],
+    :n_iter => [1000, 2000],
     :kernel => [TransformedKernel(SqExponentialKernel(), ScaleTransform(1.))],
-    :step_size => [ 0.05, 0.005 ],
-    :n_particles => [100],
-    :update_method => [:forward_euler],
+    :step_size => [ 0.05, 0.001, 0.005 ],
+    :n_particles => [50, 100],
+    :update_method => [:forward_euler, :scalar_Adam, :scalar_adagrad,
+                       @onlyif(:n_iter == 1000, [:scalar_RMS_prop])],
+    :β₁ => @onlyif(:update_method==:scalar_Adam ,[ 0.9 ]),
+    :β₂ => @onlyif(:update_method==:scalar_Adam ,[ 0.999 ]),
+    :γ => @onlyif(:update_method==:scalar_RMS_prop ,[ 0.8, 0.9 ]),
     :kernel_cb => [median_trick_cb!],
-    :annealing_schedule => [ hyperbolic_annealing, linear_annealing, cyclic_annealing],
-    :annealing_params => Dict( :duration => 0.8,
-                               :p => 10,
-                               :C => 5
-                              ),
     :n_runs => 10,
 )
 
-run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, "gaussian_to_gaussian/annealing")
+run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, "gaussian_to_gaussian/gd_variants")
