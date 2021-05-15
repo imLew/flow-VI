@@ -6,7 +6,6 @@ using KernelFunctions
 using LinearAlgebra
 using Random
 using Flux
-# using Zygote
 using ForwardDiff
 using Distances
 using PDMats
@@ -34,6 +33,7 @@ function svgd_fit(q, grad_logp; kernel, callback=nothing, kwargs...)
     update_method = get!(kwargs, :update_method, :forward_euler)
     annealing_schedule = get!(kwargs, :annealing_schedule, nothing)
     annealing_params = get!(kwargs, :annealing_params, [])
+    progress = get(kwargs, :progress, true)
 
     aux_vars = Dict()
     if update_method in [:scalar_adagrad, :scalar_RMS_prop]
@@ -45,11 +45,10 @@ function svgd_fit(q, grad_logp; kernel, callback=nothing, kwargs...)
         aux_vars[:y] = copy(q)
         aux_vars[:qₜ₋₁] = copy(q)
         aux_vars[:qₜ₋₂] = copy(q)
-        # aux_vars[:divϕ] = [0.]
     end
     hist = MVHistory()
     ϕ = zeros(size(q))
-    p = Progress(n_iter, 1)
+    progress ? p = Progress(n_iter, 1) : nothing
     for i in 1:n_iter
         isnothing(kernel_cb!) ? nothing : kernel_cb!(kernel, q)
         ϵ = isnothing(step_size_cb) ? [step_size] : [step_size_cb(step_size, i)]
@@ -63,9 +62,9 @@ function svgd_fit(q, grad_logp; kernel, callback=nothing, kwargs...)
         push_to_hist!(hist, q, ϵ, ϕ, i, γₐ, kernel, grad_logp, aux_vars; kwargs...)
         if !isnothing(callback)
             callback(;hist=hist, q=q, ϕ=ϕ, i=i, kernel=kernel,
-                     grad_logp=grad_logp, aux_vars=aux_vars, kwargs...)
+                     grad_logp=grad_logp, aux_vars..., kwargs...)
         end
-        next!(p)
+        progress ? next!(p) : nothing
     end
     return q, hist
 end
