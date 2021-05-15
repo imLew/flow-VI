@@ -110,7 +110,7 @@ function update!(::Val{:scalar_Adam}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
     ϕ .= calculate_phi_vectorized(kernel, q, grad_logp; kwargs...)
     aux_vars[:mₜ] .= (β₁ .* aux_vars[:mₜ] + (1-β₁) .* ϕ)
     aux_vars[:vₜ] .= β₂ .* aux_vars[:vₜ] + (1-β₂) .* ϕ.^2
-    N = size(ϕ, 1)
+    N = size(ϕ, 2)
     ϵ .= ϵ.*sqrt((1-β₂^iter)./(1-β₁^iter)) ./ mean(sqrt.(aux_vars[:vₜ]))
     q .+= ϵ .* aux_vars[:mₜ]./(1-β₁^iter)
 end
@@ -120,7 +120,7 @@ function update!(::Val{:scalar_RMS_prop}, q, ϕ, ϵ, kernel, grad_logp, aux_vars
     γ = get(kwargs, :γ, false)
     ϕ .= calculate_phi_vectorized(kernel, q, grad_logp; kwargs...)
     aux_vars[:Gₜ] .= γ * norm(ϕ)^2 .+ (1-γ) * aux_vars[:Gₜ]
-    N = size(ϕ, 1)
+    N = size(ϕ, 2)
     ϵ .= N*ϵ/(aux_vars[:Gₜ][1] + 1)
     q .+= ϵ .*ϕ
 end
@@ -129,7 +129,7 @@ function update!(::Val{:scalar_adagrad}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
                  kwargs...)
     ϕ .= calculate_phi_vectorized(kernel, q, grad_logp; kwargs...)
     aux_vars[:Gₜ] .+= norm(ϕ)^2
-    N = size(ϕ, 1)
+    N = size(ϕ, 2)
     ϵ .= N*ϵ/(aux_vars[:Gₜ][1] + 1)
     q .+= ϵ .*ϕ
 end
@@ -199,14 +199,14 @@ end
 
 function calculate_phi_vectorized(kernel, q, grad_logp; kwargs...)
     γₐ = get(kwargs, :γₐ, [1.])
-    n = size(q)[end]
+    N = size(q, 2)
     k_mat = KernelFunctions.kernelmatrix(kernel, q)
     grad_k = kernel_grad_matrix(kernel, q)
     glp_mat = mapreduce( grad_logp, hcat, (eachcol(q)) )
-    if n == 1
+    if N == 1
         ϕ = γₐ .* glp_mat * k_mat
     else
-        ϕ =  1/n * (γₐ .* glp_mat * k_mat + grad_k )
+        ϕ = 1/N * (γₐ .* glp_mat * k_mat + grad_k )
     end
 end
 
@@ -225,7 +225,7 @@ function calculate_phi(kernel, q, grad_logp; kwargs...)
 end
 
 function compute_dKL(::Val{:KSD}, kernel::Kernel, q; grad_logp, kwargs...)
-    n = size(q)[end]
+    N = size(q, 2)
     h = 1/kernel.transform.s[1]^2
     d = size(q)[1]
     k_mat = KernelFunctions.kernelmatrix(kernel, q)
@@ -239,11 +239,11 @@ function compute_dKL(::Val{:KSD}, kernel::Kernel, q; grad_logp, kwargs...)
             dKL += k_mat[i,j] * ( 2*d/h - 4/h^2 * SqEuclidean()(x,y))
         end
     end
-    -dKL / (n^2)
+    -dKL / (N^2)
 end
 
 function compute_dKL(::Val{:uKSD}, kernel::Kernel, q; grad_logp, kwargs...)
-    n = size(q)[end]
+    N = size(q, 2)
     h = 1/kernel.transform.s[1]^2
     d = size(q)[1]
     k_mat = KernelFunctions.kernelmatrix(kernel, q)
@@ -260,7 +260,7 @@ function compute_dKL(::Val{:uKSD}, kernel::Kernel, q; grad_logp, kwargs...)
         end
     end
     # dKL += sum(k_mat .* ( 2*d/h .- 4/h^2 * pairwise(SqEuclidean(), q)))
-    -dKL / (n*(n-1))
+    -dKL / (N*(N-1))
 end
 
 function compute_dKL(::Val{:RKHS_norm}, kernel::Kernel, q; ϕ, kwargs...)
