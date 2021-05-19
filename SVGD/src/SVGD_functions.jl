@@ -137,7 +137,7 @@ function update!(::Val{:scalar_Adam}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
     d, N = size(q)
     h = 1/kernel.transform.s[1]^2
     glp_mat = mapreduce( grad_logp, hcat, eachcol(q) )
-    ∇k = -1 .*kernel_grad_matrix(kernel, q)
+    ∇k = -1 .* kernel_grad_matrix(kernel, q)  # -1 because we need ∇ wrt 2ⁿᵈ arg
     k_mat = KernelFunctions.kernelmatrix(kernel, q)
 
     aux_vars[:𝔼∇ϕₜ₋₁] .= N^2 \ (
@@ -181,41 +181,53 @@ function update!(::Val{:naive_WNES}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
     q .+= ϵ .* ϕ
 end
 
-export WNes_ϕ
 function WNes_ϕ(ϵ, q, qₜ₋₁, kernel, c₁, c₂, grad_logp; kwargs...)
     CΔq = c₁*(c₂-1).*(q.-qₜ₋₁)
-    ϵ.\CΔq .+ calculate_phi(kernel, q.+CΔq, grad_logp; kwargs...)
+    ϵ.\CΔq .+ calculate_phi_vectorized(kernel, q.+CΔq, grad_logp; kwargs...)
 end
 
-export divergence
-divergence(F::Function, x) = sum(diag(ForwardDiff.jacobian(F, x)))
+function divergence(F, X)
+    div = 0
+    for i in 1:length(X)
+        x_top = X[1:i-1]
+        x_bot = X[i+1:end]
+        f(x) = F(vcat(x_top, x, x_bot))[i]
+        div += ForwardDiff.derivative(f, X[i])
+    end
+    return div
+end
 
-export WNes_dKL
 function WNes_dKL(kernel, q, ϕ, grad_logp, aux_vars, ϵ; kwargs...)
     c₁ = get(kwargs, :c₁, false)
     c₂ = get(kwargs, :c₂, false)
     C = c₁*(c₂-1)
-    n = size(q)[end]
+    N = size(q, 2)
     h = 1/kernel.transform.s[1]^2
     d = size(q)[1]
-    t(x, i) = (1+C).*x .+ aux_vars[:qₜ₋₁][:, i]
-    k_mat = KernelFunctions.kernelmatrix(kernel, q)
+    t(x, xₜ₋₁) = (1+C).*x .- xₜ₋₁
+    y = map(t, q, aux_vars[:qₜ₋₁])
     dKL = 0
-    for (i, x) in enumerate(eachcol(q))
-        glp_x = grad_logp(t(x, i))
-        dKL += ϕ[:, i] ⋅ glp_x
-        for (j, y) in enumerate(eachcol(q))
-            dKL += dot( gradient(x->kernel(t(x, i),y), x)[1], grad_logp(y) )
-            dKL += k_mat[i,j] * ( 2*d/h - 4/h^2 * SqEuclidean()(t(x, i),y))
+
+    k_mat = KernelFunctions.kernelmatrix(kernel, q)
+    glp_mat = mapreduce( grad_logp, hcat, eachcol(q) )
+
+    dKL += sum(ϕ'*glp_mat)
+
+    glp_mat = mapreduce( grad_logp, hcat, eachcol(y) )
+    ∇k = kernel_grad_matrix(kernel, y)
+    dKL += sum(∇k'*glp_mat ) / N
+
+    dKL += N \ sum( k_mat .* ( 2*d/h .- 4/h^2 .* pairwise(SqEuclidean(), y) ) )
+
+    for xₜ₋₁ in eachcol(aux_vars[:qₜ₋₁])
+        function ϕ̂(x)
+            CΔq = c₁*(c₂-1).*(x.-xₜ₋₁)
+            ϵ.\CΔq .+ calculate_phi(kernel, x.+CΔq, grad_logp; kwargs...)
         end
-    end
-    for (xₜ₋₁, xₜ₋₂) in zip(eachcol(aux_vars[:qₜ₋₁]), eachcol(aux_vars[:qₜ₋₂]))
-        ϕ̂(x) = WNes_ϕ(ϵ, x, xₜ₋₂, kernel, kwargs[:c₁],
-                      kwargs[:c₂], grad_logp; kwargs...)
         dKL += divergence(ϕ̂, xₜ₋₁)
     end
-    dKL /= n
-    return dKL
+
+    return dKL/N
 end
 
 function update!(::Val{:naive_WAG}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
