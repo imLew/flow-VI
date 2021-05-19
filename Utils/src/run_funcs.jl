@@ -10,8 +10,8 @@ using ThermodynamicIntegration
 using SVGD
 using Utils
 using Examples
-const LinReg = Examples.LinearRegression
-const LogReg = Examples.LogisticRegression
+LinReg = Examples.LinearRegression
+LogReg = Examples.LogisticRegression
 
 export run_single_instance
 export cmdline_run
