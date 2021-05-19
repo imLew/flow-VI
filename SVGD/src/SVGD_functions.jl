@@ -23,8 +23,9 @@ combined by putting them in array.
 Possible values for update_method are `:forward_euler`, `:naive_WNES`,
 ':scalar_Adam', ':scalar_RMS_prop', ':scalar_adagrad' `:naive_WAG`.
 """
-function svgd_fit(q, grad_logp; kernel, callback=nothing, kwargs...)
+function svgd_fit(q, grad_logp; kernel, kwargs...)
     kwargs = Dict(kwargs...)
+    callback = get(kwargs, :callback, nothing)
     n_iter = get(kwargs, :n_iter, 1)
     n_particles = get(kwargs, :n_particles, 1)
     step_size = get(kwargs, :step_size, 1)
@@ -203,11 +204,7 @@ function calculate_phi_vectorized(kernel, q, grad_logp; kwargs...)
     k_mat = KernelFunctions.kernelmatrix(kernel, q)
     grad_k = kernel_grad_matrix(kernel, q)
     glp_mat = mapreduce( grad_logp, hcat, (eachcol(q)) )
-    if N == 1
-        ϕ = γₐ .* glp_mat * k_mat
-    else
-        ϕ = 1/N * (γₐ .* glp_mat * k_mat + grad_k )
-    end
+    ϕ = 1/N * (γₐ .* glp_mat * k_mat .+ grad_k )
 end
 
 function calculate_phi(kernel, q, grad_logp; kwargs...)
@@ -215,51 +212,48 @@ function calculate_phi(kernel, q, grad_logp; kwargs...)
     ϕ = zero(q)
     for (i, xi) in enumerate(eachcol(q))
         for (xj, glp_j) in zip(eachcol(q), glp)
-            d = kernel(xj, xi) * glp_j
+            ϕ[:, i] .+= kernel(xj, xi) * glp_j .+ kernel_gradient(kernel, xj, xi)
+            # d = kernel(xj, xi) * glp_j
             # K = kernel_gradient( kernel, xj, xi )
-            K = gradient( x->kernel(x, xi), xj )[1]
-            ϕ[:, i] .+= d .+ K
+            # ϕ[:, i] .+= d .+ K
         end
     end
-    ϕ ./= size(q)[end]
+    ϕ ./= size(q, 2)
 end
 
 function compute_dKL(::Val{:KSD}, kernel::Kernel, q; grad_logp, kwargs...)
-    N = size(q, 2)
+    d, N = size(q)
     h = 1/kernel.transform.s[1]^2
-    d = size(q)[1]
     k_mat = KernelFunctions.kernelmatrix(kernel, q)
     dKL = 0
     for (i, x) in enumerate(eachcol(q))
         glp_x = grad_logp(x)
         for (j, y) in enumerate(eachcol(q))
-            dKL += k_mat[i,j] * dot(glp_x, grad_logp(y))
-            dKL += dot( gradient(x->kernel(x,y), x)[1], grad_logp(y) )
-            dKL += dot( gradient(y->kernel(x,y), y)[1], glp_x )
-            dKL += k_mat[i,j] * ( 2*d/h - 4/h^2 * SqEuclidean()(x,y))
+            glp_y = grad_logp(y)
+            dKL += (
+                    (glp_x .- (x.-y)./h) ⋅ (glp_y .+ (x.-y)./h) + d/h
+                   ) * k_mat[i,j]
         end
     end
-    -dKL / (N^2)
+    -dKL / N^2
 end
 
 function compute_dKL(::Val{:uKSD}, kernel::Kernel, q; grad_logp, kwargs...)
-    N = size(q, 2)
+    d, N = size(q)
     h = 1/kernel.transform.s[1]^2
-    d = size(q)[1]
     k_mat = KernelFunctions.kernelmatrix(kernel, q)
     dKL = 0
     for (i, x) in enumerate(eachcol(q))
         glp_x = grad_logp(x)
         for (j, y) in enumerate(eachcol(q))
             if i != j
-                dKL += k_mat[i,j] * dot(glp_x, grad_logp(y))
-                dKL += dot( gradient(x->kernel(x,y), x)[1], grad_logp(y) )
-                dKL += dot( gradient(y->kernel(x,y), y)[1], glp_x )
-                dKL += kernel(x,y) * ( 2d/h - 4/h^2 * SqEuclidean()(x,y))
+                glp_y = grad_logp(y)
+                dKL += (
+                        (glp_x .- (x.-y)./h) ⋅ (glp_y .+ (x.-y)./h) + d/h
+                       ) * k_mat[i,j]
             end
         end
     end
-    # dKL += sum(k_mat .* ( 2*d/h .- 4/h^2 * pairwise(SqEuclidean(), q)))
     -dKL / (N*(N-1))
 end
 
@@ -287,26 +281,26 @@ function compute_dKL(::Val{:RKHS_norm}, kernel::Kernel, q; ϕ, kwargs...)
     end
 end
 
-function kernel_grad_matrix(kernel::KernelFunctions.Kernel, q)
-    if size(q)[end] == 1
-        return 0
-    end
-    grad(f,x,y) = gradient(f,x,y)[1]
-	grad_k = mapslices(x -> grad.(kernel, [x], eachcol(q)), q, dims = 1)
-    sum(grad_k, dims=2)
+# not being used, double check before using another kernel
+# function kernel_grad_matrix(kernel::KernelFunctions.Kernel, q)
+#     if size(q)[end] == 1
+#         return 0
+#     end
+#     grad(f,x,y) = gradient(f,x,y)[1]
+# 	grad_k = mapslices(x -> grad.(kernel, [x], eachcol(q)), q, dims = 1)
+#     sum(grad_k, dims=2)
+# end
+
+# gradient of k(x,y) = exp(-‖x-y‖²/2h) with respect to x
+function kernel_gradient(k::TransformedKernel{SqExponentialKernel}, x, y)
+    - k.transform.s[1]^2 .* (x-y) .* k(x,y)
 end
 
 function kernel_grad_matrix(kernel::TransformedKernel{SqExponentialKernel}, q)
-    if size(q)[end] == 1
-        return 0
-    end
-    function kernel_gradient(k::TransformedKernel{SqExponentialKernel}, x, y)
-        - k.transform.s[1]^2 * (x-y) * k(x,y)
-    end
     ∇k = zeros(size(q))
     for (j, y) in enumerate(eachcol(q))
         for (i, x) in enumerate(eachcol(q))
-            ∇k[:,j] += kernel_gradient(kernel, x, y)
+            ∇k[:,j] .+= kernel_gradient(kernel, x, y)
         end
     end
     ∇k
