@@ -4,8 +4,8 @@ using ValueHistories
 using PDMats
 
 using Examples
-const LogReg = LogisticRegression
-const LinReg = LinearRegression
+LogReg = LogisticRegression
+LinReg = LinearRegression
 
 export expectation_V
 export KL_integral
@@ -86,9 +86,31 @@ function integrate(Δx::Number, f::Array; kwargs...)
     integrate( Δx .* ones(size(f)), f; kwargs...)
 end
 
-function KL_integral(hist::MVHistory, method=:RKHS_norm; kwargs...)
-    dKL_estimator = get(kwargs, :dKL_estimator, :RKHS_norm)
-    integrate(get(hist, :step_sizes)[2], get(hist, dKL_estimator)[2]; kwargs...)
+function KL_integral(hist::MVHistory; kwargs...)
+    if get(kwargs, :update_method, false) == :naive_WNES
+        out = integrate(get(hist, :step_sizes)[2], get(hist, :dKL)[2]; kwargs...)
+    elseif get(kwargs, :update_method, false) == :scalar_Adam
+        out = integrate(get(hist, :step_sizes)[2], get(hist, :adam_dKL)[2]; kwargs...)
+    else
+        dKL_estimator = get(kwargs, :dKL_estimator, :RKHS_norm)
+        if typeof(dKL_estimator) == Symbol
+            out = integrate(
+                      get(hist, :step_sizes)[2],
+                      get(hist, dKL_estimator)[2];
+                      kwargs...
+                     )
+        elseif typeof(dKL_estimator) == Array{Symbol,1}
+            out = Dict()
+            for estimator in dKL_estimator
+                out[estimator] = integrate(
+                          get(hist, :step_sizes)[2],
+                          get(hist, estimator)[2];
+                          kwargs...
+                         )
+            end
+        end
+    end
+    return out
 end
 
 function estimate_logZ(
@@ -98,6 +120,19 @@ function estimate_logZ(
     ;kwargs...
 ) where T <: Number
     H₀ .- EV .- int_KL
+end
+
+function estimate_logZ(
+    H₀::Number,
+    EV::Number,
+    int_KLs::Dict
+    ;kwargs...
+    )
+    out = Dict()
+    for (dKL_estimator, estimate) in int_KLs
+        out[dKL_estimator] = estimate_logZ(H₀, EV, estimate)
+    end
+    return out
 end
 
 function estimate_logZ(H₀::Number, EV::Number, hist::MVHistory; kwargs...)
@@ -134,17 +169,17 @@ function estimate_logZ(
     initial_dist = MvNormal(data[:μ_initial], data[:Σ_initial])
     H₀ = entropy(initial_dist)
     EV = expectation_V(data)
-    estimate_logZ(H₀, EV, data[:svgd_hist]; kwargs...)
+    estimate_logZ(H₀, EV, data[:svgd_hist]; data..., kwargs...)
 end
 
 function estimate_logZ(::Val{:gauss_to_gauss}, data::Dict{Symbol,Any}; kwargs...)
     initial_dist = MvNormal(data[:μ₀], data[:Σ₀])
     target_dist = MvNormal(data[:μₚ], data[:Σₚ])
-    estimate_logZ(initial_dist, target_dist, data; kwargs...)
+    estimate_logZ(initial_dist, target_dist, data; data..., kwargs...)
 end
 
 function estimate_logZ(data::Dict{Symbol,Any}; kwargs...)
-    estimate_logZ(Val(data[:problem_type]), data; kwargs...)
+    estimate_logZ(Val(data[:problem_type]), data; data..., kwargs...)
 end
 
 function numerical_expectation(d::Distribution, f; n_samples=10000,

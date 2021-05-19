@@ -288,20 +288,32 @@ function plot_integration!(
     start_color = get(kwargs, :start_color, START_COLOR)
     plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw,
           ylims=ylims);
-    est_logZ = estimate_logZ(data; kwargs...)
-    if data[:n_runs] < 5
-        plot!(plt, est_logZ, color=int_color, label=flow_label);
+    est_logZ = estimate_logZ(data; kwargs...)[1]
+    if typeof(est_logZ) <: Dict{Any, Any}
+        for ((estimator, estimate), ls) in zip(est_logZ, [:solid, :dot, :dash])
+            if data[:n_runs] < 5
+                plot!(plt, estimate, color=int_color,
+                      label=flow_label*" $estimator", ls=ls);
+            else
+                plot!(plt, mean(estimate), ribbon=std(estimate),
+                      color=int_color, label=flow_label*" $estimator", ls=ls);
+            end
+        end
     else
-        plot!(plt, mean(est_logZ), ribbon=std(est_logZ), color=int_color,
-              label=flow_label);
+        if data[:n_runs] < 5
+            plot!(plt, est_logZ, color=int_color, label=flow_label);
+        else
+            plot!(plt, mean(est_logZ), ribbon=std(est_logZ), color=int_color,
+                  label=flow_label);
+        end
     end
     if haskey(data, :true_logZ)
-        hline!(plt, [data[:true_logZ]], labels=true_label, color=true_color,
-               ls=:dash);
+        hline!(plt, [data[:true_logZ]], labels=true_label, color=true_color);
     end
     if haskey(data, :therm_logZ) && !isnothing(data[:therm_logZ])
         println("wtf")
-        hline!(plt, [data[:therm_logZ]], labels=therm_label, color=therm_color, ls=:dot);
+        hline!(plt, [data[:therm_logZ]], labels=therm_label, color=therm_color,
+               ls=:dashdot);
     end
     EV = expectation_V(data)
     if haskey(data, :μ₀)
