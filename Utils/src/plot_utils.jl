@@ -288,7 +288,7 @@ function plot_integration!(
     start_color = get(kwargs, :start_color, START_COLOR)
     plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw,
           ylims=ylims);
-    est_logZ = estimate_logZ(data; kwargs...)[1]
+    est_logZ = estimate_logZ(data; kwargs...)
     if typeof(est_logZ) <: Dict{Any, Any}
         for ((estimator, estimate), ls) in zip(est_logZ, [:solid, :dot, :dash])
             if data[:n_runs] < 5
@@ -311,17 +311,16 @@ function plot_integration!(
         hline!(plt, [data[:true_logZ]], labels=true_label, color=true_color);
     end
     if haskey(data, :therm_logZ) && !isnothing(data[:therm_logZ])
-        println("wtf")
         hline!(plt, [data[:therm_logZ]], labels=therm_label, color=therm_color,
                ls=:dashdot);
     end
     EV = expectation_V(data)
-    if haskey(data, :μ₀)
+    if data[:problem_type] == :gauss_to_gauss
         H₀ = entropy(MvNormal(data[:μ₀], data[:Σ₀]))
     else
         H₀ = entropy(MvNormal(data[:μ_initial], data[:Σ_initial]))
     end
-    hline!(plt, [H₀ - EV], label=start_label, color=start_color)
+    hline!(plt, [H₀ - EV], label=start_label, color=start_color, ls=:dot)
 end
 
 function plot_fit!(plt, data)
