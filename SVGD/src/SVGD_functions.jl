@@ -149,8 +149,9 @@ function update!(::Val{:scalar_Adam}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
     aux_vars[:mₜ₋₁] .= aux_vars[:mₜ]
     aux_vars[:mₜ] .= β₁ .* aux_vars[:mₜ] + (1-β₁) .* ϕ
     aux_vars[:vₜ] .= β₂ .* aux_vars[:vₜ] + (1-β₂) .* ϕ.^2
-    ϵ .= ϵ.*sqrt((1-β₂^iter)./(1-β₁^iter)) ./ mean(sqrt.(aux_vars[:vₜ]))
-    q .+= ϵ .* aux_vars[:mₜ]./(1-β₁^iter)
+    ϵ .= ϵ.*(sqrt((1-β₂^iter)./(1-β₁^iter)) ./ mean(sqrt.(aux_vars[:vₜ]))
+             * 1 ./(1-β₁^iter) )
+    q .+= ϵ .* aux_vars[:mₜ]
 end
 
 function update!(::Val{:scalar_RMS_prop}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
