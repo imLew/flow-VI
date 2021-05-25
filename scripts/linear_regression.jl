@@ -13,7 +13,7 @@ const colors = ColorSchemes.seaborn_colorblind
 using SVGD
 using Utils
 using Examples
-const LinReg = Examples.LinearRegression
+LinReg = Examples.LinearRegression
 
 DIRNAME = "linear_regression/WNES_grid_search"
 

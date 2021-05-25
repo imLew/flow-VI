@@ -10,8 +10,8 @@ using ThermodynamicIntegration
 using SVGD
 using Utils
 using Examples
-const LinReg = Examples.LinearRegression
-const LogReg = Examples.LogisticRegression
+LinReg = Examples.LinearRegression
+LogReg = Examples.LogisticRegression
 
 export run_single_instance
 export cmdline_run
@@ -74,7 +74,23 @@ function run_svgd(::Val{:gauss_to_gauss} ;problem_params, alg_params,
     true_logZ = logZ(target_dist)
     H₀ = Distributions.entropy(initial_dist)
     EV = expectation_V(initial_dist, target_dist)
-    estimated_logZ = [est[end] for est in estimate_logZ(H₀, EV, svgd_hist)]
+    estimated_logZ = if typeof(alg_params[:dKL_estimator]) <: Symbol
+        [est[end] for est in estimate_logZ(H₀, EV, svgd_hist; alg_params...)]
+    elseif alg_params[:update_method] == :naive_WNES
+        [est[end] for est in estimate_logZ(H₀, EV, svgd_hist; alg_params...)]
+    elseif alg_params[:update_method] == :scalar_Adam
+        [est[end] for est in estimate_logZ(H₀, EV, svgd_hist; alg_params...)]
+    elseif typeof(alg_params[:dKL_estimator]) <: Array{Symbol,1}
+            d = Dict()
+            for estimator in alg_params[:dKL_estimator]
+                d[estimator] = [
+                    est[end] for est
+                    in estimate_logZ(H₀, EV, svgd_hist;
+                                     alg_params...)[1][estimator]
+                   ]
+            end
+            d
+    end
     results = merge(alg_params, problem_params,
                     @dict(true_logZ, svgd_results, svgd_hist, failed_count,
                           estimated_logZ)
