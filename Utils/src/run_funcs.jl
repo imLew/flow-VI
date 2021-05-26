@@ -232,8 +232,10 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
 
     if problem_params[:MAP_start]
         getMAP!(problem_params, logp, grad_logp!, D)
-    elseif problem_params[:Laplace_start]
+    end
+    if problem_params[:Laplace_start]
         getLaplace!(problem_params, logp, grad_logp!, D)
+        problem_params[:MAP_start] = true
     end
 
     initial_dist = MvNormal(problem_params[:μ_initial],
