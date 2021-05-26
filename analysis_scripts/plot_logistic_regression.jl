@@ -56,10 +56,7 @@ plotdir = "/home/lew/Documents/BCCN_Master/SVGD-stuff/Thesis/bayesian-inference-
 
 ###### Cell ###### - load data
 all_data = load_data(datadir("bayesian_logistic_regression", "MAPvLaplacevNormal"))
-# for d in all_data
-#     d[:Σ_initial] = PDMat(Symmetric(d[:Σ_initial]))
-#     d[:Σ_prior] = PDMat(Symmetric(d[:Σ_prior]))
-# end
+all_data = filter_by_dict( Dict( :n_particles => [ 50 ]), all_data )
 
 for d in all_data
     display(plot_convergence(d))
@@ -108,3 +105,26 @@ for d in data
     # display(plt)
     # readline()
 end
+
+###### Cell ###### - load data
+all_data = load_data(datadir("bayesian_logistic_regression", "MAPvLaplacevNormal"))
+all_data = filter_by_dict( Dict( :n_particles => [ 100, 200 ]), all_data )
+
+###### Cell ###### -
+# we repeat the experiments for MAP and Laplace start with more particles to see
+# how it affects the estimation
+for d in all_data
+    readline()
+    plt = plot_convergence(d)
+    show_params(d)
+    # Plots.savefig(joinpath(plotdir, "classification_"*get_savename(d))*".png")
+    display(plt)
+end
+
+for d in all_data
+    @show d[:Laplace_start]
+    @show d[:n_particles]
+    @show mean(d[:estimated_logZ])
+    @show std(d[:estimated_logZ])
+end
+
