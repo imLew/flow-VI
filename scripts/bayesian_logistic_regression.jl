@@ -4,8 +4,8 @@ using KernelFunctions
 using LinearAlgebra
 
 using Utils
-using SVGD
-using Examples
+# using SVGD
+# using Examples
 
 DIRNAME = "bayesian_logistic_regression/MAPvLaplacevNormal"
 
@@ -13,16 +13,16 @@ ALG_PARAMS = Dict(
     :update_method => [ :forward_euler ],
     :kernel => [ TransformedKernel(SqExponentialKernel(), ScaleTransform(1.)) ],
     :kernel_cb => [ median_trick_cb! ],
-    :step_size => [ 0.01, 0.001 ],
+    :step_size => [ 0.001 ],
     :n_iter => [ 1000 ],
-    :n_particles => [ 50 ],
+    :n_particles => [ 100, 200 ],
     :n_runs => [ 10 ],
     :dKL_estimator => [ :RKHS_norm ],
     )
 
 PROBLEM_PARAMS = Dict(
     :problem_type => [ :logistic_regression ],
-    :MAP_start => [  true, false ],
+    :MAP_start => [ true ],
     :Laplace_start => [ false,  true ],
     :n_dim => [ 2 ],
     :n₀ => [ 50 ],
@@ -36,8 +36,8 @@ PROBLEM_PARAMS = Dict(
     :μ_initial => [ [1., 1, 1] ],
     :Σ_initial => [ I(3) ],
     :therm_params => [Dict(
-                          :nSamples => 3000,
-                          :nSteps => 30
+                          :nSamples => 4000,
+                          :nSteps => 40
                          )],
     :random_seed => [ 0 ],
 )
