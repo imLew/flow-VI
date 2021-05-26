@@ -14,7 +14,6 @@ export geometric_step_size_cb
 export filter_by_dict
 export get_savename
 export show_params
-export saveplot
 
 function geometric_step_size_cb(step_size, iter, factor, cutoff)
     if iter < cutoff
@@ -38,7 +37,15 @@ function show_params(data::Dict{Symbol, Any})
     try @show data[:c₂] catch end
     @show data[:n_iter]
     @show data[:step_size]
-    @show data[:Σ₀]
+    if data[:problem_type] == :logistic_regression
+        @show data[:Σ₀]
+        @show data[:Σ_initial]
+        @show data[:Σ_prior]
+        @show data[:Laplace_start]
+        @show data[:MAP_start]
+    elseif data[:problem_type] == :gauss_to_gauss
+        @show data[:Σ₀]
+    end
     return nothing
 end
 

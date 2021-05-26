@@ -57,11 +57,13 @@ function expectation_V(::Val{:linear_regression}, data)
 end
 
 function expectation_V(::Val{:logistic_regression}, data)
-    expectation_V( MvNormal(data[:μ_initial], data[:Σ_initial]),
-                   w -> -LogReg.log_likelihood(data[:D], w)
-                        - logpdf(MvNormal(data[:μ_prior],
-                                          data[:Σ_prior]), w)
-                   )
+    expectation_V(
+                  MvNormal(data[:μ_initial], data[:Σ_initial]),
+                  w -> (
+                        -LogReg.log_likelihood(data[:D], w)
+                        - logpdf(MvNormal(data[:μ_prior], data[:Σ_prior]), w)
+                       )
+                 )
 end
 
 function expectation_V(data::Dict{Symbol,Any})
