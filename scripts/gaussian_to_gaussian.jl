@@ -1,6 +1,5 @@
 using DrWatson
 @quickactivate
-using KernelFunctions
 using LinearAlgebra
 
 using Utils
