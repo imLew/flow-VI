@@ -390,7 +390,7 @@ function run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
     params = [ (pp, ap) for pp in dict_list(PROBLEM_PARAMS),
               ap in dict_list(ALG_PARAMS)]
     p = Progress(length(params), 50)
-    for (i, (pp, ap)) in collect(enumerate(params))
+    Threads.@threads for (i, (pp, ap)) in collect(enumerate(params))
         @info "experiment $i out of $(length(params))"
         @show pp
         @show ap
