@@ -7,15 +7,91 @@ using StatsPlots
 using KernelFunctions
 using ValueHistories
 using LinearAlgebra
-using PrettyTables
+# using PrettyTables
 using ColorSchemes
 const colors = ColorSchemes.seaborn_colorblind;
 
-using SVGD
+# using SVGD
 using Utils
 
 saveplot(f) = (savefig ∘ joinpath)(plotdir, f)
 
+## Search for step size, #particles and #iter for following experiments
+###### Cell ###### -
+
+# PROBLEM_PARAMS = Dict(
+#     :problem_type => [ :gauss_to_gauss ],
+#     :μ₀ => [[0., 0]],
+#     :μₚ => [[0, 0]],
+#     :Σₚ => [[1. 0; 0 1.]],
+#     :Σ₀ => [ 0.1*I(2), 10.0*I(2), ],
+#     :random_seed => [ 0 ],
+# )
+
+# ALG_PARAMS = Dict(
+#     :dKL_estimator => [ :RKHS_norm ],
+#     :n_iter => [1000, 2000],
+#     :kernel => [TransformedKernel(SqExponentialKernel(), ScaleTransform(1.))],
+#     :step_size => [ 0.05, 0.001, 0.005 ],
+#     :n_particles => [50, 100, 200],
+#     :update_method => [ :forward_euler ],
+#     :kernel_cb => [median_trick_cb!],
+#     :n_runs => 10,
+# )
+
+###### Cell ###### -
+all_data = load_data( "gaussian_to_gaussian/initial_grid" )
+
+###### Cell ###### -
+data = filter_by_dict( Dict(:n_iter => [1000]), all_data)
+for d in data
+    show_params(d)
+    display(plot_integration(d))
+    readline()
+end
+# 0.001 and 100 did not converge
+# 0.005 and 100 did not converge
+# 0.05 and 100 overshot but didn't flatten out
+# for 200 particles none of the step sizes converged
+# except 0.05 with the narrow initial distribution
+# for 50 particles 0.05 converged in both cases but the others still didn't
+
+###### Cell ###### -
+data = filter_by_dict( Dict(:step_size => [0.001]), all_data)
+for d in data
+    show_params(d)
+    display(plot_convergence(d))
+    readline()
+end
+# none of these look converged
+
+data = filter_by_dict( Dict(:step_size => [0.005]), all_data)
+for d in data
+    show_params(d)
+    display(plot_convergence(d))
+    readline()
+end
+# 1000i; 100p look OK-ish for narrow initial
+# same for 200p and 50p
+# for 2000i
+# 100p wide did not converge; narrow looks close
+# same for 200p
+# for 50p wide did not reach the target while narrow did and overshot without
+# flatting
+
+data = filter_by_dict( Dict(:step_size => [0.05]), all_data)
+for d in data
+    show_params(d)
+    display(plot_convergence(d))
+    readline()
+end
+
+###### Cell ###### -
+###### Cell ###### -
+###### Cell ###### -
+###### Cell ###### -
+###### Cell ###### -
+###### Cell ###### -
 ## Cell  WNES vs WAG vs Euler - params
 
 # PROBLEM_PARAMS = Dict(
