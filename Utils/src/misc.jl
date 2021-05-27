@@ -36,6 +36,7 @@ function show_params(data::Dict{Symbol, Any})
     try @show data[:c₁] catch end
     try @show data[:c₂] catch end
     @show data[:n_iter]
+    @show data[:n_particles]
     @show data[:step_size]
     if data[:problem_type] == :logistic_regression
         @show data[:Σ₀]
