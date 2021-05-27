@@ -1,6 +1,5 @@
 using DrWatson
 @quickactivate
-using KernelFunctions
 using LinearAlgebra
 using AdvancedHMC
 
@@ -22,7 +21,6 @@ ALG_PARAMS = Dict(
     :α => @onlyif(:update_method == :naive_WAG, [3, 4, 7, 10] ),
     :c₁ => @onlyif(:update_method == :naive_WNES, [.1, 1, 5] ),
     :c₂ => @onlyif(:update_method == :naive_WNES, [.1, 1, 5] ),
-    :kernel => [ TransformedKernel(SqExponentialKernel(), ScaleTransform(1.)) ],
     :kernel_cb => [ median_trick_cb! ],
     :step_size => [ 0.001 ],
     :n_iter => [ 1000 ],

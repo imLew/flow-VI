@@ -1,6 +1,5 @@
 using DrWatson
 @quickactivate
-using KernelFunctions
 using LinearAlgebra
 
 using SVGD
@@ -19,7 +18,6 @@ PROBLEM_PARAMS = Dict(
 ALG_PARAMS = Dict(
     :dKL_estimator => [ :RKHS_norm ],
     :n_iter => [2000],
-    :kernel => [TransformedKernel(SqExponentialKernel(), ScaleTransform(1.))],
     :step_size => [ 0.05, 0.005 ],
     :n_particles => [100],
     :update_method => [:forward_euler, :naive_WAG, :naive_WNES],
