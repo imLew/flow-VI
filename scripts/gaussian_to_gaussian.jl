@@ -13,17 +13,18 @@ PROBLEM_PARAMS = Dict(
     :μₚ => [[0, 0]],
     :Σₚ => [[1. 0; 0 1.]],
     :Σ₀ => [ 0.1*I(2), 10.0*I(2), ],
+    # :Σ₀ => [ 0.001*I(2), 0.01*I(2), 0.1*I(2), 10.0*I(2), 100.0*I(2), 1000.0*I(2), ],
     :random_seed => [ 0 ],
 )
 
 ALG_PARAMS = Dict(
     :dKL_estimator => [ :RKHS_norm ],
-    :n_iter => [1000, 2000],
-    :kernel => [TransformedKernel(SqExponentialKernel(), ScaleTransform(1.))],
-    :step_size => [ 0.05, 0.001, 0.005 ],
-    :n_particles => [50, 100, 200],
+    :n_iter => [ 3000, 4000 ],
+    :kernel => [ TransformedKernel(SqExponentialKernel(), ScaleTransform(1.)) ],
+    :step_size => [ 0.01, 0.005 ],
+    :n_particles => [ 100, 200 ],
     :update_method => [ :forward_euler ],
-    :kernel_cb => [median_trick_cb!],
+    :kernel_cb => [ median_trick_cb! ],
     :n_runs => 10,
 )
 
