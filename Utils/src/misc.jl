@@ -45,7 +45,7 @@ function show_params(data::Dict{Symbol, Any})
 end
 
 function load_data(args...)
-    data = [ BSON.load(n) for n in readdir(datadir(args...), join=true) ]
+    data = [ BSON.load(n) for n in readdir(gdatadir(args...), join=true) ]
     for d in data
         d[:svgd_hist] = convert(Array{MVHistory}, d[:svgd_hist])
     end
