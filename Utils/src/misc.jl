@@ -14,6 +14,9 @@ export geometric_step_size_cb
 export filter_by_dict
 export get_savename
 export show_params
+export gdatadir
+
+gdatadir(args...) = projectdir("../data", args...)
 
 function geometric_step_size_cb(step_size, iter, factor, cutoff)
     if iter < cutoff
@@ -51,7 +54,7 @@ function show_params(data::Dict{Symbol, Any})
 end
 
 function load_data(args...)
-    data = [ BSON.load(n) for n in readdir(datadir(args...), join=true) ]
+    data = [ BSON.load(n) for n in readdir(gdatadir(args...), join=true) ]
     for d in data
         d[:svgd_hist] = convert(Array{MVHistory}, d[:svgd_hist])
     end
