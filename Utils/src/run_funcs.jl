@@ -386,7 +386,7 @@ function run_all()
     end
 end
 
-function run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
+function run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME, save=true)
     params = [ (pp, ap) for pp in dict_list(PROBLEM_PARAMS),
               ap in dict_list(ALG_PARAMS)]
     p = Progress(length(params), 50)
@@ -395,7 +395,8 @@ function run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
         @show pp
         @show ap
         try
-            @time run_svgd(problem_params=pp, alg_params=ap, DIRNAME=DIRNAME)
+            @time run_svgd(problem_params=pp, alg_params=ap,
+                           DIRNAME=DIRNAME, save=save)
         catch e
             @error "Something went wrong" exception=(e, catch_backtrace())
         end
