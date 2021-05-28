@@ -97,7 +97,7 @@ function run_svgd(::Val{:gauss_to_gauss} ;problem_params, alg_params,
                    )
     if save
         file_prefix = savename( merge(problem_params, alg_params) )
-        tagsave(datadir(DIRNAME, file_prefix * ".bson"), results, safe=true,
+        tagsave(gdatadir(DIRNAME, file_prefix * ".bson"), results, safe=true,
                 storepatch=true)
     end
     return results
@@ -182,7 +182,7 @@ function run_svgd(::Val{:linear_regression}; problem_params, alg_params,
                     @dict(true_logZ, estimated_logZ, therm_logZ,
                           svgd_results, svgd_hist, D, failed_count))
     if save
-        tagsave(datadir(DIRNAME, file_prefix * ".bson"), results,
+        tagsave(gdatadir(DIRNAME, file_prefix * ".bson"), results,
                 safe=true, storepatch = false)
     end
     return results
@@ -272,7 +272,7 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
             delete!(savenamedict, :Laplace_start)
         end
         file_prefix = savename( savenamedict )
-        tagsave(datadir(DIRNAME, file_prefix * ".bson"), results,
+        tagsave(gdatadir(DIRNAME, file_prefix * ".bson"), results,
                 safe=true, storepatch = false)
     end
     return results
