@@ -3,7 +3,6 @@ using DrWatson
 
 using BSON
 using LinearAlgebra
-using KernelFunctions
 using Plots
 using Distributions
 using ValueHistories
@@ -41,7 +40,6 @@ PROBLEM_PARAMS = Dict(
 
 ALG_PARAMS = Dict(
     :n_iter => [ 1000 ],
-    :kernel => [ TransformedKernel(SqExponentialKernel(), ScaleTransform(1.)) ],
     :step_size => [ 0.010, 0.015 ],
     :n_particles => [ 50 ],
     :update_method => [ :naive_WNES],

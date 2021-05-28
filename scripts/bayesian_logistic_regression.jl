@@ -1,6 +1,5 @@
 using DrWatson
 @quickactivate
-using KernelFunctions
 using LinearAlgebra
 
 using Utils
@@ -11,7 +10,6 @@ DIRNAME = "bayesian_logistic_regression/MAPvLaplacevNormal"
 
 ALG_PARAMS = Dict(
     :update_method => [ :forward_euler ],
-    :kernel => [ TransformedKernel(SqExponentialKernel(), ScaleTransform(1.)) ],
     :kernel_cb => [ median_trick_cb! ],
     :step_size => [ 0.001 ],
     :n_iter => [ 1000 ],

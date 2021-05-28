@@ -23,7 +23,8 @@ combined by putting them in array.
 Possible values for update_method are `:forward_euler`, `:naive_WNES`,
 ':scalar_Adam', ':scalar_RMS_prop', ':scalar_adagrad' `:naive_WAG`.
 """
-function svgd_fit(q, grad_logp; kernel, kwargs...)
+function svgd_fit(q, grad_logp; kwargs...)
+    kernel = TransformedKernel(SqExponentialKernel(), ScaleTransform(1.))
     kwargs = Dict(kwargs...)
     callback = get(kwargs, :callback, nothing)
     n_iter = get(kwargs, :n_iter, 1)
