@@ -7,11 +7,9 @@ using StatsPlots
 using KernelFunctions
 using ValueHistories
 using LinearAlgebra
-# using PrettyTables
 using ColorSchemes
 const colors = ColorSchemes.seaborn_colorblind;
 
-# using SVGD
 using Utils
 
 saveplot(f) = (savefig ∘ joinpath)(plotdir, f)
@@ -56,7 +54,7 @@ end
 # except 0.05 with the narrow initial distribution
 # for 50 particles 0.05 converged in both cases but the others still didn't
 
-###### Cell ###### -
+###### Cell ###### - plots by step size
 data = filter_by_dict( Dict(:step_size => [0.001]), all_data)
 for d in data
     show_params(d)
@@ -85,11 +83,147 @@ for d in data
     display(plot_convergence(d))
     readline()
 end
+# 1000i
+# 100p is close to true value but not really converged for wide initial,
+# for narrow it is good
+# same for 200p, though for wide Σ it's further off converged
+# for 50 both looks decently converged
+# 2000i
+# 100p looks converged in both conditions
+# 200p actually looks decent too, though narrow has huge variance in logZ
+# 50 is obviously well converged in both conditions
+
+###### Cell ###### - follow up with more iterations for higher particle counts and smaller step_size
+all_data = load_data( "gaussian_to_gaussian/initial_grid_follow_up" )
+# PROBLEM_PARAMS = Dict(
+#     :problem_type => [ :gauss_to_gauss ],
+#     :μ₀ => [[0., 0]],
+#     :μₚ => [[0, 0]],
+#     :Σₚ => [[1. 0; 0 1.]],
+#     :Σ₀ => [ 0.1*I(2), 10.0*I(2), ],
+#     :random_seed => [ 0 ],
+# )
+
+# ALG_PARAMS = Dict(
+#     :dKL_estimator => [ :RKHS_norm ],
+#     :n_iter => [ 3000, 4000 ],
+#     :step_size => [ 0.01, 0.005 ],
+#     :n_particles => [ 100, 200 ],
+#     :update_method => [ :forward_euler ],
+#     :kernel_cb => [ median_trick_cb! ],
+#     :n_runs => 10,
+# )
+
+###### Cell ###### - check convergence by step size
+data = filter_by_dict( Dict(:step_size => [0.005]), all_data)
+for d in data
+    show_params(d)
+    display(plot_convergence(d))
+    readline()
+end
+# 100p narrow looks close to converged
+# wide still didn't
+# same story for 200p
+
+data = filter_by_dict( Dict(:step_size => [0.01]), all_data)
+for d in data
+    show_params(d)
+    display(plot_convergence(d))
+    readline()
+end
+# 3000i
+# 100p wide didn't converge, though it looks close
+# narrow did converge
+# same for 200p
+# and same for 4000
+
+###### Cell ###### - combine grid search data
+first_data = load_data( "gaussian_to_gaussian/initial_grid" );
+second_data = load_data( "gaussian_to_gaussian/initial_grid_follow_up" );
+all_data = copy([first_data... second_data...]);
+# the smallest step size 0.001 was too small to be useful, so it is not considered
 
 ###### Cell ###### -
+data = filter_by_dict( Dict(:n_particles=>[50], :step_size=>[0.005]), all_data)
+vars = []
+for d in data
+    v = var(d[:estimated_logZ])
+    rel_err = abs(d[:true_logZ]-mean(d[:estimated_logZ]))
+    push!(vars, [d[:Σ₀], d[:n_iter], v, rel_err])
+end
+
+###### Cell ###### - boxplots 10I
+function compare_by_iter(step_size, n_particles, cov_fac, data)
+    data = filter_by_dict( Dict(:Σ₀=>[cov_fac*I(2)]), data)
+    data = filter_by_dict( Dict(:step_size=>[step_size]), data)
+    data = filter_by_dict( Dict(:n_particles=>[n_particles]), data)
+    sort!(data, by=d->d[:n_iter])
+    labels = [join(["$(key)=$(d[key])" for key in [:n_iter]], "; ") for d in data]
+    make_boxplots(data, xticks=(1:9, labels), xrotation=60, ylabel="log Z")
+end
+
+###### Cell ###### - boxplots 10I
+function compare_by_particles(step_size, n_iter, cov_fac, data)
+    data = filter_by_dict( Dict(:Σ₀=>[cov_fac*I(2)]), data)
+    data = filter_by_dict( Dict(:step_size=>[step_size]), data)
+    data = filter_by_dict( Dict(:n_iter=>[n_iter]), data)
+    sort!(data, by=d->d[:n_particles])
+    labels = ["$(d[:n_particles])" for d in data]
+    bplt = make_boxplots(data, xticks=(1:9, labels), xrotation=60,
+                         ylabel="log Z", colour=[colors[1] colors[2] colors[3]])
+    plt = plot();
+    for (i, d) in enumerate(data)
+        plot_integration!(plt, d, int_color=colors[i], flow_label=labels[i],
+                          ylims=ylims(bplt));
+    end
+    return plot(plt, bplt, layout=grid(1,2, widths=[0.7, 0.3]))
+end
+
+###### Cell ######
+compare_by_iter(0.05, 200, 10.0)
+compare_by_iter(0.05, 100, 0.1)
+compare_by_iter(0.05, 50, 0.1)
+
+###### Cell ######
+compare_by_iter(0.05, 200, 10.0)
+compare_by_iter(0.05, 100, 10.0)
+compare_by_iter(0.05, 50, 10.0)
+
+###### Cell ######
+compare_by_particles(0.05, 1000, 0.1)
+
+# there is very extreme outlier for 200 particles which is messing up the variance
+data = filter_by_dict( Dict(:n_particles=>[200],
+                            :Σ₀=>[0.1*I(2)],
+                            :step_size=>[0.05]), all_data)
+remove_run!(data, 2)
+
+###### Cell ######
+compare_by_particles(0.05, 1000, 0.1, all_data)
+compare_by_particles(0.05, 2000, 0.1, all_data)
+compare_by_particles(0.05, 3000, 0.1, all_data)
+compare_by_particles(0.05, 4000, 0.1, all_data)
+
+###### Cell ######
+compare_by_particles(0.05, 1000, 10.0, all_data)
+compare_by_particles(0.05, 2000, 10.0, all_data)
+compare_by_particles(0.05, 3000, 10.0, all_data)
+compare_by_particles(0.05, 4000, 10.0, all_data)
+
 ###### Cell ###### -
+# there is little difference in the estimation quality
+# when using more particles
+# the main difference is that the estimates are lower with more particles
+# because the algorithm has not fully converged
+# these results suggest that for logZ estimation taking 50 particles with 1000
+# iterations is good enough
+
 ###### Cell ###### -
+
 ###### Cell ###### -
+
+###### Cell ###### -
+
 ###### Cell ###### -
 ###### Cell ###### -
 ## Cell  WNES vs WAG vs Euler - params
