@@ -12,9 +12,11 @@ const colors = ColorSchemes.seaborn_colorblind;
 
 using Utils
 
+plotdir = "/home/lew/Documents/BCCN_Master/SVGD-stuff/Thesis/bayesian-inference-thesis/texfiles/plots/gauss"
 saveplot(f) = (savefig ∘ joinpath)(plotdir, f)
 
 ## Search for step size, #particles and #iter for following experiments
+plotdir *= "/particles/"
 ###### Cell ###### -
 
 # PROBLEM_PARAMS = Dict(
@@ -153,13 +155,14 @@ for d in data
 end
 
 ###### Cell ###### - boxplots 10I
-function compare_by_iter(step_size, n_particles, cov_fac, data)
+function compare_by_iter(step_size, n_particles, cov_fac, data; kwargs...)
     data = filter_by_dict( Dict(:Σ₀=>[cov_fac*I(2)]), data)
     data = filter_by_dict( Dict(:step_size=>[step_size]), data)
     data = filter_by_dict( Dict(:n_particles=>[n_particles]), data)
     sort!(data, by=d->d[:n_iter])
-    labels = [join(["$(key)=$(d[key])" for key in [:n_iter]], "; ") for d in data]
-    make_boxplots(data, xticks=(1:9, labels), xrotation=60, ylabel="log Z")
+    labels = [join(["$(d[key])" for key in [:n_iter]], "; ") for d in data]
+    make_boxplots(data, xticks=(1:9, labels), xrotation=60, ylabel="log Z",
+                  title="$n_particles"; kwargs...)
 end
 
 ###### Cell ###### - boxplots 10I
@@ -179,15 +182,18 @@ function compare_by_particles(step_size, n_iter, cov_fac, data)
     return plot(plt, bplt, layout=grid(1,2, widths=[0.7, 0.3]))
 end
 
-###### Cell ######
-compare_by_iter(0.05, 200, 10.0)
+###### Cell ###### - boxplots by iter for 0.1*I
+compare_by_iter(0.05, 200, 0.1)
 compare_by_iter(0.05, 100, 0.1)
 compare_by_iter(0.05, 50, 0.1)
 
-###### Cell ######
-compare_by_iter(0.05, 200, 10.0)
-compare_by_iter(0.05, 100, 10.0)
-compare_by_iter(0.05, 50, 10.0)
+###### Cell ###### - boxplots by iter for 10*I
+compare_by_iter(0.05, 200, 10.0, all_data, ylims=(-5,6), size=(300,300))
+saveplot("iter_200part_s10.png")
+compare_by_iter(0.05, 100, 10.0, all_data, ylims=(-5,6), size=(300,300))
+saveplot("iter_100part_s10.png")
+compare_by_iter(0.05, 50, 10.0, all_data, ylims=(-5,6), size=(300,300))
+saveplot("iter_50part_s10.png")
 
 ###### Cell ######
 compare_by_particles(0.05, 1000, 0.1)
@@ -199,10 +205,36 @@ data = filter_by_dict( Dict(:n_particles=>[200],
 remove_run!(data, 2)
 
 ###### Cell ######
-compare_by_particles(0.05, 1000, 0.1, all_data)
-compare_by_particles(0.05, 2000, 0.1, all_data)
-compare_by_particles(0.05, 3000, 0.1, all_data)
-compare_by_particles(0.05, 4000, 0.1, all_data)
+data = filter_by_dict( Dict(:Σ₀=>[0.1*I(2)]), all_data);
+data = filter_by_dict( Dict(:step_size=>[0.05]), data);
+for N in [1000, 2000, 3000, 4000]
+    Ndata = filter_by_dict( Dict(:n_iter=>[N]), data);
+    sort!(Ndata, by=d->d[:n_particles]);
+    labels = ["$(d[:n_particles])" for d in Ndata];
+    bplt = make_boxplots(Ndata, xticks=(1:9, labels), xrotation=60,
+                         ylabel="log Z", colour=[colors[1] colors[2] colors[3]],
+                         size=(200,200));
+    saveplot("particles_s01_$(N)iter.png");
+end
+
+data = filter_by_dict( Dict(:Σ₀=>[0.1*I(2)]), all_data);
+data = filter_by_dict( Dict(:step_size=>[0.05]), data);
+plt = plot();
+
+data2 = filter_by_dict( Dict(:n_iter=>[2000], :n_particles=>[50]), data);
+for (i, d) in enumerate(data2)
+    plot_integration!(plt, d, int_color=colors[i], flow_label="50",
+                      size=(600,200));
+end
+display(plt)
+
+data4 = filter_by_dict( Dict(:n_iter=>[4000]), data);
+for (i, (l,d)) in enumerate(zip(["100", "200"], data4))
+    plot_integration!(plt, d, int_color=colors[i+1], flow_label=l,
+                      size=(600,200));
+end
+display(plt)
+saveplot("particles_s01_integration.png")
 
 ###### Cell ######
 compare_by_particles(0.05, 1000, 10.0, all_data)
