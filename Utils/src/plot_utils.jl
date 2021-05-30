@@ -183,11 +183,12 @@ function make_boxplots!(plt, data::Array{Any}; legend_keys=[], kwargs...)
             labels=labels, legend=:outerright; kwargs...
            )
     if haskey(data[1], :true_logZ)
-        hline!(plt, [data[1][:true_logZ]], label=true_label, color=true_color)
+        hline!(plt, [data[1][:true_logZ]], label=true_label, color=true_color,
+              lw=2)
     end
     if haskey(data[1], :therm_logZ)
         hline!(plt, [data[1][:therm_logZ]], label=therm_label, ls=:dot,
-               colors=therm_color)
+               colors=therm_color, lw=2)
     end
     EV = expectation_V(data[1])
     if data[1][:problem_type] == :gauss_to_gauss
@@ -195,7 +196,7 @@ function make_boxplots!(plt, data::Array{Any}; legend_keys=[], kwargs...)
     else
         H₀ = entropy(MvNormal(data[1][:μ_initial], data[1][:Σ_initial]))
     end
-    hline!(plt, [H₀ - EV], label=start_label, color=start_color, ls=:dot)
+    hline!(plt, [H₀ - EV], label=start_label, color=start_color, ls=:dot, lw=2)
     return plt
 end
 
