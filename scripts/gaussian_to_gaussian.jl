@@ -9,13 +9,13 @@ PROBLEM_PARAMS = Dict(
     :μ₀ => [[0., 0]],
     :μₚ => [[0, 0]],
     :Σₚ => [[1. 0; 0 1.]],
-    :Σ₀ => [ 0.1*I(2), 10.0*I(2), ],
+    :Σ₀ => [ 0.1*I(2), 10.0*I(2), 100.0*I(2), 100.0*I(2), ],
     :random_seed => [ 0 ],
 )
 
 ALG_PARAMS = Dict(
     :dKL_estimator => [ :RKHS_norm ],
-    :n_iter => [ 5000 ],
+    :n_iter => [ 8000 ],
     :step_size => [ 0.01 ],
     :n_particles => [ 50 ],
     :update_method => [ :forward_euler ],
@@ -30,4 +30,4 @@ ALG_PARAMS = Dict(
 )
 
 run_single_instance(PROBLEM_PARAMS, ALG_PARAMS,
-                    "gaussian_to_gaussian/annealing")
+                    "gaussian_to_gaussian/annealing_second")
