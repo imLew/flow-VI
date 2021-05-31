@@ -14,7 +14,6 @@ const colors = ColorSchemes.seaborn_colorblind;
 using SVGD
 using Utils
 
-import Utils.saveplot
 saveplot(f) = (savefig ∘ joinpath)(plotdir, f)
 
 ## Cell  WNES vs WAG vs Euler - params
