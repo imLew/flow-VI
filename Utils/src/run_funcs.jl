@@ -97,8 +97,7 @@ function run_svgd(::Val{:gauss_to_gauss} ;problem_params, alg_params,
                    )
     if save
         file_prefix = savename( merge(problem_params, alg_params) )
-        tagsave(gdatadir(DIRNAME, file_prefix * ".bson"), results, safe=true,
-                storepatch=true)
+        tagsave(gdatadir(DIRNAME, file_prefix * ".bson"), results, safe=true)
     end
     return results
 end
