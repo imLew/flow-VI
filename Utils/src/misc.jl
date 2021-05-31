@@ -11,6 +11,7 @@ using PDMats
 export load_data
 export get_pdmat
 export geometric_step_size_cb
+export remove_run!
 export filter_by_dict
 export get_savename
 export show_params
@@ -124,6 +125,20 @@ function filter_by_dict(dict, data_array)
         out = filter_by_key(k, v, out)
     end
     return out
+end
+
+function remove_run!(d::Array, index)
+    for e in d
+        remove_run!(e, index)
+    end
+end
+
+function remove_run!(d::Dict, index)
+    d[:n_runs] -= 1
+    popat!(d[:svgd_hist], index)
+    popat!(d[:svgd_results], index)
+    popat!(d[:estimated_logZ], index)
+    return nothing
 end
 
 # flatten_index(i, j, j_max) = j + j_max *(i-1)
