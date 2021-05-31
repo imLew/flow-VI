@@ -250,9 +250,40 @@ compare_by_particles(0.05, 4000, 10.0, all_data)
 # these results suggest that for logZ estimation taking 50 particles with 1000
 # iterations is good enough
 
+## initial covariance log scale
 ###### Cell ###### -
+all_data = load_data( "gaussian_to_gaussian/cov_comparison" );
+
+# PROBLEM_PARAMS = Dict(
+#     :problem_type => [ :gauss_to_gauss ],
+#     :μ₀ => [[0., 0]],
+#     :μₚ => [[0, 0]],
+#     :Σₚ => [[1. 0; 0 1.]],
+#     :Σ₀ => [ 0.001*I(2), 0.01*I(2), 0.1*I(2), 10.0*I(2), 100.0*I(2), 1000.0*I(2), ],
+#     :random_seed => [ 0 ],
+# )
+
+# ALG_PARAMS = Dict(
+#     :dKL_estimator => [ :RKHS_norm ],
+#     :n_iter => [ 1000 ],
+#     :step_size => [ 0.05 ],
+#     :n_particles => [ 50 ],
+#     :update_method => [ :forward_euler ],
+#     :kernel_cb => [ median_trick_cb! ],
+#                            Dict(:p=>10, :C=>4) ],
+#     :n_runs => 10,
+# )
 
 ###### Cell ###### -
+covs = [ 10.0^i for i in -3:0.2:3 ]
+rel_err(d) = abs.(d[:estimated_logZ] .- d[:true_logZ]) ./ d[:true_logZ]
+
+sort!(all_data, by=d->norm(d[:Σ₀]))
+errs = [rel_err(d) for d in all_data]
+
+scatter(log.(covs), log.(mean.(errs)), yerr=log.(std.(errs)),
+       ylabel="Rel. Error", xlabel="Log c", legend=:none)
+hline!([0])
 
 ###### Cell ###### -
 
