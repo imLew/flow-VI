@@ -131,28 +131,49 @@ end
 
 function update!(::Val{:scalar_Adam}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
                  kwargs...)
-    iter = get(kwargs, :iter, false)
+    t = get(kwargs, :iter, false)
     β₁ = get(kwargs, :β₁, false)
     β₂ = get(kwargs, :β₂, false)
+    unbiased = get(kwargs, :Adam_unbiased, false)
 
-    d, N = size(q)
-    h = 1/kernel.transform.s[1]^2
-    glp_mat = mapreduce( grad_logp, hcat, eachcol(q) )
-    ∇k = -1 .* kernel_grad_matrix(kernel, q)  # -1 because we need ∇ wrt 2ⁿᵈ arg
-    k_mat = KernelFunctions.kernelmatrix(kernel, q)
-
-    aux_vars[:𝔼∇ϕₜ₋₁] .= N^2 \ (
-        sum( k_mat .* (d/h .- 1/h^2 .* pairwise(SqEuclidean(), q)) )
-        + sum(∇k'*glp_mat)
-                       )
+    aux_vars[:𝔼∇ϕₜ₋₁] .= 𝔼∇ϕ(kernel, q, grad_logp, unbiased=unbiased)
 
     ϕ .= calculate_phi_vectorized(kernel, q, grad_logp; kwargs...)
     aux_vars[:mₜ₋₁] .= aux_vars[:mₜ]
     aux_vars[:mₜ] .= β₁ .* aux_vars[:mₜ] + (1-β₁) .* ϕ
     aux_vars[:vₜ] .= β₂ .* aux_vars[:vₜ] + (1-β₂) .* ϕ.^2
-    ϵ .= ϵ.*(sqrt((1-β₂^iter)./(1-β₁^iter)) ./ mean(sqrt.(aux_vars[:vₜ]))
-             * 1 ./(1-β₁^iter) )
+    ϵ .= ϵ.*(sqrt((1-β₂^t)./(1-β₁^t)) ./ mean(sqrt.(aux_vars[:vₜ]))
+             * 1 ./(1-β₁^t) )
     q .+= ϵ .* aux_vars[:mₜ]
+end
+
+function 𝔼∇ϕ(kernel, q, ∇logp; unbiased=false)
+    d, N = size(q)
+    h = 1/kernel.transform.s[1]^2
+    k_mat = KernelFunctions.kernelmatrix(kernel, q)
+
+    𝔼∇ϕ = 0
+    if unbiased
+        for (i, x) in enumerate(eachcol(q))
+            glp_x = ∇logp(x)
+            for (j, y) in enumerate(eachcol(q))
+                if i != j
+                    glp_y = ∇logp(y)
+                    𝔼∇ϕ += (
+                             -(x.-y)./h ⋅ (glp_y .+ (x.-y)./h) + d/h
+                           ) * k_mat[i,j]
+                end
+            end
+        end
+        𝔼∇ϕ ./= (N*(N-1))
+    else
+        glp_mat = mapreduce( ∇logp, hcat, eachcol(q) )
+        ∇k = -1 .* kernel_grad_matrix(kernel, q)  # -1 because we need ∇ wrt 2ⁿᵈ arg
+        𝔼∇ϕ = N^2 \ ( sum( k_mat .* (d/h .- 1/h^2 .* pairwise(SqEuclidean(), q)) )
+                + sum(∇k'*glp_mat)
+               )
+    end
+    return 𝔼∇ϕ
 end
 
 function update!(::Val{:scalar_RMS_prop}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
