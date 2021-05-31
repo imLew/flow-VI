@@ -39,6 +39,8 @@ function show_params(data::Dict{Symbol, Any})
     try @show data[:β₂] catch end
     try @show data[:c₁] catch end
     try @show data[:c₂] catch end
+    try @show data[:annealing_schedule] catch end
+    try @show data[:annealing_params] catch end
     @show data[:n_iter]
     @show data[:n_particles]
     @show data[:step_size]
