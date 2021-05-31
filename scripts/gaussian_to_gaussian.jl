@@ -30,4 +30,4 @@ ALG_PARAMS = Dict(
 )
 
 run_single_instance(PROBLEM_PARAMS, ALG_PARAMS,
-                    "gaussian_to_gaussian/annealing_second")
+                    "gaussian_to_gaussian/cov_comparison",)
