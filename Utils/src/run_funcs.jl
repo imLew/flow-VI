@@ -385,7 +385,7 @@ function run_all()
     end
 end
 
-function run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME, save=true)
+function run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME; save=true)
     params = [ (pp, ap) for pp in dict_list(PROBLEM_PARAMS),
               ap in dict_list(ALG_PARAMS)]
     p = Progress(length(params), 50)
