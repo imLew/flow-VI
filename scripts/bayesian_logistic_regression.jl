@@ -3,17 +3,13 @@ using DrWatson
 using LinearAlgebra
 
 using Utils
-# using SVGD
-# using Examples
-
-DIRNAME = "bayesian_logistic_regression/MAPvLaplacevNormal"
 
 ALG_PARAMS = Dict(
     :update_method => [ :forward_euler ],
     :kernel_cb => [ median_trick_cb! ],
-    :step_size => [ 0.001 ],
-    :n_iter => [ 1000 ],
-    :n_particles => [ 100, 200 ],
+    :step_size => [ 0.0005 ],
+    :n_iter => [ 2000 ],
+    :n_particles => [ 50, 100 ],
     :n_runs => [ 10 ],
     :dKL_estimator => [ :RKHS_norm ],
     )
@@ -40,4 +36,5 @@ PROBLEM_PARAMS = Dict(
     :random_seed => [ 0 ],
 )
 
-run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
+run_single_instance(PROBLEM_PARAMS, ALG_PARAMS,
+                    "bayesian_logistic_regression/MAPvLaplace_rerun")
