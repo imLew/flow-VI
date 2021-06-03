@@ -254,6 +254,7 @@ compare_by_particles(0.05, 4000, 10.0, all_data)
 ###### Cell ###### -
 all_data = load_data( "gaussian_to_gaussian/cov_comparison" );
 plotdir = plot_rootdir
+sort!(all_data, by=d->norm(d[:Σ₀]))
 
 # PROBLEM_PARAMS = Dict(
 #     :problem_type => [ :gauss_to_gauss ],
@@ -276,6 +277,11 @@ plotdir = plot_rootdir
 # )
 
 ###### Cell ###### -
+
+# the smallest covariance looks really strange, something went wrong here
+plot_integration(all_data[1])
+
+###### Cell ###### - relative performance vs log scaling
 covs = [ 10.0^i for i in -3:0.2:3 ]
 rel_err(d) = abs.(d[:estimated_logZ] .- d[:true_logZ]) ./ d[:true_logZ]
 
@@ -283,12 +289,38 @@ sort!(all_data, by=d->norm(d[:Σ₀]))
 errs = [rel_err(d) for d in all_data]
 
 scatter(log.(covs), mean.(errs), yerr=log.(std.(errs)),
-       ylabel="Rel. Error", xlabel="Log c", legend=:none)
+       ylabel="Rel. Error Log Z", xlabel="Log c", legend=:none)
 hline!([0])
 saveplot("logCov.png")
 
-# the smallest covariance looks really strange, something went wrong here
-plot_integration(all_data[1])
+scatter(covs, mean.(errs), yerr=log.(std.(errs)),
+       ylabel="Rel. Error Log Z", xlabel="Log c", legend=:none)
+hline!([0])
+saveplot("Cov.png")
+
+###### Cell ###### - difference between target and start vs scaling
+covs = [ 10.0^i for i in -3:0.2:3 ]
+
+ivals = [ entropy(MvNormal(d[:μ₀], d[:Σ₀])) - expectation_V(d) for d in all_data ]
+
+diffs = [ d[:true_logZ] - i for (d, i) in zip(all_data, ivals) ]
+
+plot(covs, ivals)
+plot(covs, diffs)
+
+plot(diffs, mean.(errs))
+
+KLs = [ 2*(log(1/c) + c - 1) for c in covs ]
+
+plot(KLs, mean.(errs), yerr=log.(std.(errs)), xlabel="KL(q₀||p)", ylabel="Rel. Error Log Z")
+
+###### Cell ###### -
+
+###### Cell ###### -
+
+###### Cell ###### -
+
+###### Cell ###### -
 
 
 ## annealing first experiment
