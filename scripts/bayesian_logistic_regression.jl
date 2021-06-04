@@ -9,9 +9,10 @@ ALG_PARAMS = Dict(
     :kernel_cb => [ median_trick_cb! ],
     :step_size => [ 0.0005 ],
     :n_iter => [ 2000 ],
-    :n_particles => [ 50, 100 ],
+    :n_particles => [ 50 ],
     :n_runs => [ 10 ],
     :dKL_estimator => [ :RKHS_norm ],
+    :progress => [ false ],
     )
 
 PROBLEM_PARAMS = Dict(
@@ -37,4 +38,18 @@ PROBLEM_PARAMS = Dict(
 )
 
 run_single_instance(PROBLEM_PARAMS, ALG_PARAMS,
-                    "bayesian_logistic_regression/MAPvLaplace_rerun")
+                    "bayesian_logistic_regression/MAPvLaplace_rerun_50")
+
+ALG_PARAMS = Dict(
+    :update_method => [ :forward_euler ],
+    :kernel_cb => [ median_trick_cb! ],
+    :step_size => [ 0.0005 ],
+    :n_iter => [ 2000 ],
+    :n_particles => [ 100 ],
+    :n_runs => [ 10 ],
+    :dKL_estimator => [ :RKHS_norm ],
+    :progress => [ false ],
+    )
+
+run_single_instance(PROBLEM_PARAMS, ALG_PARAMS,
+                    "bayesian_logistic_regression/MAPvLaplace_rerun_100")
