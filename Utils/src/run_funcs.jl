@@ -193,6 +193,8 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
         @info "Using data from file, make sure the problem params are correct"
         D = BSON.load(problem_params[:sample_data_file])[:D]
     else
+        Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
+        @info "Reset GLOBAL_RNG for sample data generation."
         D = LogReg.generate_2class_samples_from_gaussian(
                         n₀=problem_params[:n₀], n₁=problem_params[:n₁],
                         μ₀=problem_params[:μ₀], μ₁=problem_params[:μ₁],
