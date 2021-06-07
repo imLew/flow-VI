@@ -45,7 +45,6 @@ function show_params(data::Dict{Symbol, Any})
     @show data[:n_particles]
     @show data[:step_size]
     if data[:problem_type] == :logistic_regression
-        @show data[:Σ₀]
         @show data[:Σ_initial]
         @show data[:Σ_prior]
         @show data[:Laplace_start]
