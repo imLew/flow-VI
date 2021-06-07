@@ -2,9 +2,7 @@ using DrWatson
 @quickactivate
 using LinearAlgebra
 
-# using SVGD
 using Utils
-# using Examples
 
 PROBLEM_PARAMS = Dict(
     :problem_type => [ :gauss_to_gauss ],
@@ -27,4 +25,4 @@ ALG_PARAMS = Dict(
     :n_runs => 10,
 )
 
-run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, "gaussian_to_gaussian/initial_grid")
+run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, "gaussian_to_gaussian/initial_grid_follow_up")
