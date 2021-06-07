@@ -32,6 +32,10 @@ Base.length(d::Data) = length(d.t)
 y(w) = z -> σ.(z*w)
 y(D::Data, w) = y(w)(D.z)
 
+function likelihood(D::Data, w)
+    prod( y(D, w).^D.t .* (1 .-y(D, w)).^(1 .-D.t) )
+end
+
 function log_likelihood(D::Data, w)
     sum( D.t .* log.(y(D, w)) .+ (1 .- D.t) .* log.(1 .- y(D,w)) )
 end
