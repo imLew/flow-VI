@@ -30,10 +30,6 @@ PROBLEM_PARAMS = Dict(
     :Σ_prior => [ I(3) ],
     :μ_initial => [ [1., 1, 1] ],
     :Σ_initial => [ I(3) ],
-    :therm_params => [Dict(
-                          :nSamples => 4000,
-                          :nSteps => 40
-                         )],
     :random_seed => [ 0 ],
 )
 
