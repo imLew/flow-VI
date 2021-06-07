@@ -211,3 +211,37 @@ function logZ(d::Exponential)
     λ = 1/Distributions.params(d)[1]
     1/λ
 end
+
+function MC_logZ(
+    likelihood::Function,
+    prior::Distribution
+    ;n_samples=1e5,
+    online=false,
+    batch_size=1e5
+)
+    if Int(batch_size) == batch_size
+        batch_size = Int(batch_size)
+    end
+    if Int(n_samples) == n_samples
+        n_samples = Int(n_samples)
+    end
+    # if n_samples <= batch_size || !online
+        o = mean( likelihood.(rand(prior, n_samples)) )
+    # elseif online
+    #     n = 0
+    #     o = 0
+    #     while n < n_samples
+    #         o += mean( likelihood.(rand(prior, batch_size)) )
+    #         n += batch_size
+    #     end
+    # end
+    return o
+end
+
+function MC_logZ(problem_params::Dict, D; kwargs...)
+    MC_logZ(θ -> LogReg.likelihood(D, θ),
+            MvNormal(problem_params[:μ_prior], problem_params[:Σ_prior]);
+            kwargs...)
+end
+
+export MC_logZ

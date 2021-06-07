@@ -293,6 +293,7 @@ function run_svgd(;problem_params, alg_params, DIRNAME="", save=true)
         alg_params=alg_params, DIRNAME=DIRNAME, save=save)
 end
 
+export therm_integration
 function therm_integration(problem_params, D; nSamples=3000, nSteps=30)
     prior = MvNormal(problem_params[:μ_prior], problem_params[:Σ_prior])
     logprior(θ) = logpdf(prior, θ)
