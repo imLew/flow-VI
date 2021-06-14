@@ -7,7 +7,7 @@ using Utils
 ALG_PARAMS = Dict(
     :update_method => [ :forward_euler ],
     :kernel_cb => [ median_trick_cb! ],
-    :step_size => [ 0.00001 ],
+    :step_size => [ 0.0001 ],
     :n_iter => [ 5000 ],
     :n_particles => [ 50 ],
     :n_runs => [ 10 ],
@@ -39,7 +39,7 @@ run_single_instance(PROBLEM_PARAMS, ALG_PARAMS,
 ALG_PARAMS = Dict(
     :update_method => [ :forward_euler ],
     :kernel_cb => [ median_trick_cb! ],
-    :step_size => [ 0.00001 ],
+    :step_size => [ 0.0001 ],
     :n_iter => [ 5000 ],
     :n_particles => [ 100 ],
     :n_runs => [ 10 ],
@@ -49,3 +49,31 @@ ALG_PARAMS = Dict(
 
 run_single_instance(PROBLEM_PARAMS, ALG_PARAMS,
                     "bayesian_logistic_regression/MAPvLaplace_rerun_100")
+
+ALG_PARAMS = Dict(
+    :update_method => [ :forward_euler ],
+    :kernel_cb => [ median_trick_cb! ],
+    :step_size => [ 0.0001 ],
+    :n_iter => [ 5000 ],
+    :n_particles => [ 25 ],
+    :n_runs => [ 10 ],
+    :dKL_estimator => [ :RKHS_norm ],
+    :progress => [ false ],
+    )
+
+run_single_instance(PROBLEM_PARAMS, ALG_PARAMS,
+                    "bayesian_logistic_regression/MAPvLaplace_rerun_25")
+
+ALG_PARAMS = Dict(
+    :update_method => [ :forward_euler ],
+    :kernel_cb => [ median_trick_cb! ],
+    :step_size => [ 0.0001 ],
+    :n_iter => [ 5000 ],
+    :n_particles => [ 10 ],
+    :n_runs => [ 10 ],
+    :dKL_estimator => [ :RKHS_norm ],
+    :progress => [ false ],
+    )
+
+run_single_instance(PROBLEM_PARAMS, ALG_PARAMS,
+                    "bayesian_logistic_regression/MAPvLaplace_rerun_10")
