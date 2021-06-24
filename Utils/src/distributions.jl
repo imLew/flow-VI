@@ -36,8 +36,8 @@ function expectation_V(q::MvNormal, p::MvNormal)
     0.5 * ( tr(inv(cov(p))*cov(q)) + invquad(PDMat(cov(p)), mean(q)-mean(p)) )
 end
 
-function expectation_V(initial_dist::Distribution, V)
-    num_expectation(initial_dist, V)
+function expectation_V(initial_dist::Distribution, V; kwargs...)
+    num_expectation(initial_dist, V; kwargs...)
 end
 
 function expectation_V(::Val{:gauss_to_gauss}, data)
@@ -46,28 +46,28 @@ function expectation_V(::Val{:gauss_to_gauss}, data)
                  )
 end
 
-function expectation_V(::Val{:linear_regression}, data)
+function expectation_V(::Val{:linear_regression}, data; kwargs...)
     expectation_V( MvNormal(data[:μ_initial], data[:Σ_initial]),
                    w -> -LinReg.log_likelihood(data[:D],
                            LinReg.RegressionModel(data[:ϕ], w, data[:true_β])
                                              )
                         - logpdf(MvNormal(data[:μ_prior],
                                           data[:Σ_prior]), w)
-                   )
+                   ; kwargs...)
 end
 
-function expectation_V(::Val{:logistic_regression}, data)
+function expectation_V(::Val{:logistic_regression}, data; kwargs...)
     expectation_V(
                   MvNormal(data[:μ_initial], data[:Σ_initial]),
                   w -> (
                         -LogReg.log_likelihood(data[:D], w)
                         - logpdf(MvNormal(data[:μ_prior], data[:Σ_prior]), w)
                        )
-                 )
+                 ; kwargs...)
 end
 
-function expectation_V(data::Dict{Symbol,Any})
-    expectation_V(Val(data[:problem_type]), data)
+function expectation_V(data::Dict{Symbol,Any}; kwargs...)
+    expectation_V(Val(data[:problem_type]), data; kwargs...)
 end
 
 export integrate
