@@ -16,6 +16,7 @@ using Examples
 # LogReg = LogisticRegression
 
 saveplot(f) = (savefig ∘ joinpath)(plotdir, f)
+saveplot(args...) = (savefig ∘ joinpath)(plotdir, args...)
 
 ###### Cell ###### -
 plotdir = "/home/lew/Documents/BCCN_Master/SVGD-stuff/Thesis/bayesian-inference-thesis/texfiles/plots/bayesian_logistic_regression/"
@@ -55,7 +56,7 @@ plotdir = "/home/lew/Documents/BCCN_Master/SVGD-stuff/Thesis/bayesian-inference-
 # )
 
 ###### Cell ###### - load data
-all_data = load_data(datadir("bayesian_logistic_regression", "MAPvLaplacevNormal"))
+all_data = load_data(gdatadir("bayesian_logistic_regression", "MAPvLaplacevNormal"))
 # for d in all_data
 #     d[:Σ_initial] = PDMat(Symmetric(d[:Σ_initial]))
 #     d[:Σ_prior] = PDMat(Symmetric(d[:Σ_prior]))
@@ -66,6 +67,7 @@ for d in all_data
     show_params(d)
     readline()
 end
+
 # 𝔼[V]=Inf when not using MAP start of Laplace start, so remove thos from analysis
 pop!(all_data)
 pop!(all_data)
@@ -73,6 +75,7 @@ pop!(all_data)
 # are redundant
 pop!(all_data)
 pop!(all_data)
+
 for d in all_data
     if d[:MAP_start] && d[:Laplace_start]
         d[:Laplace_start] = false
@@ -91,7 +94,7 @@ for d in all_data
 end
 
 for d in all_data
-    @show d[:step_size]
+    @show d[:Laplace_start]
     @show mean(d[:estimated_logZ])
     @show std(d[:estimated_logZ])
 end
@@ -104,7 +107,39 @@ data = filter_by_dict(Dict(:step_size => [0.001]), all_data)
 for d in data
     plt = plot_convergence(d)
     show_params(d)
-    Plots.savefig(joinpath(plotdir, get_savename(d))*".png")
+    # Plots.savefig(joinpath(plotdir, get_savename(d))*".png")
     # display(plt)
     # readline()
 end
+
+###### Cell ###### - load data from the reruns
+all_data10 = load_data(gdatadir("bayesian_logistic_regression", "MAPvLaplace_rerun_10"))
+all_data25 = load_data(gdatadir("bayesian_logistic_regression", "MAPvLaplace_rerun_25"))
+all_data50 = load_data(gdatadir("bayesian_logistic_regression", "MAPvLaplace_rerun_50"))
+all_data100 = load_data(gdatadir("bayesian_logistic_regression", "MAPvLaplace_rerun_100"))
+all_data = vcat(all_data10, all_data25, all_data50, all_data100)
+
+for d in all_data
+    display(plot_convergence(d))
+    show_params(d)
+    readline()
+end
+# Note that sometimes the flow estimate for logZ start lower than the lower bound.
+# This is caused by the fact that the value used for 𝔼[V] is a simple MC estimate
+# that is computed separately for each run and again for the plot.
+
+###### Cell ###### -
+mkpath(joinpath(plotdir, "MAPvLaplace50_5000iter"))
+
+for (d, n) in zip(all_data50, ["Laplace", "MAP"])
+    plot_convergence(d)
+    saveplot("MAPvLaplace50_5000iter", n*".png")
+end
+
+###### Cell ###### -
+
+###### Cell ###### -
+
+###### Cell ###### -
+
+###### Cell ###### -
