@@ -56,11 +56,16 @@ plotdir = "/home/lew/Documents/BCCN_Master/SVGD-stuff/Thesis/bayesian-inference-
 # )
 
 ###### Cell ###### - load data
+<<<<<<< HEAD
 all_data = load_data(gdatadir("bayesian_logistic_regression", "MAPvLaplacevNormal"))
 # for d in all_data
 #     d[:Σ_initial] = PDMat(Symmetric(d[:Σ_initial]))
 #     d[:Σ_prior] = PDMat(Symmetric(d[:Σ_prior]))
 # end
+=======
+all_data = load_data(datadir("bayesian_logistic_regression", "MAPvLaplacevNormal"))
+all_data = filter_by_dict( Dict( :n_particles => [ 50 ]), all_data )
+>>>>>>> LogRegAnalysis
 
 for d in all_data
     display(plot_convergence(d))
