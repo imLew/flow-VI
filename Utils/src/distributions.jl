@@ -14,6 +14,7 @@ export logZ
 export numerical_expectation
 export num_expectation
 export pdf_potential
+export integrate
 
 # This potential is already normalized
 pdf_potential(d::Distribution, x) = -logpdf(d, x)
@@ -25,7 +26,7 @@ pdf_potential(d::Normal, x) = (x-mean(d))^2 / 2var(d)
 pdf_potential(d::MvNormal, x) = invquad( PDMat(cov(d)), x-mean(d) )/2
 
 function expectation_V(initial_dist::Distribution, target_dist::Distribution)
-    numerical_expectation( initial_dist, x -> pdf_potential(target_dist, x) )
+    num_expectation( initial_dist, x -> pdf_potential(target_dist, x) )
 end
 
 function expectation_V(q::Normal, p::Normal)
@@ -43,6 +44,12 @@ end
 function expectation_V(::Val{:gauss_to_gauss}, data)
     expectation_V(MvNormal(data[:μ₀], data[:Σ₀]),
                   MvNormal(data[:μₚ], data[:Σₚ])
+                 )
+end
+
+function expectation_V(::Val{:gauss_mixture_sampling}, data)
+    expectation_V(MvNormal(data[:μ_initial], data[:Σ_initial]),
+                  MixtureModel( MvNormal, [zip(data[:μₚ], data[:Σₚ])...] )
                  )
 end
 
@@ -70,7 +77,6 @@ function expectation_V(data::Dict{Symbol,Any})
     expectation_V(Val(data[:problem_type]), data)
 end
 
-export integrate
 function integrate(Δx::Array, f::Array; kwargs...)
     integration_method = get(kwargs, :integration_method, :trapz)
     if integration_method == :upper_sum
@@ -167,7 +173,8 @@ function estimate_logZ(
     ::T,
     data::Dict{Symbol,Any},
     ;kwargs...
-) where T <: Union{Val{:logistic_regression}, Val{:linear_regression}}
+) where T <: Union{Val{:logistic_regression}, Val{:linear_regression},
+                   Val{:gauss_mixture_sampling}}
     initial_dist = MvNormal(data[:μ_initial], data[:Σ_initial])
     H₀ = entropy(initial_dist)
     EV = expectation_V(data)
@@ -199,7 +206,7 @@ function num_expectation(d::Distribution, f; n_samples=10000,
 end
 
 function logZ(d::Distribution)
-    println("log(Z) for distribution $d is not know, returning 0")
+    @warn "log(Z) for distribution $d is not know, returning 0"
     return 0
 end
 

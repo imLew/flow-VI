@@ -17,30 +17,34 @@ export run_single_instance
 export cmdline_run
 export run_svgd
 export therm_integration
+export getMAP!
 
-function getMAP!(problem_params, logp, grad_logp!, D)
+function getMAP!(problem_params, logp, grad_logp!, D=nothing)
     problem_params[:μ_initial] = (
         if problem_params[:problem_type] == :linear_regression
             LinReg.posterior_mean(problem_params[:ϕ], problem_params[:true_β], D,
                            problem_params[:μ_prior], problem_params[:Σ_prior])
-        else
-        Optim.maximizer(
-            Optim.maximize(logp, grad_logp!,
-                           problem_params[:μ_prior],
-                           LBFGS())
-           )
+        elseif problem_params[:problem_type] == :logistic_regression
+            Optim.maximizer(
+                Optim.maximize(logp, grad_logp!, problem_params[:μ_prior],
+                               LBFGS())
+               )
+        elseif problem_params[:problem_type] == :gauss_mixture_sampling
+            Optim.maximizer(
+                Optim.maximize(logp, grad_logp!, problem_params[:μ_initial],
+                               LBFGS())
+               )
         end
    )
 end
 
-function getLaplace!(p, logp, grad_logp!, D)
+function getLaplace!(p, logp, grad_logp!, D=nothing)
     getMAP!(p, logp, grad_logp!, D)
     if p[:problem_type] == :logistic_regression
         y = LogReg.y(D, p[:μ_initial])
-        p[:Σ_initial] = inv(Symmetric(
-                                           inv( p[:Σ_prior] )
-                                           .+ D.z' * (y.*(1 .- y) .* D.z)
-                                          ))
+        p[:Σ_initial] = inv(Symmetric( inv( p[:Σ_prior] )
+                                      .+ D.z' * (y.*(1 .- y) .* D.z)
+                                     ))
     elseif p[:problem_type] == :linear_regression
         p[:Σ_initial] = LinReg.posterior_variance(p[:ϕ], p[:true_β], D.x,
                                                   p[:Σ_prior])
@@ -100,6 +104,71 @@ function run_svgd(::Val{:gauss_to_gauss} ;problem_params, alg_params,
         tagsave(gdatadir(DIRNAME, file_prefix * ".bson"), results, safe=true,
                 storepatch=true)
     end
+    return results
+end
+
+function run_svgd(::Val{:gauss_mixture_sampling} ;problem_params, alg_params,
+                  DIRNAME="", save=true)
+    svgd_results = []
+    svgd_hist = MVHistory[]
+
+    target_dist = MixtureModel( MvNormal, [zip(problem_params[:μₚ],
+                                               problem_params[:Σₚ])...] )
+
+    grad_logp(x) = ForwardDiff.gradient(x′->log(pdf(target_dist, x′)), x)
+    grad_logp!(g, x) = g .= grad_logp(x)
+    if get!(problem_params, :MAP_start, false)
+        getMAP!(problem_params, x->log(pdf(target_dist, x)), grad_logp!)
+    end
+    # if get!(problem_params, :Laplace_start, false)
+    #     getLaplace!(problem_params, x->logpdf(target_dist, x), grad_logp!)
+    #     problem_params[:MAP_start] = true
+    # end
+
+    initial_dist = MvNormal(problem_params[:μ_initial], problem_params[:Σ_initial])
+    failed_count = 0
+    for i in 1:alg_params[:n_runs]
+        try
+            @info "Run $i/$(alg_params[:n_runs])"
+            q = rand( initial_dist, alg_params[:n_particles] )
+
+            q, hist = svgd_fit(q, grad_logp, problem_params=problem_params;
+                               alg_params...)
+
+            push!(svgd_results, q)
+            push!(svgd_hist, hist)
+        catch e
+            failed_count += 1
+            @error "Something went wrong" exception=(e, catch_backtrace())
+        end
+    end
+
+    true_logZ = logZ(target_dist)
+    H₀ = Distributions.entropy(initial_dist)
+    EV = expectation_V(initial_dist, target_dist)
+    estimated_logZ = if typeof(alg_params[:dKL_estimator]) <: Symbol
+        [est[end] for est in estimate_logZ(H₀, EV, svgd_hist; alg_params...)]
+    elseif typeof(alg_params[:dKL_estimator]) <: Array{Symbol,1}
+        d = Dict()
+        for estimator in alg_params[:dKL_estimator]
+            d[estimator] = [
+                est[end] for est
+                in estimate_logZ(H₀, EV, svgd_hist;
+                                 alg_params...)[1][estimator]
+               ]
+        end
+        d
+    end
+
+    results = merge(alg_params, problem_params,
+                    @dict(true_logZ, svgd_results, svgd_hist, failed_count,
+                          estimated_logZ)
+                   )
+    # if save
+    #     file_prefix = savename( merge(problem_params, alg_params) )
+    #     tagsave(gdatadir(DIRNAME, file_prefix * ".bson"), results, safe=true,
+    #             storepatch=true)
+    # end
     return results
 end
 

@@ -151,7 +151,6 @@ function 𝔼∇ϕ(kernel, q, ∇logp; unbiased=false)
     d, N = size(q)
     h = 1/kernel.transform.s[1]^2
     k_mat = KernelFunctions.kernelmatrix(kernel, q)
-
     𝔼∇ϕ = 0
     if unbiased
         for (i, x) in enumerate(eachcol(q))

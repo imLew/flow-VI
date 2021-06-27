@@ -14,8 +14,8 @@ LinReg = LinearRegression
 # export plot_known_dists
 export plot_2D_results
 export plot_2D_results!
-export plot_2D_gaussians_results
-export plot_2D_gaussians_results!
+# export plot_2D_gaussians_results
+# export plot_2D_gaussians_results!
 export plot_1D
 export plot_integration
 export plot_integration!
@@ -49,44 +49,103 @@ function plot_1D(initial_dist::Distribution, target_dist::Distribution, q)
     return dist_plot
 end
 
-function plot_2D_results!(
-    plt,
-    initial_dist::Distribution,
-    target_dist::Distribution,
-    q
+function _get_dist_bounds(initial_dist::MvNormal, target_dist::MvNormal)
+    initial_x = params(initial_dist)[2][1,1]
+    initial_y = params(initial_dist)[2][2,2]
+    target_x = params(target_dist)[2][1,1]
+    target_y = params(target_dist)[2][2,2]
+    min_target_y = mean(target_dist)[2] + 2*target_y
+    max_target_y = mean(target_dist)[2] - 2*target_y
+    min_target_x = mean(target_dist)[1] + 2*target_x
+    max_target_x = mean(target_dist)[1] - 2*target_x
+    return (initial_x, initial_y, min_target_x, min_target_y, max_target_x,
+            max_target_y)
+end
+
+function _get_dist_bounds(
+    initial_dist::MvNormal,
+    target_dist::MixtureModel{Multivariate, Continuous, MvNormal}
 )
-    scatter!(plt, q[1,:], q[2,:], legend=false, label="",
-             markerstrokewidths=0.0, alpha=0.5, color=colors[1],
-             markersize=1);
-    # get range to cover both distributions and the particles
+    initial_x = params(initial_dist)[2][1,1]
+    initial_y = params(initial_dist)[2][2,2]
+    target_covariances = [x[2] for x in params(target_dist)[1]]
+    target_means = [x[1] for x in Distributions.params(target_dist)[1]]
+    target_x = maximum([Σ[1,1] for Σ in target_covariances])
+    target_y = maximum([Σ[2,2] for Σ in target_covariances])
+    min_target_y = minimum([μ[2] for μ in target_means]) - 2*target_y
+    max_target_y = maximum([μ[2] for μ in target_means]) + 2*target_y
+    min_target_x = minimum([μ[1] for μ in target_means]) - 2*target_x
+    max_target_x = maximum([μ[1] for μ in target_means]) + 2*target_x
+    return (initial_x, initial_y, min_target_x, min_target_y, max_target_x,
+            max_target_y)
+end
+
+function _get_scatter_range(initial_dist, target_dist, q)
+    (initial_x, initial_y, min_target_x, min_target_y, max_target_x,
+     max_target_y) = _get_dist_bounds(initial_dist, target_dist)
     min_x = minimum([
                      minimum(q[1]) - 0.1 * abs(minimum(q[1])),
-                     mean(initial_dist)[1] - params(initial_dist)[2][1,1],
-                     mean(target_dist)[1] - params(target_dist)[2][1,1]
+                     mean(initial_dist)[1] - initial_x,
+                     min_target_x
                     ])
     max_x = maximum([
                      maximum(q[1]) + 0.1 * abs(maximum(q[1])),
-                     mean(initial_dist)[1] + params(initial_dist)[2][1,1],
-                     mean(target_dist)[1] + params(target_dist)[2][1,1]
+                     mean(initial_dist)[1] + initial_x,
+                     max_target_x
                     ])
     min_y = minimum([
                      minimum(q[2]) - 0.1 * abs(minimum(q[2])),
-                     mean(initial_dist)[2] - params(initial_dist)[2][2,2],
-                     mean(target_dist)[2] - params(target_dist)[2][2,2]
+                     mean(initial_dist)[2] - initial_y,
+                     min_target_y
                     ])
     max_y = maximum([
                      maximum(q[2]) + 0.1 * abs(maximum(q[2])),
-                     mean(initial_dist)[2] + params(initial_dist)[2][2,2],
-                     mean(target_dist)[2] + params(target_dist)[2][2,2]
+                     mean(initial_dist)[2] + initial_y,
+                     max_target_y
                     ])
     x = min_x:abs(max_x-min_x)/50:max_x
     y = min_y:abs(max_y-min_y)/50:max_y
-    f(x,y) = pdf(target_dist, [x, y]) / pdf(target_dist, [mean(target_dist)...])
-    g(x,y) = pdf(initial_dist, [x, y]) / pdf(initial_dist, [mean(initial_dist)...])
-    contour!(plt, x, y, f, color=colors[2], label="", levels=5,
+    return x, y
+end
+
+function plot_2D_results!(
+    plt,
+    initial_dist::Distribution,
+    target_dist::MixtureModel{Multivariate, Continuous, MvNormal},
+    q
+)
+    # get range to cover both distributions and the particles
+    f(x,y) = pdf(target_dist, [x, y]) #/ pdf(target_dist, [mean(target_dist)...])
+    g(x,y) = pdf(initial_dist, [x, y]) #/ pdf(initial_dist, [mean(initial_dist)...])
+    x, y = _get_scatter_range(initial_dist, target_dist, q)
+    heatmap!(plt, x, y, f,label="", levels=50,
+             color=cgrad([:white, colors[2], colors[3]]),
              markerstrokewidths=0.0, alpha=0.6, )
     contour!(plt, x, y, g, color=colors[1], label="", levels=5,
              markerstrokewidths=0.0, alpha=0.6, )
+    scatter!(plt, q[1,:], q[2,:], legend=false, label="",
+             markerstrokewidths=1.0, alpha=1, color=colors[1],
+             markersize=1);
+    return plt
+end
+
+function plot_2D_results!(
+    plt,
+    initial_dist::Distribution,
+    target_dist::MvNormal,
+    q
+)
+    # get range to cover both distributions and the particles
+    f(x,y) = pdf(target_dist, [x, y]) / pdf(target_dist, [mean(target_dist)...])
+    g(x,y) = pdf(initial_dist, [x, y]) / pdf(initial_dist, [mean(initial_dist)...])
+    x, y = _get_scatter_range(initial_dist, target_dist, q)
+    contour!(plt, x, y, f, color=colors[2], label="", levels=50,
+             markerstrokewidths=0.0, alpha=0.6, )
+    contour!(plt, x, y, g, color=colors[1], label="", levels=50,
+             markerstrokewidths=0.0, alpha=0.6, )
+    scatter!(plt, q[1,:], q[2,:], legend=false, label="",
+             markerstrokewidths=0.0, alpha=0.5, color=colors[1],
+             markersize=1);
     return plt
 end
 
@@ -101,7 +160,7 @@ function plot_2D_results(
     return plt
 end
 
-function plot_2D_gaussians_results!(plt, data)
+function plot_2D_results!(plt, data)
     if data[:problem_type] == :gauss_to_gauss
         initial_dist = MvNormal(data[:μ₀], data[:Σ₀])
         target_dist = MvNormal(data[:μₚ], data[:Σₚ])
@@ -112,15 +171,20 @@ function plot_2D_gaussians_results!(plt, data)
         μ = LinReg.posterior_mean(data[:true_ϕ], data[:true_β], data[:D],
                                       data[:μ_prior], data[:Σ_prior])
         target_dist = MvNormal(μ, Σ)
+    elseif data[:problem_type] == :gauss_mixture_sampling
+        initial_dist = MvNormal(data[:μ_initial], data[:Σ_initial])
+        @info data[:μ_initial], data[:Σ_initial]
+        target_dist = MixtureModel( MvNormal, [zip(data[:μₚ],
+                                                   data[:Σₚ])...] )
     end
     for q in data[:svgd_results]
         plot_2D_results!(plt, initial_dist, target_dist, q);
     end
 end
 
-function plot_2D_gaussians_results(data; kwargs...)
+function plot_2D_results(data; kwargs...)
     plt = plot(legend=false; kwargs...)
-    plot_2D_gaussians_results!(plt, data)
+    plot_2D_results!(plt, data)
     return plt
 end
 
