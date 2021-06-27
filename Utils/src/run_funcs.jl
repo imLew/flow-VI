@@ -362,7 +362,8 @@ function run_svgd(;problem_params, alg_params, DIRNAME="", save=true)
         alg_params=alg_params, DIRNAME=DIRNAME, save=save)
 end
 
-function therm_integration(problem_params, D; nSamples=3000, nSteps=30)
+export therm_integration
+function therm_integration(problem_params::Dict, D; nSamples=3000, nSteps=30)
     prior = MvNormal(problem_params[:μ_prior], problem_params[:Σ_prior])
     logprior(θ) = logpdf(prior, θ)
     loglikelihood(θ) = (
@@ -372,6 +373,23 @@ function therm_integration(problem_params, D; nSamples=3000, nSteps=30)
             LinReg.log_likelihood(D,
                 LinReg.RegressionModel(problem_params[:ϕ], θ,
                                        problem_params[:true_β])
+               )
+        end
+       )
+    alg = ThermInt(n_steps=nSteps, n_samples=nSamples)
+    logZ = alg(logprior, loglikelihood, rand(prior))
+end
+
+function therm_integration(data; nSamples=3000, nSteps=30)
+    prior = MvNormal(data[:μ_prior], data[:Σ_prior])
+    logprior(θ) = logpdf(prior, θ)
+    loglikelihood(θ) = (
+        if data[:problem_type] == :logistic_regression
+            LogReg.log_likelihood(data[:D], θ)
+        elseif data[:problem_type] == :linear_regression
+            LinReg.log_likelihood(data[:D],
+                LinReg.RegressionModel(data[:ϕ], θ,
+                                       data[:true_β])
                )
         end
        )

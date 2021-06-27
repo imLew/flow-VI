@@ -39,11 +39,12 @@ function show_params(data::Dict{Symbol, Any})
     try @show data[:β₂] catch end
     try @show data[:c₁] catch end
     try @show data[:c₂] catch end
+    try @show data[:annealing_schedule] catch end
+    try @show data[:annealing_params] catch end
     @show data[:n_iter]
     @show data[:n_particles]
     @show data[:step_size]
     if data[:problem_type] == :logistic_regression
-        @show data[:Σ₀]
         @show data[:Σ_initial]
         @show data[:Σ_prior]
         @show data[:Laplace_start]
