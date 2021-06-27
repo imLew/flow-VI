@@ -3,19 +3,16 @@ using DrWatson
 using LinearAlgebra
 
 using Utils
-# using SVGD
-# using Examples
-
-DIRNAME = "bayesian_logistic_regression/MAPvLaplacevNormal"
 
 ALG_PARAMS = Dict(
     :update_method => [ :forward_euler ],
     :kernel_cb => [ median_trick_cb! ],
-    :step_size => [ 0.001 ],
-    :n_iter => [ 1000 ],
-    :n_particles => [ 100, 200 ],
+    :step_size => [ 0.0001 ],
+    :n_iter => [ 5000 ],
+    :n_particles => [ 50 ],
     :n_runs => [ 10 ],
     :dKL_estimator => [ :RKHS_norm ],
+    :progress => [ false ],
     )
 
 PROBLEM_PARAMS = Dict(
@@ -33,11 +30,50 @@ PROBLEM_PARAMS = Dict(
     :Σ_prior => [ I(3) ],
     :μ_initial => [ [1., 1, 1] ],
     :Σ_initial => [ I(3) ],
-    :therm_params => [Dict(
-                          :nSamples => 4000,
-                          :nSteps => 40
-                         )],
     :random_seed => [ 0 ],
 )
 
-run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
+run_single_instance(PROBLEM_PARAMS, ALG_PARAMS,
+                    "bayesian_logistic_regression/MAPvLaplace_rerun_50")
+
+ALG_PARAMS = Dict(
+    :update_method => [ :forward_euler ],
+    :kernel_cb => [ median_trick_cb! ],
+    :step_size => [ 0.0001 ],
+    :n_iter => [ 5000 ],
+    :n_particles => [ 100 ],
+    :n_runs => [ 10 ],
+    :dKL_estimator => [ :RKHS_norm ],
+    :progress => [ false ],
+    )
+
+run_single_instance(PROBLEM_PARAMS, ALG_PARAMS,
+                    "bayesian_logistic_regression/MAPvLaplace_rerun_100")
+
+ALG_PARAMS = Dict(
+    :update_method => [ :forward_euler ],
+    :kernel_cb => [ median_trick_cb! ],
+    :step_size => [ 0.0001 ],
+    :n_iter => [ 5000 ],
+    :n_particles => [ 25 ],
+    :n_runs => [ 10 ],
+    :dKL_estimator => [ :RKHS_norm ],
+    :progress => [ false ],
+    )
+
+run_single_instance(PROBLEM_PARAMS, ALG_PARAMS,
+                    "bayesian_logistic_regression/MAPvLaplace_rerun_25")
+
+ALG_PARAMS = Dict(
+    :update_method => [ :forward_euler ],
+    :kernel_cb => [ median_trick_cb! ],
+    :step_size => [ 0.0001 ],
+    :n_iter => [ 5000 ],
+    :n_particles => [ 10 ],
+    :n_runs => [ 10 ],
+    :dKL_estimator => [ :RKHS_norm ],
+    :progress => [ false ],
+    )
+
+run_single_instance(PROBLEM_PARAMS, ALG_PARAMS,
+                    "bayesian_logistic_regression/MAPvLaplace_rerun_10")

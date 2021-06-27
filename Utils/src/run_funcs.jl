@@ -101,8 +101,7 @@ function run_svgd(::Val{:gauss_to_gauss} ;problem_params, alg_params,
                    )
     if save
         file_prefix = savename( merge(problem_params, alg_params) )
-        tagsave(gdatadir(DIRNAME, file_prefix * ".bson"), results, safe=true,
-                storepatch=true)
+        tagsave(gdatadir(DIRNAME, file_prefix * ".bson"), results, safe=true)
     end
     return results
 end
@@ -263,6 +262,8 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
         @info "Using data from file, make sure the problem params are correct"
         D = BSON.load(problem_params[:sample_data_file])[:D]
     else
+        Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
+        @info "Reset GLOBAL_RNG for sample data generation."
         D = LogReg.generate_2class_samples_from_gaussian(
                         n₀=problem_params[:n₀], n₁=problem_params[:n₁],
                         μ₀=problem_params[:μ₀], μ₁=problem_params[:μ₁],
@@ -455,7 +456,7 @@ function run_all()
     end
 end
 
-function run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
+function run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME; save=true)
     params = [ (pp, ap) for pp in dict_list(PROBLEM_PARAMS),
               ap in dict_list(ALG_PARAMS)]
     p = Progress(length(params), 50)
@@ -464,7 +465,8 @@ function run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, DIRNAME)
         @show pp
         @show ap
         try
-            @time run_svgd(problem_params=pp, alg_params=ap, DIRNAME=DIRNAME)
+            @time run_svgd(problem_params=pp, alg_params=ap,
+                           DIRNAME=DIRNAME, save=save)
         catch e
             @error "Something went wrong" exception=(e, catch_backtrace())
         end
