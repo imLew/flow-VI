@@ -18,6 +18,7 @@ export cmdline_run
 export run_svgd
 export therm_integration
 export getMAP!
+export therm_integration
 
 function getMAP!(problem_params, logp, grad_logp!, D=nothing)
     problem_params[:μ_initial] = (
@@ -194,11 +195,10 @@ function run_svgd(::Val{:linear_regression}; problem_params, alg_params,
     end
 
     function logp(w)
-        model = LinReg.RegressionModel(problem_params[:ϕ], w, problem_params[:true_β])
+        model = LinReg.RegressionModel(problem_params[:ϕ], w,
+                                       problem_params[:true_β])
         ( LinReg.log_likelihood(D, model)
-         + logpdf(MvNormal(problem_params[:μ_prior],
-                           problem_params[:Σ_prior]),
-                  w)
+         + logpdf(MvNormal(problem_params[:μ_prior], problem_params[:Σ_prior]), w)
         )
     end
     function grad_logp(w)
@@ -209,10 +209,10 @@ function run_svgd(::Val{:linear_regression}; problem_params, alg_params,
     end
     grad_logp!(g, w) = g .= grad_logp(w)
 
-    if problem_params[:MAP_start]
+    if get(problem_params, :MAP_start, false)
         getMAP!(problem_params, logp, grad_logp!, D)
     end
-    if problem_params[:Laplace_start]
+    if get(problem_params, :Laplace_start, false)
         @info "using Laplace_start"
         getLaplace!(problem_params, logp, grad_logp!, D)
         problem_params[:Σ_initial] *= problem_params[:Laplace_factor]
@@ -300,10 +300,10 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
     end
     grad_logp!(g, w) = g .= grad_logp(w)
 
-    if problem_params[:MAP_start]
+    if get(problem_params, :MAP_start, false)
         getMAP!(problem_params, logp, grad_logp!, D)
     end
-    if problem_params[:Laplace_start]
+    if get(problem_params, :Laplace_start, false)
         getLaplace!(problem_params, logp, grad_logp!, D)
         problem_params[:MAP_start] = true
     end
@@ -335,10 +335,10 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
     if save
         savenamedict = merge(problem_params, alg_params)
         delete!(savenamedict, :sample_data_file)
-        if !problem_params[:MAP_start] || problem_params[:Laplace_start]
+        if !get(problem_params, :MAP_start, false) || get(problem_params, :Laplace_start, false)
             delete!(savenamedict, :MAP_start)
         end
-        if !problem_params[:Laplace_start]
+        if !get(problem_params, :Laplace_start, false)
             delete!(savenamedict, :Laplace_start)
         end
         file_prefix = savename( savenamedict )
@@ -362,7 +362,6 @@ function run_svgd(;problem_params, alg_params, DIRNAME="", save=true)
         alg_params=alg_params, DIRNAME=DIRNAME, save=save)
 end
 
-export therm_integration
 function therm_integration(problem_params::Dict, D; nSamples=3000, nSteps=30)
     prior = MvNormal(problem_params[:μ_prior], problem_params[:Σ_prior])
     logprior(θ) = logpdf(prior, θ)
