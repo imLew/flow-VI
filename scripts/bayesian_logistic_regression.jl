@@ -5,23 +5,27 @@ using LinearAlgebra
 using Utils
 
 ALG_PARAMS = Dict(
-    :update_method => [ :forward_euler ],
-    :kernel_cb => [ median_trick_cb! ],
-    :step_size => [ 0.0001 ],
+    :update_method => [ :forward_euler, :scalar_RMS_prop, ],
+    :β₁ => 0.9,
+    :β₂ => 0.999,
+    :γ => @onlyif(:update_method == :scalar_RMS_prop, [ 0.7, 0.8, 0.9, 0.95 ]),
+    :kernel_cb => median_trick_cb!,
+    :step_size => [ @onlyif(:update_method == :scalar_RMS_prop, 0.001),
+                   @onlyif(:update_method == :forward_euler, 0.0001) ],
     :n_iter => [ 5000 ],
-    :n_particles => [ 50 ],
-    :n_runs => [ 10 ],
-    :dKL_estimator => [ :RKHS_norm ],
-    :progress => [ false ],
+    :n_particles => 50,
+    :n_runs => 10,
+    :dKL_estimator => :RKHS_norm,
+    :progress => false,
     )
 
 PROBLEM_PARAMS = Dict(
-    :problem_type => [ :logistic_regression ],
+    :problem_type => :logistic_regression,
     :MAP_start => [ true ],
-    :Laplace_start => [ false,  true ],
-    :n_dim => [ 2 ],
-    :n₀ => [ 50 ],
-    :n₁ => [ 50 ],
+    :Laplace_start => [ false,  ],
+    :n_dim => 2,
+    :n₀ => 50,
+    :n₁ => 50,
     :μ₀ => [ [0., 0] ],
     :μ₁ => [ [4., 3] ],
     :Σ₀ => [ [0.5 0.1; 0.1 0.2] ],
@@ -30,50 +34,8 @@ PROBLEM_PARAMS = Dict(
     :Σ_prior => [ I(3) ],
     :μ_initial => [ [1., 1, 1] ],
     :Σ_initial => [ I(3) ],
-    :random_seed => [ 0 ],
+    :random_seed => 0,
 )
 
 run_single_instance(PROBLEM_PARAMS, ALG_PARAMS,
-                    "bayesian_logistic_regression/MAPvLaplace_rerun_50")
-
-ALG_PARAMS = Dict(
-    :update_method => [ :forward_euler ],
-    :kernel_cb => [ median_trick_cb! ],
-    :step_size => [ 0.0001 ],
-    :n_iter => [ 5000 ],
-    :n_particles => [ 100 ],
-    :n_runs => [ 10 ],
-    :dKL_estimator => [ :RKHS_norm ],
-    :progress => [ false ],
-    )
-
-run_single_instance(PROBLEM_PARAMS, ALG_PARAMS,
-                    "bayesian_logistic_regression/MAPvLaplace_rerun_100")
-
-ALG_PARAMS = Dict(
-    :update_method => [ :forward_euler ],
-    :kernel_cb => [ median_trick_cb! ],
-    :step_size => [ 0.0001 ],
-    :n_iter => [ 5000 ],
-    :n_particles => [ 25 ],
-    :n_runs => [ 10 ],
-    :dKL_estimator => [ :RKHS_norm ],
-    :progress => [ false ],
-    )
-
-run_single_instance(PROBLEM_PARAMS, ALG_PARAMS,
-                    "bayesian_logistic_regression/MAPvLaplace_rerun_25")
-
-ALG_PARAMS = Dict(
-    :update_method => [ :forward_euler ],
-    :kernel_cb => [ median_trick_cb! ],
-    :step_size => [ 0.0001 ],
-    :n_iter => [ 5000 ],
-    :n_particles => [ 10 ],
-    :n_runs => [ 10 ],
-    :dKL_estimator => [ :RKHS_norm ],
-    :progress => [ false ],
-    )
-
-run_single_instance(PROBLEM_PARAMS, ALG_PARAMS,
-                    "bayesian_logistic_regression/MAPvLaplace_rerun_10")
+                    "bayesian_logistic_regression/GDvariants/RMSprop")
