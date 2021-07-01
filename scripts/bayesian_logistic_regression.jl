@@ -5,13 +5,12 @@ using LinearAlgebra
 using Utils
 
 ALG_PARAMS = Dict(
-    :update_method => [ :scalar_RMS_prop, ],
+    :update_method => [ :scalar_RMS_prop, :forward_euler ],
     :β₁ => 0.9,
     :β₂ => 0.999,
-    :γ => @onlyif(:update_method == :scalar_RMS_prop, [ 0.05, 0.1, 0.2, 0.3 ]),
+    :γ => @onlyif(:update_method == :scalar_RMS_prop, [ 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 ]),
     :kernel_cb => median_trick_cb!,
-    :step_size => [ @onlyif(:update_method == :scalar_RMS_prop, 0.001),
-                   @onlyif(:update_method == :forward_euler, 0.0001) ],
+    :step_size => [ 0.001, @onlyif(:update_method == :forward_euler, 0.0001) ],
     :n_iter => [ 5000 ],
     :n_particles => 50,
     :n_runs => 10,
