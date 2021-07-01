@@ -11,7 +11,7 @@ ALG_PARAMS = Dict(
     :γ => @onlyif(:update_method == :scalar_RMS_prop, [ 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 ]),
     :kernel_cb => median_trick_cb!,
     :step_size => [ 0.001, @onlyif(:update_method == :forward_euler, 0.0001) ],
-    :n_iter => [ 5000 ],
+    :n_iter => [ 10000 ],
     :n_particles => 50,
     :n_runs => 10,
     :dKL_estimator => :RKHS_norm,
