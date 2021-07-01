@@ -180,8 +180,7 @@ function update!(::Val{:scalar_RMS_prop}, q, ϕ, ϵ, kernel, grad_logp, aux_vars
     γ = get(kwargs, :γ, false)
     ϕ .= calculate_phi_vectorized(kernel, q, grad_logp; kwargs...)
     aux_vars[:Gₜ] .= γ * norm(ϕ)^2 .+ (1-γ) * aux_vars[:Gₜ]
-    N = size(ϕ, 2)
-    ϵ .= N*ϵ/(aux_vars[:Gₜ][1] + 1)
+    ϵ .= ϵ/(√(aux_vars[:Gₜ][1] + 1))
     q .+= ϵ .*ϕ
 end
 
