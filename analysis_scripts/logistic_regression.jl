@@ -18,7 +18,6 @@ using Examples
 saveplot(f) = (savefig ∘ joinpath)(plotdir, f)
 saveplot(args...) = (savefig ∘ joinpath)(plotdir, args...)
 
-###### Cell ###### -
 plotdir = "/home/lew/Documents/BCCN_Master/SVGD-stuff/Thesis/bayesian-inference-thesis/texfiles/plots/bayesian_logistic_regression/"
 
 ###### Cell ###### - Evaluation of Laplace start
@@ -112,6 +111,37 @@ for d in data
     # readline()
 end
 
+# reruns
+###### Cell ###### - params
+# PROBLEM_PARAMS = Dict(
+#     :problem_type => [ :logistic_regression ],
+#     :MAP_start => [ true ],
+#     :Laplace_start => [ false,  true ],
+#     :n_dim => [ 2 ],
+#     :n₀ => [ 50 ],
+#     :n₁ => [ 50 ],
+#     :μ₀ => [ [0., 0] ],
+#     :μ₁ => [ [4., 3] ],
+#     :Σ₀ => [ [0.5 0.1; 0.1 0.2] ],
+#     :Σ₁ => [ [.5 0.1; 0.1 .2] ],
+#     :μ_prior => [ zeros(3) ],
+#     :Σ_prior => [ I(3) ],
+#     :μ_initial => [ [1., 1, 1] ],
+#     :Σ_initial => [ I(3) ],
+#     :random_seed => [ 0 ],
+# )
+
+# ALG_PARAMS = Dict(
+#     :update_method => [ :forward_euler ],
+#     :kernel_cb => [ median_trick_cb! ],
+#     :step_size => [ 0.0001 ],
+#     :n_iter => [ 5000 ],
+#     :n_particles => [ 10, 25, 50, 100 ],
+#     :n_runs => [ 10 ],
+#     :dKL_estimator => [ :RKHS_norm ],
+#     :progress => [ false ],
+#     )
+
 ###### Cell ###### - load data from the reruns
 all_data10 = load_data(gdatadir("bayesian_logistic_regression", "MAPvLaplace_rerun_10"))
 all_data25 = load_data(gdatadir("bayesian_logistic_regression", "MAPvLaplace_rerun_25"))
@@ -128,7 +158,16 @@ end
 # This is caused by the fact that the value used for 𝔼[V] is a simple MC estimate
 # that is computed separately for each run and again for the plot.
 
-###### Cell ###### -
+###### Cell ###### - log Z estimates
+# 50 particles:
+[(mean(d[:estimated_logZ]), d[:Laplace_start]) for d in all_data50]
+# (-13.096600752604735, 1)
+# (-15.909862444306304, 0)
+[(std(d[:estimated_logZ]), d[:Laplace_start]) for d in all_data50]
+# (0.07727404426636961, 1)
+# (9.03507264249623, 0)
+
+###### Cell ###### - plot MAP v Laplace
 mkpath(joinpath(plotdir, "MAPvLaplace50_5000iter"))
 
 for (d, n) in zip(all_data50, ["Laplace", "MAP"])
