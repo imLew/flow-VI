@@ -45,7 +45,7 @@ function show_params(data::Dict{Symbol, Any})
     elseif data[:update_method] == :scalar_Adam
         @show data[:β₁]
         @show data[:β₂]
-    elseif data[:update_method] == :naive_WAG
+    elseif data[:update_method] == :naive_WNES
         @show data[:c₁]
         @show data[:c₂]
     end
