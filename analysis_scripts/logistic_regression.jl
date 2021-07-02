@@ -175,6 +175,132 @@ for (d, n) in zip(all_data50, ["Laplace", "MAP"])
     saveplot("MAPvLaplace50_5000iter", n*".png")
 end
 
+# RMS prop experiments
+###### Cell ###### - params
+# ALG_PARAMS = Dict(
+#     :update_method => [ :forward_euler, :scalar_RMS_prop, ],
+#     :β₁ => 0.9,
+#     :β₂ => 0.999,
+#     :γ => @onlyif(:update_method == :scalar_RMS_prop, [ 0.7, 0.8, 0.9, 0.95 ]),
+#     :kernel_cb => median_trick_cb!,
+#     :step_size => [ @onlyif(:update_method == :scalar_RMS_prop, 0.001),
+#                    @onlyif(:update_method == :forward_euler, 0.0001) ],
+#     :n_iter => [ 5000 ],
+#     :n_particles => 50,
+#     :n_runs => 10,
+#     :dKL_estimator => :RKHS_norm,
+#     :progress => false,
+#     )
+
+# PROBLEM_PARAMS = Dict(
+#     :problem_type => :logistic_regression,
+#     :MAP_start => [ true ],
+#     :Laplace_start => [ false,  ],
+#     :n_dim => 2,
+#     :n₀ => 50,
+#     :n₁ => 50,
+#     :μ₀ => [ [0., 0] ],
+#     :μ₁ => [ [4., 3] ],
+#     :Σ₀ => [ [0.5 0.1; 0.1 0.2] ],
+#     :Σ₁ => [ [.5 0.1; 0.1 .2] ],
+#     :μ_prior => [ zeros(3) ],
+#     :Σ_prior => [ I(3) ],
+#     :μ_initial => [ [1., 1, 1] ],
+#     :Σ_initial => [ I(3) ],
+#     :random_seed => 0,
+# )
+
+###### Cell ###### - load data and plot for overview
+all_data = load_data(gdatadir("bayesian_logistic_regression", "GDvariants", "RMSprop"))
+
+for d in all_data
+    d[:true_logZ] = -13.34
+end
+
+data = filter_by_dict( Dict(:n_iter => [10000]), all_data )
+
+for d in data
+    display(plot_integration(d))
+    @info mean(d[:estimated_logZ])
+    show_params(d)
+    readline()
+end
+# interestingly the value of γ seems to have very little influence on the final
+# log Z estimate
+
+###### Cell ###### - compute mean+minimum step size and log Z mean+std
+[ mean([mean(get(h, :step_sizes)[2]) for h in d[:svgd_hist]]) for d in data ]
+# 0.001000000
+# 0.000411451
+# 0.000413492
+# 0.000414547
+# 0.000414912
+# 0.000415101
+# 0.000415217
+# 0.000415297
+# 0.000415355
+# 0.000415399
+# 0.000415435
+# 0.000100000
+
+[minimum([minimum(get(h, :step_sizes)[2]) for h in d[:svgd_hist]]) for d in data]
+# 0.001
+# 1.4532184809476856e-5
+# 1.4281094177668533e-5
+# 1.4134689509161302e-5
+# 1.4080990216459099e-5
+# 1.4052501409510837e-5
+# 1.403439527177852e-5
+# 1.4021742130566222e-5
+# 1.4011850883448029e-5
+# 1.4003924958098671e-5
+# 1.399730741532191e-5
+# 0.0001
+
+[(mean(d[:estimated_logZ]), get(d, :γ, 0)) for d in data]
+# (-12.768765317862108, 0)
+# (-13.283954727675745, 0.05)
+# (-13.278882521989038, 0.1)
+# (-13.276283035796519, 0.2)
+# (-13.275386723793272, 0.3)
+# (-13.274925636769378, 0.4)
+# (-13.274641877501981, 0.5)
+# (-13.27444822539806, 0.6)
+# (-13.274306787673115, 0.7)
+# (-13.274198393691767, 0.8)
+# (-13.27411224170991, 0.9)
+# (-14.872155551080146, 0)
+[(std(d[:estimated_logZ]), get(d, :γ, 0)) for d in data]
+# (9.181622680897695, 0)
+# (9.050941587655766, 0.05)
+# (9.052462710563525, 0.1)
+# (9.053240466362784, 0.2)
+# (9.053507552058575, 0.3)
+# (9.053644449982988, 0.4)
+# (9.053728419476416, 0.5)
+# (9.053785551268547, 0.6)
+# (9.053827157176023, 0.7)
+# (9.05385894644824, 0.8)
+# (9.053884147686995, 0.9)
+# (9.155967448673595, 0)
+
+###### Cell ###### -
+mkpath(joinpath(plotdir, "RMSprop"))
+plt = plot(legend=:bottomright)
+plot_integration!(plt, data[1], int_color=colors[1], flow_label="ϵ=0.001",
+                 show_ribbon=false)
+plot_integration!(plt, data[end-2], int_color=colors[2], flow_label="RMSprop",
+                 show_ribbon=false)
+plot_integration!(plt, data[end], int_color=colors[3], flow_label="ϵ=0.0001",
+                 show_ribbon=false)
+saveplot("RMSprop", "RMSvEuler.png")
+
+###### Cell ###### -
+
+###### Cell ###### -
+
+###### Cell ###### -
+
 ###### Cell ###### -
 
 ###### Cell ###### -
