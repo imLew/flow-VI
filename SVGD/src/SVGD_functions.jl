@@ -85,7 +85,7 @@ function push_to_hist!(
     dKL_estimator = get(kwargs, :dKL_estimator, false)
     if kwargs[:update_method] == :naive_WNES
         dKL = WNes_dKL(kernel, q, ϕ, grad_logp, aux_vars, ϵ; kwargs...)
-        push!(hist, :dKL, i, dKL)
+        push!(hist, :WNes_dKL, i, dKL)
     elseif kwargs[:update_method] == :scalar_Adam
         dKL = dKL_Adam(kernel, q, ϕ, grad_logp, aux_vars, ϵ; kwargs...)
         push!(hist, :adam_dKL, i, dKL)
