@@ -350,6 +350,7 @@ function plot_integration!(
     int_color = get(kwargs, :int_color, INT_COLOR)
     true_color = get(kwargs, :true_color, TRUE_COLOR)
     start_color = get(kwargs, :start_color, START_COLOR)
+    show_ribbon = get(kwargs, :show_ribbon, true)
     plot!(plt, xlabel="iterations", ylabel="log Z", legend=legend, lw=lw,
           ylims=ylims);
     est_logZ = estimate_logZ(data; kwargs...)
@@ -359,16 +360,26 @@ function plot_integration!(
                 plot!(plt, estimate, color=int_color,
                       label=flow_label*" $estimator", ls=ls);
             else
-                plot!(plt, mean(estimate), ribbon=std(estimate), ribbonalpha=0,
-                      color=int_color, label=flow_label*" $estimator", ls=ls);
+                if show_ribbon
+                    plot!(plt, mean(estimate), ribbon=std(estimate),
+                          color=int_color, label=flow_label, ls=ls);
+                else
+                    plot!(plt, mean(estimate), color=int_color,
+                          label=flow_label, ls=ls);
+                end
             end
         end
     else
         if data[:n_runs] < 5
             plot!(plt, est_logZ, color=int_color, label=flow_label);
         else
-            plot!(plt, mean(est_logZ), ribbon=std(est_logZ), color=int_color,
-                  label=flow_label);
+            if show_ribbon
+                plot!(plt, mean(est_logZ), ribbon=std(est_logZ),
+                      color=int_color, label=flow_label);
+            else
+                plot!(plt, mean(est_logZ), color=int_color,
+                      label=flow_label);
+            end
         end
     end
     if haskey(data, :true_logZ)
