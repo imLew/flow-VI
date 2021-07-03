@@ -134,16 +134,23 @@ function update!(::Val{:scalar_Adam}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
     t = get(kwargs, :iter, false)
     β₁ = get(kwargs, :β₁, false)
     β₂ = get(kwargs, :β₂, false)
+    stepsize_method = get(kwargs, :adam_stepsize_method, :average)
     unbiased = get(kwargs, :Adam_unbiased, false)
 
+    # We must compute 𝔼∇ϕ here because we need it for dKL/dt later.
     aux_vars[:𝔼∇ϕₜ₋₁] .= 𝔼∇ϕ(kernel, q, grad_logp, unbiased=unbiased)
 
     ϕ .= calculate_phi_vectorized(kernel, q, grad_logp; kwargs...)
     aux_vars[:mₜ₋₁] .= aux_vars[:mₜ]
     aux_vars[:mₜ] .= β₁ .* aux_vars[:mₜ] + (1-β₁) .* ϕ
     aux_vars[:vₜ] .= β₂ .* aux_vars[:vₜ] + (1-β₂) .* ϕ.^2
-    ϵ .= ϵ.*(sqrt((1-β₂^t)./(1-β₁^t)) ./ mean(sqrt.(aux_vars[:vₜ]))
-             * 1 ./(1-β₁^t) )
+
+    if stepsize_method == :average
+        ϵ .*= sqrt(1-β₂^t)./(1-β₁^t) .* mean(1/sqrt.(aux_vars[:vₜ]))
+    elseif stepsize_method == :minimum
+        ϵ .*= sqrt(1-β₂^t)./(1-β₁^t) .* 1/sqrt.(maximum(aux_vars[:vₜ]))
+    end
+
     q .+= ϵ .* aux_vars[:mₜ]
 end
 
