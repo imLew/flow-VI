@@ -146,9 +146,10 @@ function update!(::Val{:scalar_Adam}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
     aux_vars[:vₜ] .= β₂ .* aux_vars[:vₜ] + (1-β₂) .* ϕ.^2
 
     if stepsize_method == :average
-        ϵ .*= sqrt(1-β₂^t)./(1-β₁^t) .* mean(1/sqrt.(aux_vars[:vₜ]))
+        ϵ .*= sqrt(1-β₂^t)./(1-β₁^t)
+        ϵ .*= mean(1.0./sqrt.(aux_vars[:vₜ]))
     elseif stepsize_method == :minimum
-        ϵ .*= sqrt(1-β₂^t)./(1-β₁^t) .* 1/sqrt.(maximum(aux_vars[:vₜ]))
+        ϵ .*= sqrt(1-β₂^t)./(1-β₁^t) .* 1.0/sqrt.(maximum(aux_vars[:vₜ]))
     end
 
     q .+= ϵ .* aux_vars[:mₜ]
