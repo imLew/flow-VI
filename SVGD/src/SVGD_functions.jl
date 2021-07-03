@@ -159,23 +159,24 @@ function 𝔼∇ϕ(kernel, q, ∇logp; unbiased=false)
     d, N = size(q)
     h = 1/kernel.transform.s[1]^2
     k_mat = KernelFunctions.kernelmatrix(kernel, q)
-    𝔼∇ϕ = 0
+    𝔼∇ϕ = 0.0
     if unbiased
         for (i, x) in enumerate(eachcol(q))
             glp_x = ∇logp(x)
             for (j, y) in enumerate(eachcol(q))
                 if i != j
                     glp_y = ∇logp(y)
-                    𝔼∇ϕ += (
-                             -(x.-y)./h ⋅ (glp_y .+ (x.-y)./h) + d/h
-                           ) * k_mat[i,j]
+                    𝔼∇ϕ += (-(x.-y)./h⋅(glp_y +(x.-y)./h)+d/h)*k_mat[i,j]
                 end
             end
         end
-        𝔼∇ϕ ./= (N*(N-1))
+        𝔼∇ϕ /= (N*(N-1))
     else
         glp_mat = mapreduce( ∇logp, hcat, eachcol(q) )
-        ∇k = -1 .* kernel_grad_matrix(kernel, q)  # -1 because we need ∇ wrt 2ⁿᵈ arg
+        ∇k = -1 .* kernel_grad_matrix(kernel, q)
+        # Multiply by -1 because we need the gradient, ∇, with respect to the
+        # second argument and for the RBF kernel that is -1 times the gradient
+        # with respect to the first argument.
         𝔼∇ϕ = N^2 \ ( sum( k_mat .* (d/h .- 1/h^2 .* pairwise(SqEuclidean(), q)) )
                 + sum(∇k'*glp_mat)
                )
