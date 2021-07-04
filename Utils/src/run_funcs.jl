@@ -270,15 +270,14 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
                        )
     end
 
-    therm_logZ = if haskey(problem_params, :therm_params)
-        therm_integration(problem_params, D; problem_params[:therm_params]...)
+    if haskey(problem_params, :therm_params)
+        therm_logZ = therm_integration(problem_params, D; problem_params[:therm_params]...)
+        if haskey(problem_params, :random_seed)
+            Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
+            @info "GLOBAL_RNG random seed set again because thermodynamic integration used up randomness" problem_params[:random_seed]
+        end
     else
-        nothing
-    end
-
-    if haskey(problem_params, :random_seed)
-        Random.seed!(Random.GLOBAL_RNG, problem_params[:random_seed])
-        @info "GLOBAL_RNG random seed set again because thermodynamic integration used up randomness" problem_params[:random_seed]
+        therm_logZ = nothing
     end
 
     # arrays to hold results
