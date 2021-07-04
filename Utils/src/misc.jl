@@ -91,6 +91,10 @@ function get_savename(dict)
     delete!(savenamedict, :problem_type)
     delete!(savenamedict, :callback)
     delete!(savenamedict, :sample_data_file)
+    delete!(savenamedict, :adam_stepsize_method)
+    delete!(savenamedict, :progress)
+    delete!(savenamedict, :random_seed)
+    delete!(savenamedict, :kernel_cb)
     if !get!(dict, :MAP_start, false) || get!(dict, :Laplace_start, false)
         delete!(savenamedict, :MAP_start)
     end
@@ -111,6 +115,9 @@ function get_savename(dict)
     if update_method != :scalar_Adam
         delete!(savenamedict, :β₁)
         delete!(savenamedict, :β₂)
+    end
+    if update_method in [:scalar_Adam]
+        delete!(savenamedict, :dKL_estimator)
     end
     file_prefix = savename( savenamedict )
 end
