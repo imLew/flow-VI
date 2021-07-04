@@ -115,17 +115,11 @@ end
 function dKL_Adam(kernel, q, ϕ, grad_logp, aux_vars, ϵ; kwargs...)
     β₁ = get(kwargs, :β₁, false)
     β₂ = get(kwargs, :β₂, false)
-    d, N = size(q)
-    mₜ₋₁ = aux_vars[:mₜ₋₁]
-    𝔼∇mₜ₋₁ = aux_vars[:𝔼∇mₜ₋₁]
-    𝔼∇ϕₜ₋₁ = aux_vars[:𝔼∇ϕₜ₋₁]
-    𝔼∇mₜ₋₁ .= β₁ .* 𝔼∇mₜ₋₁ .+ (1-β₁) .* 𝔼∇ϕₜ₋₁
-    glp_mat = mapreduce( grad_logp, hcat, eachcol(q) )
-    norm_ϕ = compute_dKL(Val(:RKHS_norm), kernel, q, grad_logp=grad_logp, ϕ=ϕ)
-
-    aux_vars[:𝔼∇mₜ₋₁] .= 𝔼∇mₜ₋₁
-
-    dKL = β₁.*(𝔼∇mₜ₋₁.+ sum(mₜ₋₁'*glp_mat)./N) .- (1-β₁).*norm_ϕ
+    N = size(q, 2)
+    aux_vars[:𝔼∇mₜ₋₁] .= β₁ .* aux_vars[:𝔼∇mₜ₋₁] .+ (1-β₁) .* aux_vars[:𝔼∇ϕₜ₋₁]
+    norm_ϕ = RKHS_norm(kernel, q, grad_logp=grad_logp, ϕ=ϕ)
+    glp_mat = mapreduce(grad_logp, hcat, eachcol(q))
+    dKL = β₁.*(aux_vars[:𝔼∇mₜ₋₁].+aux_vars[:mₜ₋₁]⋅glp_mat/N).+(1-β₁).*norm_ϕ
     return -dKL[1]
 end
 
@@ -146,10 +140,9 @@ function update!(::Val{:scalar_Adam}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
     aux_vars[:vₜ] .= β₂ .* aux_vars[:vₜ] + (1-β₂) .* ϕ.^2
 
     if stepsize_method == :average
-        ϵ .*= sqrt(1-β₂^t)./(1-β₁^t)
-        ϵ .*= mean(1.0./sqrt.(aux_vars[:vₜ]))
+        ϵ .*= sqrt(1-β₂^t)./(1-β₁^t) .* mean(1.0./sqrt.(aux_vars[:vₜ]).+1)
     elseif stepsize_method == :minimum
-        ϵ .*= sqrt(1-β₂^t)./(1-β₁^t) .* 1.0/sqrt.(maximum(aux_vars[:vₜ]))
+        ϵ .*= sqrt(1-β₂^t)./(1-β₁^t) .* 1.0/sqrt.(maximum(aux_vars[:vₜ]).+1)
     end
 
     q .+= ϵ .* aux_vars[:mₜ]
@@ -172,14 +165,14 @@ function 𝔼∇ϕ(kernel, q, ∇logp; unbiased=false)
         end
         𝔼∇ϕ /= (N*(N-1))
     else
-        glp_mat = mapreduce( ∇logp, hcat, eachcol(q) )
-        ∇k = -1 .* kernel_grad_matrix(kernel, q)
+        glp_mat = mapreduce(∇logp, hcat, eachcol(q))
+        ∇k = -1.0.*kernel_grad_matrix(kernel, q)
         # Multiply by -1 because we need the gradient, ∇, with respect to the
         # second argument and for the RBF kernel that is -1 times the gradient
         # with respect to the first argument.
-        𝔼∇ϕ = N^2 \ ( sum( k_mat .* (d/h .- 1/h^2 .* pairwise(SqEuclidean(), q)) )
-                + sum(∇k'*glp_mat)
-               )
+        𝔼∇ϕ = N^2\(sum(k_mat .* (d/h .- 1/h^2 .* pairwise(SqEuclidean(), q)))
+                   +sum(∇k'*glp_mat)
+                  )
     end
     return 𝔼∇ϕ
 end
@@ -241,10 +234,14 @@ function WNes_dKL(kernel, q, ϕ, grad_logp, aux_vars, ϵ; kwargs...)
     k_mat = KernelFunctions.kernelmatrix(kernel, q)
     glp_mat = mapreduce( grad_logp, hcat, eachcol(q) )
 
+    # This sums over all combinations of particles, not sure whether that is
+    # correct, but since WNes_dKL is probably not correct at all anyway it
+    # doesn't matter for now.
     dKL += sum(ϕ'*glp_mat)
 
     glp_mat = mapreduce( grad_logp, hcat, eachcol(y) )
     ∇k = kernel_grad_matrix(kernel, y)
+    # See comment above.
     dKL += sum(∇k'*glp_mat ) / N
 
     dKL += N \ sum( k_mat .* ( 2*d/h .- 4/h^2 .* pairwise(SqEuclidean(), y) ) )
