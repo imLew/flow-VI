@@ -90,21 +90,25 @@ function get_savename(dict)
     delete!(savenamedict, :sample_data_file)
     delete!(savenamedict, :problem_type)
     delete!(savenamedict, :callback)
-    if !get!(dict, :MAP_start, false)
+    delete!(savenamedict, :sample_data_file)
+    if !get!(dict, :MAP_start, false) || get!(dict, :Laplace_start, false)
         delete!(savenamedict, :MAP_start)
     end
     if !get!(dict, :Laplace_start, false)
         delete!(savenamedict, :Laplace_start)
     end
-    um = get!(dict, :update_method, :false)
-    if um != :scalar_RMS_prop
+    update_method = get!(dict, :update_method, :false)
+    if update_method != :scalar_RMS_prop
         delete!(savenamedict, :γ)
-    elseif um != :naive_WNES
+    end
+    if update_method != :naive_WNES
         delete!(savenamedict, :c₁)
         delete!(savenamedict, :c₂)
-    elseif um != :naive_WAG
+    end
+    if update_method != :naive_WAG
         delete!(savenamedict, :α)
-    elseif um != :scalar_Adam
+    end
+    if update_method != :scalar_Adam
         delete!(savenamedict, :β₁)
         delete!(savenamedict, :β₂)
     end

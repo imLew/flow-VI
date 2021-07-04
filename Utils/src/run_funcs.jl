@@ -244,11 +244,12 @@ function run_svgd(::Val{:linear_regression}; problem_params, alg_params,
     true_logZ = LinReg.regression_logZ(problem_params[:Σ_prior], true_model.β,
                                        true_model.ϕ, D.x)
 
-    file_prefix = get_savename( merge(problem_params, alg_params) )
     results = merge(alg_params, problem_params,
                     @dict(true_logZ, estimated_logZ, therm_logZ,
                           svgd_results, svgd_hist, D, failed_count))
+
     if save
+        file_prefix = get_savename(merge(problem_params, alg_params))
         tagsave(gdatadir(DIRNAME, file_prefix * ".bson"), results,
                 safe=true, storepatch = false)
     end
@@ -327,24 +328,20 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
     H₀ = Distributions.entropy(initial_dist)
     EV = expectation_V(initial_dist, w -> -logp(w))
     estimated_logZ = [est[end] for est in estimate_logZ(H₀, EV, svgd_hist)]
+
     results = merge(alg_params, problem_params,
                     @dict(estimated_logZ, svgd_results, svgd_hist,
                           D, therm_logZ,  failed_count))
+
     if save
-        savenamedict = merge(problem_params, alg_params)
-        delete!(savenamedict, :sample_data_file)
-        if !get(problem_params, :MAP_start, false) || get(problem_params, :Laplace_start, false)
-            delete!(savenamedict, :MAP_start)
-        end
-        if !get(problem_params, :Laplace_start, false)
-            delete!(savenamedict, :Laplace_start)
-        end
-        file_prefix = savename( savenamedict )
+        file_prefix = get_savename(merge(problem_params, alg_params))
         tagsave(gdatadir(DIRNAME, file_prefix * ".bson"), results,
                 safe=true, storepatch = false)
     end
     return results
 end
+
+get_savename
 
 function run_svgd(;problem_params, alg_params, DIRNAME="", save=true)
     problem_params = copy(problem_params)
