@@ -336,9 +336,9 @@ function compute_dKL(::Val{:uKSD}, kernel::Kernel, q; grad_logp, kwargs...)
     -dKL / (N*(N-1))
 end
 
-function compute_dKL(::Val{:RKHS_norm}, kernel::Kernel, q; ϕ, kwargs...)
+function RKHS_norm(kernel::Kernel, q; ϕ, kwargs...)
     if size(q)[1] == 1
-        - invquad(kernelpdmat(kernel, q), vec(ϕ))
+        invquad(kernelpdmat(kernel, q), vec(ϕ))
     else
         # this first method tries to flatten the tensor equation
         # invquad(flat_matrix_kernel_matrix(kernel, q), vec(ϕ))
@@ -350,7 +350,7 @@ function compute_dKL(::Val{:RKHS_norm}, kernel::Kernel, q; ϕ, kwargs...)
             for f in eachrow(ϕ)
                 norm += invquad(k_mat, vec(f))
             end
-            return - norm
+            return norm
         catch e
             if e isa PosDefException
                 @show kernel
@@ -358,6 +358,10 @@ function compute_dKL(::Val{:RKHS_norm}, kernel::Kernel, q; ϕ, kwargs...)
             rethrow(e)
         end
     end
+end
+
+function compute_dKL(::Val{:RKHS_norm}, kernel::Kernel, q; ϕ, kwargs...)
+    return -RKHS_norm(kernel, q; ϕ=ϕ, kwargs...)
 end
 
 # not being used, double check before using another kernel
