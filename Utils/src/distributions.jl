@@ -183,8 +183,11 @@ function estimate_logZ(data::Dict{Symbol,Any}; kwargs...)
     estimate_logZ(Val(data[:problem_type]), data; data..., kwargs...)
 end
 
-function numerical_expectation(d::Distribution, f; n_samples=10000,
+function numerical_expectation(d::Distribution, f; n_samples=100000,
                                rng=Random.GLOBAL_RNG)
+    if Int(n_samples) == n_samples
+        n_samples = Int(n_samples)
+    end
     mean([ v for v in [ f(x) for x in rand(rng, d, n_samples)] if isfinite(v)] )
 end
 
@@ -192,9 +195,12 @@ end
 # of each col :/
 function num_expectation(d::Distribution, f; n_samples=10000,
                          rng=Random.GLOBAL_RNG)
-    mean([ v for v in [ f(x) for x in eachcol(rand(rng, d, n_samples))]
+    if Int(n_samples) == n_samples
+        n_samples = Int(n_samples)
+    end
+    mean([v for v in [f(x) for x in eachcol(rand(rng, d, n_samples))]
           if isfinite(v)] )
-    mean([ f(x) for x in eachcol(rand(rng, d, n_samples))])
+    # mean([ f(x) for x in eachcol(rand(rng, d, n_samples))])
 end
 
 function logZ(d::Distribution)
