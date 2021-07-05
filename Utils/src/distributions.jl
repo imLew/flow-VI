@@ -95,28 +95,20 @@ function integrate(Δx::Number, f::Array; kwargs...)
 end
 
 function KL_integral(hist::MVHistory; kwargs...)
-    if get(kwargs, :update_method, false) == :naive_WNES
-        out = integrate(get(hist, :step_sizes)[2], get(hist, :dKL)[2]; kwargs...)
-    elseif get(kwargs, :update_method, false) == :scalar_Adam
-        out = integrate(get(hist, :step_sizes)[2], get(hist, :adam_dKL)[2]; kwargs...)
-    else
-        dKL_estimator = get(kwargs, :dKL_estimator, :RKHS_norm)
-        if typeof(dKL_estimator) == Symbol
-            out = integrate(
-                      get(hist, :step_sizes)[2],
-                      get(hist, dKL_estimator)[2];
-                      kwargs...
-                     )
-        elseif typeof(dKL_estimator) == Array{Symbol,1}
-            out = Dict()
-            for estimator in dKL_estimator
-                out[estimator] = integrate(
-                          get(hist, :step_sizes)[2],
-                          get(hist, estimator)[2];
-                          kwargs...
-                         )
-            end
+    dKL_keys = [:adam_dKL, :KSD, :uKSD, :RKHS_norm]
+    out = Dict()
+    for k in dKL_keys
+        if haskey(hist, k)
+            out[k] = integrate(get(hist, :step_sizes)[2], get(hist, k)[2];
+                               kwargs...)
         end
+    end
+    # For backward compatibility / to save some effort it is easier to not
+    # return the whole dictionary if it only has one key
+    if length(keys(out)) == 1
+        # This seemingly unnecessary comprehension turns keys(out) into an array
+        # that we can then index to get the only key.
+        out = out[[i for i in keys(out)][1]]
     end
     return out
 end

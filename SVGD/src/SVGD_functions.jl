@@ -85,7 +85,7 @@ function push_to_hist!(
     dKL_estimator = get(kwargs, :dKL_estimator, false)
     if kwargs[:update_method] == :naive_WNES
         dKL = WNes_dKL(kernel, q, ϕ, grad_logp, aux_vars, ϵ; kwargs...)
-        push!(hist, :dKL, i, dKL)
+        push!(hist, :WNes_dKL, i, dKL)
     elseif kwargs[:update_method] == :scalar_Adam
         dKL = dKL_Adam(kernel, q, ϕ, grad_logp, aux_vars, ϵ; kwargs...)
         push!(hist, :adam_dKL, i, dKL)
@@ -115,17 +115,11 @@ end
 function dKL_Adam(kernel, q, ϕ, grad_logp, aux_vars, ϵ; kwargs...)
     β₁ = get(kwargs, :β₁, false)
     β₂ = get(kwargs, :β₂, false)
-    d, N = size(q)
-    mₜ₋₁ = aux_vars[:mₜ₋₁]
-    𝔼∇mₜ₋₁ = aux_vars[:𝔼∇mₜ₋₁]
-    𝔼∇ϕₜ₋₁ = aux_vars[:𝔼∇ϕₜ₋₁]
-    𝔼∇mₜ₋₁ .= β₁ .* 𝔼∇mₜ₋₁ .+ (1-β₁) .* 𝔼∇ϕₜ₋₁
-    glp_mat = mapreduce( grad_logp, hcat, eachcol(q) )
-    norm_ϕ = compute_dKL(Val(:RKHS_norm), kernel, q, grad_logp=grad_logp, ϕ=ϕ)
-
-    aux_vars[:𝔼∇mₜ₋₁] .= 𝔼∇mₜ₋₁
-
-    dKL = β₁.*(𝔼∇mₜ₋₁.+ sum(mₜ₋₁'*glp_mat)./N) .- (1-β₁).*norm_ϕ
+    N = size(q, 2)
+    aux_vars[:𝔼∇mₜ₋₁] .= β₁ .* aux_vars[:𝔼∇mₜ₋₁] .+ (1-β₁) .* aux_vars[:𝔼∇ϕₜ₋₁]
+    norm_ϕ = RKHS_norm(kernel, q, grad_logp=grad_logp, ϕ=ϕ)
+    glp_mat = mapreduce(grad_logp, hcat, eachcol(q))
+    dKL = β₁.*(aux_vars[:𝔼∇mₜ₋₁].+aux_vars[:mₜ₋₁]⋅glp_mat/N).+(1-β₁).*norm_ϕ
     return -dKL[1]
 end
 
@@ -134,16 +128,23 @@ function update!(::Val{:scalar_Adam}, q, ϕ, ϵ, kernel, grad_logp, aux_vars;
     t = get(kwargs, :iter, false)
     β₁ = get(kwargs, :β₁, false)
     β₂ = get(kwargs, :β₂, false)
+    stepsize_method = get(kwargs, :adam_stepsize_method, :average)
     unbiased = get(kwargs, :Adam_unbiased, false)
 
+    # We must compute 𝔼∇ϕ here because we need it for dKL/dt later.
     aux_vars[:𝔼∇ϕₜ₋₁] .= 𝔼∇ϕ(kernel, q, grad_logp, unbiased=unbiased)
 
     ϕ .= calculate_phi_vectorized(kernel, q, grad_logp; kwargs...)
     aux_vars[:mₜ₋₁] .= aux_vars[:mₜ]
     aux_vars[:mₜ] .= β₁ .* aux_vars[:mₜ] + (1-β₁) .* ϕ
     aux_vars[:vₜ] .= β₂ .* aux_vars[:vₜ] + (1-β₂) .* ϕ.^2
-    ϵ .= ϵ.*(sqrt((1-β₂^t)./(1-β₁^t)) ./ mean(sqrt.(aux_vars[:vₜ]))
-             * 1 ./(1-β₁^t) )
+
+    if stepsize_method == :average
+        ϵ .*= sqrt(1-β₂^t)./(1-β₁^t) .* mean(1.0./sqrt.(aux_vars[:vₜ]).+1)
+    elseif stepsize_method == :minimum
+        ϵ .*= sqrt(1-β₂^t)./(1-β₁^t) .* 1.0/sqrt.(maximum(aux_vars[:vₜ]).+1)
+    end
+
     q .+= ϵ .* aux_vars[:mₜ]
 end
 
@@ -151,26 +152,21 @@ function 𝔼∇ϕ(kernel, q, ∇logp; unbiased=false)
     d, N = size(q)
     h = 1/kernel.transform.s[1]^2
     k_mat = KernelFunctions.kernelmatrix(kernel, q)
-    𝔼∇ϕ = 0
+    glp_mat = mapreduce(∇logp, hcat, eachcol(q))
+    ∇k = -1.0.*kernel_grad_matrix(kernel, q)
+    # Multiply by -1 because we need the gradient, ∇, with respect to the
+    # second argument and for the RBF kernel that is -1 times the gradient
+    # with respect to the first argument.
     if unbiased
-        for (i, x) in enumerate(eachcol(q))
-            glp_x = ∇logp(x)
-            for (j, y) in enumerate(eachcol(q))
-                if i != j
-                    glp_y = ∇logp(y)
-                    𝔼∇ϕ += (
-                             -(x.-y)./h ⋅ (glp_y .+ (x.-y)./h) + d/h
-                           ) * k_mat[i,j]
-                end
-            end
-        end
-        𝔼∇ϕ ./= (N*(N-1))
+        𝔼∇ϕ = (
+               sum(k_mat .* (d/h .- 1/h^2 .* pairwise(SqEuclidean(), q)))
+               - sum(diag(k_mat .* (d/h .- 1/h^2 .* pairwise(SqEuclidean(), q))))
+               +sum(∇k'*glp_mat) - ∇k⋅glp_mat
+              ) / (N*(N-1))
     else
-        glp_mat = mapreduce( ∇logp, hcat, eachcol(q) )
-        ∇k = -1 .* kernel_grad_matrix(kernel, q)  # -1 because we need ∇ wrt 2ⁿᵈ arg
-        𝔼∇ϕ = N^2 \ ( sum( k_mat .* (d/h .- 1/h^2 .* pairwise(SqEuclidean(), q)) )
-                + sum(∇k'*glp_mat)
-               )
+        𝔼∇ϕ = N^2\(sum(k_mat .* (d/h .- 1/h^2 .* pairwise(SqEuclidean(), q)))
+                   +sum(∇k'*glp_mat)
+                  )
     end
     return 𝔼∇ϕ
 end
@@ -232,10 +228,14 @@ function WNes_dKL(kernel, q, ϕ, grad_logp, aux_vars, ϵ; kwargs...)
     k_mat = KernelFunctions.kernelmatrix(kernel, q)
     glp_mat = mapreduce( grad_logp, hcat, eachcol(q) )
 
+    # This sums over all combinations of particles, not sure whether that is
+    # correct, but since WNes_dKL is probably not correct at all anyway it
+    # doesn't matter for now.
     dKL += sum(ϕ'*glp_mat)
 
     glp_mat = mapreduce( grad_logp, hcat, eachcol(y) )
     ∇k = kernel_grad_matrix(kernel, y)
+    # See comment above.
     dKL += sum(∇k'*glp_mat ) / N
 
     dKL += N \ sum( k_mat .* ( 2*d/h .- 4/h^2 .* pairwise(SqEuclidean(), y) ) )
@@ -327,9 +327,9 @@ function compute_dKL(::Val{:uKSD}, kernel::Kernel, q; grad_logp, kwargs...)
     -dKL / (N*(N-1))
 end
 
-function compute_dKL(::Val{:RKHS_norm}, kernel::Kernel, q; ϕ, kwargs...)
+function RKHS_norm(kernel::Kernel, q; ϕ, kwargs...)
     if size(q)[1] == 1
-        - invquad(kernelpdmat(kernel, q), vec(ϕ))
+        invquad(kernelpdmat(kernel, q), vec(ϕ))
     else
         # this first method tries to flatten the tensor equation
         # invquad(flat_matrix_kernel_matrix(kernel, q), vec(ϕ))
@@ -341,7 +341,7 @@ function compute_dKL(::Val{:RKHS_norm}, kernel::Kernel, q; ϕ, kwargs...)
             for f in eachrow(ϕ)
                 norm += invquad(k_mat, vec(f))
             end
-            return - norm
+            return norm
         catch e
             if e isa PosDefException
                 @show kernel
@@ -349,6 +349,10 @@ function compute_dKL(::Val{:RKHS_norm}, kernel::Kernel, q; ϕ, kwargs...)
             rethrow(e)
         end
     end
+end
+
+function compute_dKL(::Val{:RKHS_norm}, kernel::Kernel, q; ϕ, kwargs...)
+    return -RKHS_norm(kernel, q; ϕ=ϕ, kwargs...)
 end
 
 # not being used, double check before using another kernel
