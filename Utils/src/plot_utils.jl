@@ -11,11 +11,8 @@ using Examples
 LogReg = LogisticRegression
 LinReg = LinearRegression
 
-# export plot_known_dists
 export plot_2D_results
 export plot_2D_results!
-# export plot_2D_gaussians_results
-# export plot_2D_gaussians_results!
 export plot_1D
 export plot_integration
 export plot_integration!
@@ -477,20 +474,6 @@ function plot_prediction!(::Val{:logistic_regression}, plt, data)
              );
     end
 end
-
-# export color_point_by_prediction!
-# function color_point_by_prediction!(plt, data)
-#     xs = range(minimum(data[:D][:,2]), maximum(data[:D][:,2]), length=100)
-#     ys = range(minimum(data[:D][:,3]), maximum(data[:D][:,3]), length=100)
-#     grid = [[1, x, y] for x in xs, y in ys]
-
-#     σ(a) = 1 / (1 + exp(-a))
-#     q = hcat(data[:svgd_results]...)
-#     predictions = [σ(point'*w) for point in eachrow([ones(200) data[:D][:,2:end]]), w in eachcol(q)]
-#     avg_prediction = mean(predictions, dims=3)
-
-#     scatter!(plt, data[:D][:,2], data[:D][:,3], zcolor=avg_prediction)
-# end
 
 function merge_series!(sp1::Plots.Subplot, sp2::Plots.Subplot)
     append!(sp1.series_list, sp2.series_list)
