@@ -157,7 +157,11 @@ function estimate_logZ(
     ;kwargs...
 )
     H₀ = Distributions.entropy(initial_dist)
-    EV = expectation_V( initial_dist, target_dist)
+    if haskey(data, :EV)
+        EV = data[:EV]
+    else
+        EV = expectation_V(initial_dist, target_dist; kwargs...)
+    end
     estimate_logZ(H₀, EV, data[:svgd_hist]; kwargs...)
 end
 
@@ -169,7 +173,11 @@ function estimate_logZ(
                    Val{:gauss_mixture_sampling}}
     initial_dist = MvNormal(data[:μ_initial], data[:Σ_initial])
     H₀ = entropy(initial_dist)
-    EV = expectation_V(data)
+    if haskey(data, :EV)
+        EV = data[:EV]
+    else
+        EV = expectation_V(data; kwargs...)
+    end
     estimate_logZ(H₀, EV, data[:svgd_hist]; data..., kwargs...)
 end
 
@@ -200,7 +208,6 @@ function num_expectation(d::Distribution, f; n_samples=10000,
     end
     mean([v for v in [f(x) for x in eachcol(rand(rng, d, n_samples))]
           if isfinite(v)] )
-    # mean([ f(x) for x in eachcol(rand(rng, d, n_samples))])
 end
 
 function logZ(d::Distribution)
