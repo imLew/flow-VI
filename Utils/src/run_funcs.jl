@@ -311,7 +311,7 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
     initial_dist = MvNormal(problem_params[:μ_initial],
                             problem_params[:Σ_initial])
     failed_count = 0
-    for i in 1:alg_params[:n_runs]
+    Threads.@threads for i in 1:alg_params[:n_runs]
         try
             @info "Run $i/$(alg_params[:n_runs])"
             q = rand(initial_dist, alg_params[:n_particles])
