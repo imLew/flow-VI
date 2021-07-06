@@ -17,8 +17,8 @@ saveplot(f) = (savefig ∘ joinpath)(plotdir, f)
 
 ## Search for step size, #particles and #iter for following experiments
 plotdir = plot_rootdir*"/particles/"
-###### Cell ###### -
 
+###### Cell ###### -
 # PROBLEM_PARAMS = Dict(
 #     :problem_type => [ :gauss_to_gauss ],
 #     :μ₀ => [[0., 0]],
