@@ -11,11 +11,8 @@ using Examples
 LogReg = LogisticRegression
 LinReg = LinearRegression
 
-# export plot_known_dists
 export plot_2D_results
 export plot_2D_results!
-# export plot_2D_gaussians_results
-# export plot_2D_gaussians_results!
 export plot_1D
 export plot_integration
 export plot_integration!
@@ -254,7 +251,11 @@ function make_boxplots!(plt, data::Array{Any}; legend_keys=[], kwargs...)
         hline!(plt, [data[1][:therm_logZ]], label=therm_label, ls=:dot,
                colors=therm_color, lw=2)
     end
-    EV = expectation_V(data[1])
+    if haskey(data[1], :EV)
+        EV = data[1][:EV]
+    else
+        EV = expectation_V(data[1]; kwargs...)
+    end
     if data[1][:problem_type] == :gauss_to_gauss
         H₀ = entropy(MvNormal(data[1][:μ₀], data[1][:Σ₀]))
     else
@@ -389,7 +390,11 @@ function plot_integration!(
         hline!(plt, [data[:therm_logZ]], labels=therm_label, color=therm_color,
                ls=:dashdot);
     end
-    EV = expectation_V(data)
+    if haskey(data, :EV)
+        EV = data[:EV]
+    else
+        EV = expectation_V(data; kwargs...)
+    end
     if data[:problem_type] == :gauss_to_gauss
         H₀ = entropy(MvNormal(data[:μ₀], data[:Σ₀]))
     else
@@ -477,20 +482,6 @@ function plot_prediction!(::Val{:logistic_regression}, plt, data)
              );
     end
 end
-
-# export color_point_by_prediction!
-# function color_point_by_prediction!(plt, data)
-#     xs = range(minimum(data[:D][:,2]), maximum(data[:D][:,2]), length=100)
-#     ys = range(minimum(data[:D][:,3]), maximum(data[:D][:,3]), length=100)
-#     grid = [[1, x, y] for x in xs, y in ys]
-
-#     σ(a) = 1 / (1 + exp(-a))
-#     q = hcat(data[:svgd_results]...)
-#     predictions = [σ(point'*w) for point in eachrow([ones(200) data[:D][:,2:end]]), w in eachcol(q)]
-#     avg_prediction = mean(predictions, dims=3)
-
-#     scatter!(plt, data[:D][:,2], data[:D][:,3], zcolor=avg_prediction)
-# end
 
 function merge_series!(sp1::Plots.Subplot, sp2::Plots.Subplot)
     append!(sp1.series_list, sp2.series_list)
