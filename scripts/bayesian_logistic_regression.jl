@@ -7,7 +7,7 @@ using Utils
 ALG_PARAMS = Dict(
     :update_method => [ :scalar_Adam, ],
     :β₁ => @onlyif(:update_method == :scalar_Adam, [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]),
-    :β₂ => @onlyif(:update_method == :scalar_Adam, [0.999]),
+    :β₂ => @onlyif(:update_method == :scalar_Adam, [0.9, 0.99, 0.9999]),
     :kernel_cb => median_trick_cb!,
     :step_size => [ 0.001, @onlyif(:update_method == :forward_euler, 0.0001) ],
     :n_iter => [ 10000 ],
