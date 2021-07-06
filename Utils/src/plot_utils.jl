@@ -136,9 +136,9 @@ function plot_2D_results!(
     f(x,y) = pdf(target_dist, [x, y]) / pdf(target_dist, [mean(target_dist)...])
     g(x,y) = pdf(initial_dist, [x, y]) / pdf(initial_dist, [mean(initial_dist)...])
     x, y = _get_scatter_range(initial_dist, target_dist, q)
-    contour!(plt, x, y, f, color=colors[2], label="", levels=50,
+    contour!(plt, x, y, f, color=colors[2], label="", levels=5,
              markerstrokewidths=0.0, alpha=0.6, )
-    contour!(plt, x, y, g, color=colors[1], label="", levels=50,
+    contour!(plt, x, y, g, color=colors[1], label="", levels=5,
              markerstrokewidths=0.0, alpha=0.6, )
     scatter!(plt, q[1,:], q[2,:], legend=false, label="",
              markerstrokewidths=0.0, alpha=0.5, color=colors[1],
@@ -170,9 +170,7 @@ function plot_2D_results!(plt, data)
         target_dist = MvNormal(μ, Σ)
     elseif data[:problem_type] == :gauss_mixture_sampling
         initial_dist = MvNormal(data[:μ_initial], data[:Σ_initial])
-        @info data[:μ_initial], data[:Σ_initial]
-        target_dist = MixtureModel( MvNormal, [zip(data[:μₚ],
-                                                   data[:Σₚ])...] )
+        target_dist = MixtureModel(MvNormal, [zip(data[:μₚ], data[:Σₚ])...])
     end
     for q in data[:svgd_results]
         plot_2D_results!(plt, initial_dist, target_dist, q);
@@ -291,14 +289,14 @@ function plot_convergence!(
     kwargs = Dict(kwargs...)
     size = get(kwargs, :size, (375, 375))
     legend = get(kwargs, :legend, :bottomright)
-    ylims = get(kwargs, :ylims, (-Inf, Inf))
+    ylims = get(kwargs, :ylims, (0, Inf))
     xlims = get(kwargs, :xlims, (0, Inf))
     lw = get(kwargs, :lw, 3)
     int_lims = get(kwargs, :int_lims, (-Inf, Inf))
 
     plot_integration!(int_plot, data, xlims=xlims, ylims=int_lims; kwargs...)
 
-    if data[:problem_type] == :gauss_to_gauss
+    if data[:problem_type] in [:gauss_to_gauss, :gauss_mixture_sampling]
         plot_2D_results!(results_plot, data)
     elseif data[:problem_type] == :logistic_regression
         plot_classes!(results_plot, data)
