@@ -25,15 +25,15 @@ pdf_potential(d::Normal, x) = (x-mean(d))^2 / 2var(d)
 
 pdf_potential(d::MvNormal, x) = invquad( PDMat(cov(d)), x-mean(d) )/2
 
-function expectation_V(initial_dist::Distribution, target_dist::Distribution)
+function expectation_V(initial_dist::Distribution, target_dist::Distribution; kwargs...)
     num_expectation( initial_dist, x -> pdf_potential(target_dist, x) )
 end
 
-function expectation_V(q::Normal, p::Normal)
+function expectation_V(q::Normal, p::Normal; kwargs...)
     0.5 * ( var(q) / var(p) + (mean(q)-mean(p))^2/var(p) )
 end
 
-function expectation_V(q::MvNormal, p::MvNormal)
+function expectation_V(q::MvNormal, p::MvNormal; kwargs...)
     0.5 * ( tr(inv(cov(p))*cov(q)) + invquad(PDMat(cov(p)), mean(q)-mean(p)) )
 end
 
@@ -41,13 +41,13 @@ function expectation_V(initial_dist::Distribution, V; kwargs...)
     num_expectation(initial_dist, V; kwargs...)
 end
 
-function expectation_V(::Val{:gauss_to_gauss}, data)
+function expectation_V(::Val{:gauss_to_gauss}, data; kwargs...)
     expectation_V(MvNormal(data[:μ₀], data[:Σ₀]),
                   MvNormal(data[:μₚ], data[:Σₚ])
                  )
 end
 
-function expectation_V(::Val{:gauss_mixture_sampling}, data)
+function expectation_V(::Val{:gauss_mixture_sampling}, data; kwargs...)
     expectation_V(MvNormal(data[:μ_initial], data[:Σ_initial]),
                   MixtureModel( MvNormal, [zip(data[:μₚ], data[:Σₚ])...] )
                  )
@@ -192,7 +192,7 @@ function estimate_logZ(data::Dict{Symbol,Any}; kwargs...)
 end
 
 function numerical_expectation(d::Distribution, f; n_samples=100000,
-                               rng=Random.GLOBAL_RNG)
+                               rng=Random.GLOBAL_RNG, kwargs...)
     if Int(n_samples) == n_samples
         n_samples = Int(n_samples)
     end
@@ -202,7 +202,7 @@ end
 # the other numerical_expectation function applies f to each element instead
 # of each col :/
 function num_expectation(d::Distribution, f; n_samples=10000,
-                         rng=Random.GLOBAL_RNG)
+                         rng=Random.GLOBAL_RNG, kwargs...)
     if Int(n_samples) == n_samples
         n_samples = Int(n_samples)
     end
