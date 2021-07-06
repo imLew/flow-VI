@@ -51,10 +51,10 @@ function _get_dist_bounds(initial_dist::MvNormal, target_dist::MvNormal)
     initial_y = params(initial_dist)[2][2,2]
     target_x = params(target_dist)[2][1,1]
     target_y = params(target_dist)[2][2,2]
-    min_target_y = mean(target_dist)[2] + 2*target_y
-    max_target_y = mean(target_dist)[2] - 2*target_y
-    min_target_x = mean(target_dist)[1] + 2*target_x
-    max_target_x = mean(target_dist)[1] - 2*target_x
+    max_target_y = mean(target_dist)[2] + 2*target_y
+    min_target_y = mean(target_dist)[2] - 2*target_y
+    max_target_x = mean(target_dist)[1] + 2*target_x
+    min_target_x = mean(target_dist)[1] - 2*target_x
     return (initial_x, initial_y, min_target_x, min_target_y, max_target_x,
             max_target_y)
 end
@@ -186,8 +186,8 @@ function plot_2D_results(data; kwargs...)
 end
 
 function make_legend(labels; kwargs...)
-    get!(kwargs, :colors, colors)
-    get!(kwargs, :styles, [:line for l in labels])
+    colors = get!(kwargs, :colors, colors)
+    styles = get!(kwargs, :styles, [:line for l in labels])
 
     # rkhss = :dot
     # steins = :dash
@@ -299,7 +299,7 @@ function plot_convergence!(
     plot_integration!(int_plot, data, xlims=xlims, ylims=int_lims; kwargs...)
 
     if data[:problem_type] == :gauss_to_gauss
-        plot_2D_gaussians_results!(results_plot, data)
+        plot_2D_results!(results_plot, data)
     elseif data[:problem_type] == :logistic_regression
         plot_classes!(results_plot, data)
         plot_prediction!(results_plot, data)
