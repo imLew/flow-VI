@@ -104,12 +104,8 @@ function push_to_hist!(
     push!(hist, :kernel_width, kernel.transform.s)
 end
 
-function dKL_annealing_correction(ϕ, grad_logp, q, γₐ)
-    c = 0
-    for (xᵢ, ϕᵢ) in zip(eachcol(ϕ), eachcol(q))
-        c += dot(ϕᵢ, grad_logp(xᵢ))
-    end
-    -(1-γₐ[1])*c / size(q)[2]
+function dKL_annealing_correction(ϕ, ∇logp, q, γₐ)
+    -(1-γₐ[1])*ϕ⋅mapreduce(∇logp, hcat, eachcol(q))/size(q, 2)
 end
 
 function dKL_Adam(kernel, q, ϕ, grad_logp, aux_vars, ϵ; kwargs...)
