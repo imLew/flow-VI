@@ -146,7 +146,8 @@ function run_svgd(::Val{:gauss_mixture_sampling} ;problem_params, alg_params,
     true_logZ = logZ(target_dist)
     H₀ = Distributions.entropy(initial_dist)
     EV = expectation_V(initial_dist, target_dist)
-    estimated_logZ = if typeof(alg_params[:dKL_estimator]) <: Symbol
+    estimated_logZ = if (typeof(alg_params[:dKL_estimator]) <: Symbol
+                    && !(alg_params[:update_method] in [:naive_WNES, :naive_WAG]))
         [est[end] for est in estimate_logZ(H₀, EV, svgd_hist; alg_params...)]
     elseif typeof(alg_params[:dKL_estimator]) <: Array{Symbol,1}
         d = Dict()
