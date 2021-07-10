@@ -487,3 +487,29 @@ function merge_series!(sp1::Plots.Subplot, sp2::Plots.Subplot)
     Plots.expand_extrema!(sp1[:xaxis], xlims(sp2))
     Plots.expand_extrema!(sp1[:yaxis], ylims(sp2))
 end
+
+function plot_annealing_schedule!(plt, data::Dict{Symbol, Any}; kwargs...)
+    γ = get(data[:svgd_hist][1], :annealing)[2]
+    plot!(plt, γ; kwargs...)
+end
+
+function plot_annealing_schedule(data::Dict{Symbol, Any}; kwargs...)
+    plt = plot(;kwargs...)
+    plot_annealing_schedule!(plt, data; kwargs...)
+    return plt
+end
+
+function plot_annealing_schedule!(plt, data; kwargs...)
+    for d in data
+        plot_annealing_schedule!(plt, d; kwargs...)
+    end
+    return plt
+end
+
+function plot_annealing_schedule(data; kwargs...)
+    plt = plot(;kwargs...)
+    for d in data
+        plot_annealing_schedule!(plt, d; kwargs...)
+    end
+    return plt
+end
