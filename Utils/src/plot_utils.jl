@@ -215,12 +215,12 @@ function make_legend(labels; kwargs...)
     #         )
 end
 
-function make_boxplots(data::Array{Any}; legend_keys=[], kwargs...)
+function make_boxplots(data; legend_keys=[], kwargs...)
     plt = plot()
     make_boxplots!(plt, data, legend_keys=legend_keys; kwargs...)
 end
 
-function make_boxplots!(plt, data::Array{Any}; legend_keys=[], kwargs...)
+function make_boxplots!(plt, data; legend_keys=[], kwargs...)
     kwargs = Dict(kwargs...)
     true_label=get(kwargs, :true_label, "")
     therm_label=get(kwargs, :therm_label, "")
