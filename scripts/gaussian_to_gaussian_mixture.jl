@@ -36,9 +36,11 @@ PROBLEM_PARAMS = Dict(
     :n_dim => 2,
     :μ_initial => [ [0., 0.] ],
     :Σ_initial => [ [1. 0; 0 1.], ],
-    :μₚ => [ [[-8., -2.], [1., 6.], [2., -1.]] ],
-    :Σₚ => [ [[1. 0.5; 0.5 1], [1.2 0.1; 0.1 1.2], I(2)] ],
+    :μₚ => [ [[8., -2.], [1., -6.], [4., -6.], [2., -3.]],
+              [[2., -2.], [3., -6.], [-4., -6.], [2., -3.]]],
+    :Σₚ => [ [I(2), I(2), I(2), I(2), I(2)] ],
     )
+# :Σₚ => [ [[1. 0.5; 0.5 1], [1.2 0.1; 0.1 1.2], I(2)] ],
 
 run_single_instance(PROBLEM_PARAMS, ALG_PARAMS,
-                    "gaussian_mixture_sampling/annealing")
+                    "gaussian_mixture_sampling/vanilla_test")
