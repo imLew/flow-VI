@@ -36,8 +36,12 @@ function show_params(data::Dict{Symbol, Any})
     @show data[:n_iter]
     @show data[:n_particles]
     @show data[:step_size]
-    try @show data[:annealing_schedule] catch end
-    try @show data[:annealing_params] catch end
+    if haskey(data, :annealing_schedule)
+        @show data[:annealing_schedule]
+        for k in keys(data[:annealing_params])
+            @info "$k=$(data[:annealing_params][k])"
+        end
+    end
     if data[:update_method] == :naive_WAG
         @show data[:α]
     elseif data[:update_method] == :scalar_RMS_prop

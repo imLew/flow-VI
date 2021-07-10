@@ -1,4 +1,5 @@
 using Plots
+using StatsPlots
 using Distributions
 using ColorSchemes
 const colors = ColorSchemes.seaborn_colorblind
@@ -24,6 +25,8 @@ export plot_prediction
 export plot_prediction!
 export make_boxplots
 export make_boxplots!
+export plot_annealing_schedule
+export plot_annealing_schedule!
 
 function plot_1D(initial_dist::Distribution, target_dist::Distribution, q)
     n_bins = length(q) ÷ 5
@@ -214,12 +217,12 @@ function make_legend(labels; kwargs...)
     #         )
 end
 
-function make_boxplots(data::Array{Any}; legend_keys=[], kwargs...)
+function make_boxplots(data; legend_keys=[], kwargs...)
     plt = plot()
     make_boxplots!(plt, data, legend_keys=legend_keys; kwargs...)
 end
 
-function make_boxplots!(plt, data::Array{Any}; legend_keys=[], kwargs...)
+function make_boxplots!(plt, data; legend_keys=[], kwargs...)
     kwargs = Dict(kwargs...)
     true_label=get(kwargs, :true_label, "")
     therm_label=get(kwargs, :therm_label, "")
@@ -485,4 +488,34 @@ function merge_series!(sp1::Plots.Subplot, sp2::Plots.Subplot)
     append!(sp1.series_list, sp2.series_list)
     Plots.expand_extrema!(sp1[:xaxis], xlims(sp2))
     Plots.expand_extrema!(sp1[:yaxis], ylims(sp2))
+end
+
+function plot_annealing_schedule!(plt, data::Dict{Symbol, Any}; kwargs...)
+    γ = get(data[:svgd_hist][1], :annealing)[2]
+    plot!(plt, γ; kwargs...)
+end
+
+function plot_annealing_schedule(data::Dict{Symbol, Any}; kwargs...)
+    plt = plot(;kwargs...)
+    plot_annealing_schedule!(plt, data; kwargs...)
+    return plt
+end
+
+function plot_annealing_schedule!(plt, data; kwargs...)
+    for d in data
+        if haskey(d, :annealing_schedule)
+            plot_annealing_schedule!(plt, d; kwargs...)
+        end
+    end
+    return plt
+end
+
+function plot_annealing_schedule(data; kwargs...)
+    plt = plot(;kwargs...)
+    for d in data
+        if haskey(d, :annealing_schedule)
+            plot_annealing_schedule!(plt, d; kwargs...)
+        end
+    end
+    return plt
 end
