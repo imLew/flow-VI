@@ -1,4 +1,5 @@
 using Plots
+using StatsPlots
 using Distributions
 using ColorSchemes
 const colors = ColorSchemes.seaborn_colorblind
