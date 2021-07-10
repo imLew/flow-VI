@@ -25,6 +25,8 @@ export plot_prediction
 export plot_prediction!
 export make_boxplots
 export make_boxplots!
+export plot_annealing_schedule
+export plot_annealing_schedule!
 
 function plot_1D(initial_dist::Distribution, target_dist::Distribution, q)
     n_bins = length(q) ÷ 5
@@ -501,7 +503,9 @@ end
 
 function plot_annealing_schedule!(plt, data; kwargs...)
     for d in data
-        plot_annealing_schedule!(plt, d; kwargs...)
+        if haskey(d, :annealing_schedule)
+            plot_annealing_schedule!(plt, d; kwargs...)
+        end
     end
     return plt
 end
@@ -509,7 +513,9 @@ end
 function plot_annealing_schedule(data; kwargs...)
     plt = plot(;kwargs...)
     for d in data
-        plot_annealing_schedule!(plt, d; kwargs...)
+        if haskey(d, :annealing_schedule)
+            plot_annealing_schedule!(plt, d; kwargs...)
+        end
     end
     return plt
 end
