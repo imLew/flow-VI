@@ -165,11 +165,11 @@ function run_svgd(::Val{:gauss_mixture_sampling} ;problem_params, alg_params,
                     @dict(true_logZ, svgd_results, svgd_hist, failed_count,
                           estimated_logZ)
                    )
-    # if save
-    #     file_prefix = savename( merge(problem_params, alg_params) )
-    #     tagsave(gdatadir(DIRNAME, file_prefix * ".bson"), results, safe=true,
-    #             storepatch=true)
-    # end
+    if save
+        file_prefix = get_savename(merge(problem_params, alg_params))
+        tagsave(gdatadir(DIRNAME, file_prefix * ".bson"), results,
+                safe=true, storepatch = false)
+    end
     return results
 end
 
