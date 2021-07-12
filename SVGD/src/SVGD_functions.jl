@@ -395,5 +395,3 @@ function kernel_grad_matrix(kernel::TransformedKernel{SqExponentialKernel}, q)
     end
     ∇k
 end
-
-export kernel_grad_matrix
