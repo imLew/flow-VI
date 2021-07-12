@@ -343,8 +343,6 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
     return results
 end
 
-get_savename
-
 function run_svgd(;problem_params, alg_params, DIRNAME="", save=true)
     problem_params = copy(problem_params)
     alg_params = copy(alg_params)
