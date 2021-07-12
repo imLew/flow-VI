@@ -429,26 +429,34 @@ end
 
 function plot_classes(data; kwargs...)
     plt = plot(;kwargs...);
-    plot_classes!(Val(:logistic_regression), plt, data)
+    plot_classes!(Val(:logistic_regression), plt, data; kwargs...)
     return plt
 end
 
 function plot_classes(::Val{:logistic_regression}, data; kwargs...)
     plt = plot(;kwargs...);
-    plot_classes!(Val(:logistic_regression), plt, data)
+    plot_classes!(Val(:logistic_regression), plt, data; kwargs...)
     return plt
 end
 
-function plot_classes!(plt, data)
-    scatter!(plt, data[:D].x[:,1], data[:D].x[:,2],
+function plot_classes!(plt, D::LogReg.Data; kwargs...)
+    scatter!(plt, D.x[:,1], D.x[:,2],
              legend=false, label="", colorbar=false,
-             zcolor=data[:D].t);
+             zcolor=D.t; kwargs...);
 end
 
-function plot_classes!(::Val{:logistic_regression}, plt, data)
-    scatter!(plt, data[:D].x[:,1], data[:D].x[:,2],
-             legend=false, label="", colorbar=false,
-             zcolor=data[:D].t);
+function plot_classes!(plt, data; kwargs...)
+    # scatter!(plt, data[:D].x[:,1], data[:D].x[:,2],
+    #          legend=false, label="", colorbar=false,
+    #          zcolor=data[:D].t; kwargs...);
+    plot_classes!(plt, data[:D]; kwargs...)
+end
+
+function plot_classes!(::Val{:logistic_regression}, plt, data; kwargs...)
+    # scatter!(plt, data[:D].x[:,1], data[:D].x[:,2],
+    #          legend=false, label="", colorbar=false,
+    #          zcolor=data[:D].t);
+    plot_classes!(plt, data[:D]; kwargs...)
 end
 
 function plot_prediction(data)
@@ -461,15 +469,19 @@ function plot_prediction!(plt, data)
 end
 
 function plot_prediction!(::Val{:logistic_regression}, plt, data)
-    xs = range(minimum(data[:D].x[:,1]),
-               maximum(data[:D].x[:,1]), length=100)
-    ys = range(minimum(data[:D].x[:,2]),
-               maximum(data[:D].x[:,2]), length=100)
+    plot_prediction!(plt, data[:D], data[:svgd_results])
+end
+
+function plot_prediction!(plt, D, q)
+    xs = range(minimum(D.x[:,1]),
+               maximum(D.x[:,1]), length=100)
+    ys = range(minimum(D.x[:,2]),
+               maximum(D.x[:,2]), length=100)
     grid = [[1, x, y] for x in xs, y in ys]
 
     σ(a) = 1 / (1 + exp(-a))
-    q = hcat(data[:svgd_results]...)
-    weights = [mean(d, dims=2)  for d in data[:svgd_results]]
+    weights = [mean(d, dims=2)  for d in q]
+    q = hcat(q...)
     predictions = [σ(point'*w) for point in grid, w in eachcol(q)]
     avg_prediction = transpose(dropdims(mean(predictions, dims=3),dims=3))
     # heatmap() treats the y-direction as the first direction so the data needs
