@@ -211,7 +211,6 @@ function num_expectation(d::Distribution, f; n_samples=10000,
 end
 
 function logZ(d::Distribution)
-    @warn "log(Z) for distribution $d is not know, returning 0"
     return 0
 end
 
