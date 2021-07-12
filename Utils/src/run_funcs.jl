@@ -81,7 +81,7 @@ function run_svgd(::Val{:gauss_to_gauss} ;problem_params, alg_params,
     EV = expectation_V(initial_dist, target_dist)
     estimated_logZ = if typeof(alg_params[:dKL_estimator]) <: Symbol
         [est[end] for est in estimate_logZ(H₀, EV, svgd_hist; alg_params...)]
-    elseif alg_params[:update_method] ∉ [:naive_WNES, :naive_WAG]
+    elseif alg_params[:update_method] ∉ [:WNES, :WAG]
         nothing
     elseif alg_params[:update_method] == :scalar_Adam
         [est[end] for est in estimate_logZ(H₀, EV, svgd_hist; alg_params...)]
@@ -147,7 +147,7 @@ function run_svgd(::Val{:gauss_mixture_sampling} ;problem_params, alg_params,
     H₀ = Distributions.entropy(initial_dist)
     EV = expectation_V(initial_dist, target_dist)
     estimated_logZ =
-    if alg_params[:update_method] ∈ [:naive_WNES, :naive_WAG]
+    if alg_params[:update_method] ∈ [:WNES, :WAG]
         nothing
     elseif typeof(alg_params[:dKL_estimator]) <: Symbol
         [est[end] for est in estimate_logZ(H₀, EV, svgd_hist; alg_params...)]
@@ -331,7 +331,7 @@ function run_svgd(::Val{:logistic_regression} ;problem_params, alg_params,
 
     H₀ = Distributions.entropy(initial_dist)
     EV = expectation_V(initial_dist, w -> -logp(w))
-    if alg_params[:update_method] ∉ [:naive_WAG, :naive_WNES]
+    if alg_params[:update_method] ∉ [:WAG, :WNES]
         estimated_logZ = [est[end] for est in estimate_logZ(H₀, EV, svgd_hist)]
     else
         estimated_logZ = nothing

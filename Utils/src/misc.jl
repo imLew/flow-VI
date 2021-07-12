@@ -42,14 +42,14 @@ function show_params(data::Dict{Symbol, Any})
             @info "$k=$(data[:annealing_params][k])"
         end
     end
-    if data[:update_method] == :naive_WAG
+    if data[:update_method] == :WAG
         @show data[:α]
     elseif data[:update_method] == :scalar_RMS_prop
         @show data[:γ]
     elseif data[:update_method] == :scalar_Adam
         @show data[:β₁]
         @show data[:β₂]
-    elseif data[:update_method] == :naive_WNES
+    elseif data[:update_method] == :WNES
         @show data[:c₁]
         @show data[:c₂]
     end
@@ -112,11 +112,11 @@ function get_savename(dict)
     if update_method != :scalar_RMS_prop
         delete!(savenamedict, :γ)
     end
-    if update_method != :naive_WNES
+    if update_method != :WNES
         delete!(savenamedict, :c₁)
         delete!(savenamedict, :c₂)
     end
-    if update_method != :naive_WAG
+    if update_method != :WAG
         delete!(savenamedict, :α)
     end
     if update_method != :scalar_Adam

@@ -20,8 +20,8 @@ export calculate_phi
 Fit the samples in q to the distribution corresponding to grad_logp.
 Possible values for dKL_estimator are `:RKHS_norm`, `:KSD`, `:UKSD`; they can be
 combined by putting them in array.
-Possible values for update_method are `:forward_euler`, `:naive_WNES`,
-':scalar_Adam', ':scalar_RMS_prop', ':scalar_adagrad' `:naive_WAG`.
+Possible values for update_method are `:forward_euler`, `:WNES`,
+':scalar_Adam', ':scalar_RMS_prop', ':scalar_adagrad' `:WAG`.
 """
 function svgd_fit(q, grad_logp; kwargs...)
     kernel = TransformedKernel(SqExponentialKernel(), ScaleTransform(1.))
@@ -46,7 +46,7 @@ function svgd_fit(q, grad_logp; kwargs...)
         aux_vars[:vₜ] = zeros(size(q))
         aux_vars[:𝔼∇mₜ₋₁] = [0.]
         aux_vars[:𝔼∇ϕₜ₋₁] = [0.]
-    elseif update_method in [:naive_WAG, :naive_WNES]
+    elseif update_method in [:WAG, :WNES]
         aux_vars[:y] = copy(q)
         aux_vars[:qₜ₋₁] = copy(q)
         aux_vars[:qₜ₋₂] = copy(q)
@@ -85,7 +85,7 @@ function push_to_hist!(
     push!(hist, :ϕ_norm, i, mean(norm(ϕ)))
 
     dKL_estimator = get(kwargs, :dKL_estimator, false)
-    if kwargs[:update_method] == :naive_WNES
+    if kwargs[:update_method] == :WNES
         dKL = WNes_dKL(kernel, q, ϕ, grad_logp, aux_vars, ϵ, ∇logp_mat; kwargs...)
         push!(hist, :WNes_dKL, i, dKL)
     elseif kwargs[:update_method] == :scalar_Adam
@@ -192,7 +192,7 @@ q, ϕ, ϵ, kernel, grad_logp, aux_vars, ∇logp_mat
 end
 
 function update!(
-::Val{:naive_WAG}, q, ϕ, ϵ, kernel, grad_logp, aux_vars,
+::Val{:WAG}, q, ϕ, ϵ, kernel, grad_logp, aux_vars,
         ∇logp_mat;
                  kwargs...)
     # aux_vars[:qₜ₋₁] = copy(q)
@@ -214,7 +214,7 @@ q, ϕ, ϵ, kernel, grad_logp, aux_vars, ∇logp_mat,
     q .+= ϵ.*ϕ
 end
 
-function update!(::Val{:naive_WNES},
+function update!(::Val{:WNES},
 q, ϕ, ϵ, kernel, grad_logp, aux_vars, ∇logp_mat
 ; kwargs...
 )

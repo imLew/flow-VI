@@ -382,10 +382,10 @@ end
 ##     :kernel => [TransformedKernel(SqExponentialKernel(), ScaleTransform(1.))],
 ##     :step_size => [0.05, 0.005],
 ##     :n_particles => [100],
-##     :update_method => [:forward_euler, :naive_WAG, :naive_WNES],
-##     :α => @onlyif(:update_method == :naive_WAG, [3.1, 4, 7] ),
-##     :c₁ => @onlyif(:update_method == :naive_WNES, [.1, 1, .5] ),
-##     :c₂ => @onlyif(:update_method == :naive_WNES, [.1, 1, .5] ),
+##     :update_method => [:forward_euler, :WAG, :WNES],
+##     :α => @onlyif(:update_method == :WAG, [3.1, 4, 7] ),
+##     :c₁ => @onlyif(:update_method == :WNES, [.1, 1, .5] ),
+##     :c₂ => @onlyif(:update_method == :WNES, [.1, 1, .5] ),
 ##     :kernel_cb => [median_trick_cb!],
 ##     :n_runs => 10,
 ## )
@@ -416,7 +416,7 @@ end
 
 ####### Cell ###### -- Σ=0.1 WNES boxplots
 #plt1, plt2 = plot(), plot()
-#data = filter_by_dict( Dict( :update_method => [:naive_WNES],
+#data = filter_by_dict( Dict( :update_method => [:WNES],
 #                            :step_size => [0.05],
 #                            :Σ₀ => [ 0.1*I(2) ],
 #                            :n_iter => [ 2000 ],
@@ -434,7 +434,7 @@ end
 ## it also slightly suggests that larger c₂ also helps (the three plots closest
 ## to the target have c₂=1 which was the largest value used in this experiment
 
-#data = filter_by_dict( Dict( :update_method => [:naive_WNES],
+#data = filter_by_dict( Dict( :update_method => [:WNES],
 #                            :step_size => [0.005],
 #                            :Σ₀ => [ 0.1*I(2) ],
 #                            :n_iter => [ 2000 ],
@@ -453,7 +453,7 @@ end
 
 ####### Cell ###### -- Σ=10 WNES boxplots
 #plt1, plt2 = plot(), plot()
-#data = filter_by_dict( Dict( :update_method => [:naive_WNES],
+#data = filter_by_dict( Dict( :update_method => [:WNES],
 #                            :step_size => [0.05],
 #                            :Σ₀ => [ 10*I(2) ],
 #                            :n_iter => [ 2000 ],
@@ -465,7 +465,7 @@ end
 #make_boxplots!(plt1, data, xticks=(1:9, labels), xrotation=60, ylabel="log Z",
 #               ylims=(-5,10), title="ϵ = 0.05")
 
-#data = filter_by_dict( Dict( :update_method => [:naive_WNES],
+#data = filter_by_dict( Dict( :update_method => [:WNES],
 #                            :step_size => [0.005],
 #                            :Σ₀ => [ 10*I(2) ],
 #                            :n_iter => [ 2000 ],
@@ -480,7 +480,7 @@ end
 
 ####### Cell ###### -- WNES Σ=10; ϵ=0.005 more iterations
 #plt1, plt2 = plot(), plot()
-#data = filter_by_dict( Dict( :update_method => [:naive_WNES],
+#data = filter_by_dict( Dict( :update_method => [:WNES],
 #                            :Σ₀ => [ 0.1*I(2) ],
 #                            :n_iter => [ 4000 ],
 #                           ),
@@ -490,7 +490,7 @@ end
 #make_boxplots!(plt1, data, xticks=(1:9, labels), xrotation=60, ylabel="log Z",
 #               ylims=(-5,10), title="Σ = 0.1")
 
-#data = filter_by_dict( Dict( :update_method => [:naive_WNES],
+#data = filter_by_dict( Dict( :update_method => [:WNES],
 #                            :Σ₀ => [ 10*I(2) ],
 #                            :n_iter => [ 4000 ],
 #                           ),
@@ -507,7 +507,7 @@ end
 
 #plts = [ plot(), plot(), plot(), plot() ]
 #for (plt, eps) in zip( plts, [0.5, 0.1, 0.05, 0.005] )
-#    data = filter_by_dict( Dict( :update_method => [:naive_WAG],
+#    data = filter_by_dict( Dict( :update_method => [:WAG],
 #                                :step_size => [eps],
 #                                :Σ₀ => [ 10*I(2) ],
 #                               ),
@@ -525,7 +525,7 @@ end
 
 #plts = [ plot(), plot(), plot(), plot() ]
 #for (plt, eps) in zip( plts, [0.5, 0.1, 0.05, 0.005] )
-#    data = filter_by_dict( Dict( :update_method => [:naive_WAG],
+#    data = filter_by_dict( Dict( :update_method => [:WAG],
 #                                :step_size => [eps],
 #                                :Σ₀ => [ 0.1*I(2) ],
 #                               ),
@@ -540,7 +540,7 @@ end
 
 ####### Cell ###### -- WAG integration
 #plts = []
-#data = filter_by_dict( Dict( :update_method => [:naive_WAG],
+#data = filter_by_dict( Dict( :update_method => [:WAG],
 #                            :Σ₀ => [ 10*I(2) ],
 #                           ),
 #                      all_data);
@@ -581,7 +581,7 @@ end
 ##savefig(joinpath(plotdir, "WNES_S10.png"))
 
 ####### Cell ######
-#data = filter_by_dict( Dict( :update_method => [:naive_WNES],
+#data = filter_by_dict( Dict( :update_method => [:WNES],
 #                            :step_size => [0.05],
 #                            :Σ₀ => [ 10*I(2) ],
 #                           ),
@@ -590,7 +590,7 @@ end
 #plot_integration(data[1])
 
 ####### Cell ######
-#data = filter_by_dict( Dict( :update_method => [:naive_WNES],
+#data = filter_by_dict( Dict( :update_method => [:WNES],
 #                            :step_size => [0.005],
 #                            :Σ₀ => [ 0.1*I(2) ],
 #                           ),
@@ -664,7 +664,7 @@ end
 #WNES_path = joinpath(plotdir, "WNES")
 #mkpath(WNES_path)
 #for ϵ in [0.5, 0.05, 0.005]
-#    data = filter_by_dict( Dict(:update_method => [:naive_WNES],
+#    data = filter_by_dict( Dict(:update_method => [:WNES],
 #                                :Σ₀ => [ 10*[1.0 0; 0 1] ],
 #                                :step_size => [ ϵ ]
 #                               ),
@@ -681,7 +681,7 @@ end
 
 ### Cell - boxplot WNES for 0.1I initial covariance
 #for ϵ in [0.5, 0.05, 0.005]
-#    data = filter_by_dict( Dict(:update_method => [:naive_WNES],
+#    data = filter_by_dict( Dict(:update_method => [:WNES],
 #                                :Σ₀ => [ .1*[1.0 0; 0 1] ],
 #                                :step_size => [ ϵ ]), all_data)
 #    plt = make_boxplots(data, title="Σ=0.1*I, ϵ=$ϵ",
@@ -698,7 +698,7 @@ end
 #mkpath(WAG_path)
 #for C in [0.1, 10.]
 #    for ϵ in [0.5, 0.05, 0.005]
-#        data = filter_by_dict( Dict(:update_method => [:naive_WAG],
+#        data = filter_by_dict( Dict(:update_method => [:WAG],
 #                                    :Σ₀ => [ C*[1.0 0; 0 1] ],
 #                                    :step_size => [ ϵ ]
 #                                   ),
@@ -778,7 +778,7 @@ end
 #WNES_path = joinpath(plotdir, "WNES")
 #mkpath(WNES_path)
 #for ϵ in [0.5, 0.05, 0.005]
-#    data = filter_by_dict( Dict(:update_method => [:naive_WNES],
+#    data = filter_by_dict( Dict(:update_method => [:WNES],
 #                                :Σ₀ => [ 10*[1.0 0; 0 1] ],
 #                                :step_size => [ ϵ ]
 #                               ),
@@ -796,7 +796,7 @@ end
 
 ### Cell - boxplot WNES for 0.1I initial covariance
 #for ϵ in [0.5, 0.05, 0.005]
-#    data = filter_by_dict( Dict(:update_method => [:naive_WNES],
+#    data = filter_by_dict( Dict(:update_method => [:WNES],
 #                                :Σ₀ => [ .1*[1.0 0; 0 1] ],
 #                                :step_size => [ ϵ ]), all_data)
 #    plt = make_boxplots(data, title="Σ=0.1*I, ϵ=$ϵ",
@@ -813,7 +813,7 @@ end
 #mkpath(WAG_path)
 #for C in [0.1, 10.]
 #    for ϵ in [0.5, 0.05, 0.005]
-#        data = filter_by_dict( Dict(:update_method => [:naive_WAG],
+#        data = filter_by_dict( Dict(:update_method => [:WAG],
 #                                    :Σ₀ => [ C*[1.0 0; 0 1] ],
 #                                    :step_size => [ ϵ ]
 #                                   ),
