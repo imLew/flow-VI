@@ -132,7 +132,7 @@ q, ϕ, ϵ, kernel, grad_logp, aux_vars, ∇logp_mat
     # We must compute 𝔼∇ϕ here because we need it for dKL/dt later.
     aux_vars[:𝔼∇ϕₜ₋₁] .= 𝔼∇ϕ(kernel, q, grad_logp, ∇logp_mat, unbiased=unbiased)
 
-    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp, ∇logp_mat; kwargs...)
+    ϕ .= calculate_phi_vectorized(kernel, q, ∇logp_mat; kwargs...)
     aux_vars[:mₜ₋₁] .= aux_vars[:mₜ]
     aux_vars[:mₜ] .= β₁ .* aux_vars[:mₜ] + (1-β₁) .* ϕ
     aux_vars[:vₜ] .= β₂ .* aux_vars[:vₜ] + (1-β₂) .* ϕ.^2
@@ -173,7 +173,7 @@ q, ϕ, ϵ, kernel, grad_logp, aux_vars, ∇logp_mat
 ; kwargs...
 )
     γ = get(kwargs, :γ, false)
-    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp, ∇logp_mat; kwargs...)
+    ϕ .= calculate_phi_vectorized(kernel, q, ∇logp_mat; kwargs...)
     aux_vars[:Gₜ] .= γ * norm(ϕ)^2 .+ (1-γ) * aux_vars[:Gₜ]
     ϵ .= ϵ/(√(aux_vars[:Gₜ][1] + 1))
     q .+= ϵ .*ϕ
@@ -183,33 +183,32 @@ function update!(::Val{:scalar_adagrad},
 q, ϕ, ϵ, kernel, grad_logp, aux_vars, ∇logp_mat
 ; kwargs...
 )
-    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp, ∇logp_mat; kwargs...)
+    ϕ .= calculate_phi_vectorized(kernel, q, ∇logp_mat; kwargs...)
     aux_vars[:Gₜ] .+= norm(ϕ)^2
     N = size(ϕ, 2)
     ϵ .= N*ϵ/(aux_vars[:Gₜ][1] + 1)
     q .+= ϵ .*ϕ
 end
 
-function update!(
-::Val{:WAG}, q, ϕ, ϵ, kernel, grad_logp, aux_vars,
-        ∇logp_mat;
-                 kwargs...)
+function update!(::Val{:WAG},
+q, ϕ, ϵ, kernel, grad_logp, aux_vars, ∇logp_mat;
+kwargs...
+)
     # aux_vars[:qₜ₋₁] = copy(q)
     iter = get(kwargs, :iter, false)
     α = get(kwargs, :α, false)
-    ϕ .= calculate_phi_vectorized(kernel, aux_vars[:y], grad_logp,
+    ϕ .= calculate_phi_vectorized(kernel, aux_vars[:y],
                                   ∇logp_mat; kwargs...)
     q_new = aux_vars[:y] .+ ϵ.*ϕ
     aux_vars[:y] .= q_new .+ (iter-1)/iter .* (aux_vars[:y].-q) + (iter + α -2)/iter * ϵ .* ϕ
     q .= q_new
 end
 
-function update!(
-::Val{:forward_euler},
+function update!(::Val{:forward_euler},
 q, ϕ, ϵ, kernel, grad_logp, aux_vars, ∇logp_mat,
 ;kwargs...
 )
-    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp, ∇logp_mat; kwargs...)
+    ϕ .= calculate_phi_vectorized(kernel, q, ∇logp_mat; kwargs...)
     q .+= ϵ.*ϕ
 end
 
@@ -278,7 +277,7 @@ function WNes_dKL(kernel, q, ϕ, grad_logp, aux_vars, ϵ, ∇logp_mat; kwargs...
     0.
 end
 
-function calculate_phi_vectorized(kernel, q, grad_logp, ∇logp_mat; kwargs...)
+function calculate_phi_vectorized(kernel, q, ∇logp_mat; kwargs...)
     γₐ = get(kwargs, :γₐ, [1.])
     N = size(q, 2)
     k_mat = KernelFunctions.kernelmatrix(kernel, q)
