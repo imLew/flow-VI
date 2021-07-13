@@ -49,7 +49,6 @@ function svgd_fit(q, grad_logp; kwargs...)
     elseif update_method in [:WAG, :WNES]
         aux_vars[:y] = copy(q)
         aux_vars[:qₜ₋₁] = copy(q)
-        aux_vars[:qₜ₋₂] = copy(q)
     end
     hist = MVHistory()
     ϕ = zeros(size(q))
@@ -108,7 +107,7 @@ function dKL_annealing_correction(ϕ, ∇logp_mat, q, γₐ)
     -(1-γₐ[1])*ϕ⋅∇logp_mat/size(q, 2)
 end
 
-function dKL_Adam(kernel, q, ϕ, grad_logp, aux_vars, ϵ, ∇logp_mat;β₁, β₂, kwargs...)
+function dKL_Adam(kernel, q, ϕ, grad_logp, aux_vars, ϵ, ∇logp_mat; β₁, β₂, kwargs...)
     N = size(q, 2)
     aux_vars[:𝔼∇mₜ₋₁] .= β₁ .* aux_vars[:𝔼∇mₜ₋₁] .+ (1-β₁) .* aux_vars[:𝔼∇ϕₜ₋₁]
     norm_ϕ = RKHS_norm(kernel, q, ϕ=ϕ)
@@ -181,13 +180,13 @@ q, ϕ, ϵ, kernel, aux_vars, ∇logp_mat
 end
 
 function update!(::Val{:WAG},
-q, ϕ, ϵ, kernel, aux_vars, ∇logp_mat;
-t, α, kwargs...
+q, ϕ, ϵ, kernel, aux_vars, ∇logp_mat
+;t, α, kwargs...
 )
     ϕ .= calculate_phi_vectorized(kernel, aux_vars[:y], ∇logp_mat)
-    q_new = aux_vars[:y] .+ ϵ.*ϕ
-    aux_vars[:y] .= q_new .+ (t-1)/t .* (aux_vars[:y].-q) + (t + α -2)/t * ϵ .* ϕ
-    q .= q_new
+    q .= aux_vars[:y].+ϵ.*ϕ
+    aux_vars[:y] .= q + (t-1)/t.*(aux_vars[:y].-q) + (t+α-2)/t*ϵ.*ϕ
+    aux_vars[:qₜ₋₁] .= q
 end
 
 function update!(::Val{:forward_euler},
@@ -200,9 +199,10 @@ end
 
 function update!(::Val{:WNES},
 q, ϕ, ϵ, kernel, aux_vars, ∇logp_mat
-;c₁, c₂, kwargs...)
-    q .= aux_vars[:y].+ϵ.*calculate_phi_vectorized(kernel, aux_vars[:y], ∇logp_mat)
-
+;c₁, c₂, kwargs...
+)
+    ϕ .= calculate_phi_vectorized(kernel, aux_vars[:y], ∇logp_mat)
+    q .= aux_vars[:y].+ϵ.*ϕ
     aux_vars[:y] = q + c₁*(c₂-1).*(q.-aux_vars[:qₜ₋₁])
     aux_vars[:qₜ₋₁] .= q
 end
