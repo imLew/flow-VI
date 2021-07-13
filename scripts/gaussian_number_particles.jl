@@ -16,7 +16,7 @@ PROBLEM_PARAMS = Dict(
 
 ALG_PARAMS = Dict(
     :dKL_estimator => :RKHS_norm,
-    :n_iter => 4000,
+    :n_iter => 10000,
     :step_size => [ 0.01, 0.001, 0.005 ],
     :n_particles => [50, 100, 200],
     :update_method => :forward_euler,
