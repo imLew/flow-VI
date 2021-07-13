@@ -67,6 +67,7 @@ function svgd_fit(q, grad_logp; kwargs...)
                       ∇logp_mat,; kwargs...)
         update!(Val(update_method), q, ϕ, ϵ, kernel, grad_logp, aux_vars,
                         ∇logp_mat, iter=i, γₐ=γₐ; kwargs...)
+        push!(hist, :ϕ_norm, i, mean(norm(ϕ)))
         if !isnothing(callback)
             callback(;hist=hist, q=q, ϕ=ϕ, i=i, kernel=kernel, ∇logp_mat,
                      grad_logp=grad_logp, aux_vars..., kwargs...)
@@ -82,7 +83,6 @@ function push_to_hist!(
 )
     push!(hist, :step_sizes, i, ϵ[1])
     push!(hist, :annealing, i, γₐ[1])
-    push!(hist, :ϕ_norm, i, mean(norm(ϕ)))
 
     dKL_estimator = get(kwargs, :dKL_estimator, false)
     if kwargs[:update_method] ∈ [:WAG, :WNES] || dKL_estimator == false
