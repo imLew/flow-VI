@@ -16,13 +16,6 @@ export compute_dKL
 export kernel_grad_matrix
 export calculate_phi
 
-"""
-Fit the samples in q to the distribution corresponding to grad_logp.
-Possible values for dKL_estimator are `:RKHS_norm`, `:KSD`, `:UKSD`; they can be
-combined by putting them in array.
-Possible values for update_method are `:forward_euler`, `:WNES`,
-':scalar_Adam', ':scalar_RMS_prop', ':scalar_adagrad' `:WAG`.
-"""
 function svgd_fit(q, grad_logp; kwargs...)
     kernel = TransformedKernel(SqExponentialKernel(), ScaleTransform(1.))
     kwargs = Dict(kwargs...)
@@ -49,7 +42,6 @@ function svgd_fit(q, grad_logp; kwargs...)
     elseif update_method in [:WAG, :WNES]
         aux_vars[:y] = copy(q)
         aux_vars[:qₜ₋₁] = copy(q)
-        aux_vars[:qₜ₋₂] = copy(q)
     end
     hist = MVHistory()
     ϕ = zeros(size(q))
@@ -63,13 +55,14 @@ function svgd_fit(q, grad_logp; kwargs...)
             [annealing_schedule(i, n_iter; annealing_params...)]
         end
         ∇logp_mat = mapreduce(grad_logp, hcat, eachcol(q))
-        push_to_hist!(hist, q, ϵ, ϕ, i, γₐ, kernel, grad_logp, aux_vars,
-                      ∇logp_mat,; kwargs...)
-        update!(Val(update_method), q, ϕ, ϵ, kernel, grad_logp, aux_vars,
-                        ∇logp_mat, iter=i, γₐ=γₐ; kwargs...)
+        push_to_hist!(hist, q, ϵ, ϕ, i, γₐ, kernel, grad_logp, ∇logp_mat,
+                      ;kwargs..., aux_vars...)
+        update!(Val(update_method), q, ϕ, ϵ, kernel, ∇logp_mat, t=i, γₐ=γₐ
+                ;aux_vars..., kwargs...)
+        push!(hist, :ϕ_norm, i, mean(norm(ϕ)))
         if !isnothing(callback)
             callback(;hist=hist, q=q, ϕ=ϕ, i=i, kernel=kernel, ∇logp_mat,
-                     grad_logp=grad_logp, aux_vars..., kwargs...)
+                     aux_vars..., kwargs...)
         end
         progress ? next!(p) : nothing
     end
@@ -77,18 +70,16 @@ function svgd_fit(q, grad_logp; kwargs...)
 end
 
 function push_to_hist!(
-    hist, q, ϵ, ϕ, i, γₐ, kernel, grad_logp, aux_vars, ∇logp_mat,
-    ; kwargs...
+    hist, q, ϵ, ϕ, i, γₐ, kernel, grad_logp, ∇logp_mat,
+    ;dKL_estimator=nothing, kwargs...
 )
     push!(hist, :step_sizes, i, ϵ[1])
     push!(hist, :annealing, i, γₐ[1])
-    push!(hist, :ϕ_norm, i, mean(norm(ϕ)))
 
-    dKL_estimator = get(kwargs, :dKL_estimator, false)
-    if kwargs[:update_method] ∈ [:WAG, :WNES] || dKL_estimator == false
+    if kwargs[:update_method] ∈ [:WAG, :WNES] || isnothing(dKL_estimator)
         nothing
     elseif kwargs[:update_method] == :scalar_Adam
-        dKL = dKL_Adam(kernel, q, ϕ, grad_logp, aux_vars, ϵ, ∇logp_mat; kwargs...)
+        dKL = dKL_Adam(kernel, q, ϕ, grad_logp, ϵ, ∇logp_mat; kwargs...)
         push!(hist, :adam_dKL, i, dKL)
     elseif typeof(dKL_estimator) == Symbol
         dKL = compute_dKL(Val(dKL_estimator), kernel, q, ∇logp_mat, ϕ=ϕ,
@@ -109,44 +100,38 @@ function dKL_annealing_correction(ϕ, ∇logp_mat, q, γₐ)
     -(1-γₐ[1])*ϕ⋅∇logp_mat/size(q, 2)
 end
 
-function dKL_Adam(kernel, q, ϕ, grad_logp, aux_vars, ϵ, ∇logp_mat; kwargs...)
-    β₁ = get(kwargs, :β₁, false)
-    β₂ = get(kwargs, :β₂, false)
+function dKL_Adam(kernel, q, ϕ, grad_logp, ϵ, ∇logp_mat
+;𝔼∇mₜ₋₁, 𝔼∇ϕₜ₋₁, β₁, β₂, mₜ₋₁, kwargs...
+)
     N = size(q, 2)
-    aux_vars[:𝔼∇mₜ₋₁] .= β₁ .* aux_vars[:𝔼∇mₜ₋₁] .+ (1-β₁) .* aux_vars[:𝔼∇ϕₜ₋₁]
+    𝔼∇mₜ₋₁ .= β₁ .* 𝔼∇mₜ₋₁ .+ (1-β₁) .* 𝔼∇ϕₜ₋₁
     norm_ϕ = RKHS_norm(kernel, q, ϕ=ϕ)
-    dKL = β₁.*(aux_vars[:𝔼∇mₜ₋₁].+aux_vars[:mₜ₋₁]⋅∇logp_mat/N).+(1-β₁).*norm_ϕ
+    dKL = β₁.*(𝔼∇mₜ₋₁.+mₜ₋₁⋅∇logp_mat/N).+(1-β₁).*norm_ϕ
     return -dKL[1]
 end
 
 function update!(::Val{:scalar_Adam},
-q, ϕ, ϵ, kernel, grad_logp, aux_vars, ∇logp_mat
-; kwargs...
+q, ϕ, ϵ, kernel, ∇logp_mat
+;t, mₜ₋₁, mₜ, vₜ, 𝔼∇ϕₜ₋₁, β₁, β₂, adam_stepsize_method=:average, kwargs...
 )
-    t = get(kwargs, :iter, false)
-    β₁ = get(kwargs, :β₁, false)
-    β₂ = get(kwargs, :β₂, false)
-    stepsize_method = get(kwargs, :adam_stepsize_method, :average)
-    unbiased = get(kwargs, :Adam_unbiased, false)
-
     # We must compute 𝔼∇ϕ here because we need it for dKL/dt later.
-    aux_vars[:𝔼∇ϕₜ₋₁] .= 𝔼∇ϕ(kernel, q, grad_logp, ∇logp_mat, unbiased=unbiased)
+    𝔼∇ϕₜ₋₁ .= 𝔼∇ϕ(kernel, q, ∇logp_mat; kwargs...)
 
-    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp, ∇logp_mat; kwargs...)
-    aux_vars[:mₜ₋₁] .= aux_vars[:mₜ]
-    aux_vars[:mₜ] .= β₁ .* aux_vars[:mₜ] + (1-β₁) .* ϕ
-    aux_vars[:vₜ] .= β₂ .* aux_vars[:vₜ] + (1-β₂) .* ϕ.^2
+    ϕ .= calculate_phi_vectorized(kernel, q, ∇logp_mat)
+    mₜ₋₁ .= mₜ
+    mₜ .= β₁ .* mₜ + (1-β₁) .* ϕ
+    vₜ .= β₂ .* vₜ + (1-β₂) .* ϕ.^2
 
-    if stepsize_method == :average
-        ϵ .*= sqrt(1-β₂^t)./(1-β₁^t) .* mean(1.0./sqrt.(aux_vars[:vₜ]).+1)
-    elseif stepsize_method == :minimum
-        ϵ .*= sqrt(1-β₂^t)./(1-β₁^t) .* 1.0/sqrt.(maximum(aux_vars[:vₜ]).+1)
+    if adam_stepsize_method == :average
+        ϵ .*= sqrt(1-β₂^t)./(1-β₁^t) .* mean(1.0./sqrt.(vₜ).+1)
+    elseif adam_stepsize_method == :minimum
+        ϵ .*= sqrt(1-β₂^t)./(1-β₁^t) .* 1.0/sqrt.(maximum(vₜ).+1)
     end
 
-    q .+= ϵ .* aux_vars[:mₜ]
+    q .+= ϵ .* mₜ
 end
 
-function 𝔼∇ϕ(kernel, q, ∇logp, ∇logp_mat; unbiased=false)
+function 𝔼∇ϕ(kernel, q, ∇logp_mat; adam_unbiased=false, kwargs...)
     d, N = size(q)
     h = 1/kernel.transform.s[1]^2
     k_mat = KernelFunctions.kernelmatrix(kernel, q)
@@ -154,7 +139,7 @@ function 𝔼∇ϕ(kernel, q, ∇logp, ∇logp_mat; unbiased=false)
     # Multiply by -1 because we need the gradient, ∇, with respect to the
     # second argument and for the RBF kernel that is -1 times the gradient
     # with respect to the first argument.
-    if unbiased
+    if adam_unbiased
         𝔼∇ϕ = (
                sum(k_mat .* (d/h .- 1/h^2 .* pairwise(SqEuclidean(), q)))
                - sum(diag(k_mat .* (d/h .- 1/h^2 .* pairwise(SqEuclidean(), q))))
@@ -169,65 +154,52 @@ function 𝔼∇ϕ(kernel, q, ∇logp, ∇logp_mat; unbiased=false)
 end
 
 function update!(::Val{:scalar_RMS_prop},
-q, ϕ, ϵ, kernel, grad_logp, aux_vars, ∇logp_mat
-; kwargs...
+q, ϕ, ϵ, kernel, ∇logp_mat
+;Gₜ, γ, kwargs...
 )
-    γ = get(kwargs, :γ, false)
-    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp, ∇logp_mat; kwargs...)
-    aux_vars[:Gₜ] .= γ * norm(ϕ)^2 .+ (1-γ) * aux_vars[:Gₜ]
-    ϵ .= ϵ/(√(aux_vars[:Gₜ][1] + 1))
+    ϕ .= calculate_phi_vectorized(kernel, q, ∇logp_mat; kwargs...)
+    Gₜ .= γ * norm(ϕ)^2 .+ (1-γ) * Gₜ
+    ϵ .= ϵ/(√(Gₜ[1] + 1))
     q .+= ϵ .*ϕ
 end
 
 function update!(::Val{:scalar_adagrad},
-q, ϕ, ϵ, kernel, grad_logp, aux_vars, ∇logp_mat
-; kwargs...
+q, ϕ, ϵ, kernel, ∇logp_mat
+; Gₜ, kwargs...
 )
-    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp, ∇logp_mat; kwargs...)
-    aux_vars[:Gₜ] .+= norm(ϕ)^2
+    ϕ .= calculate_phi_vectorized(kernel, q, ∇logp_mat; kwargs...)
+    Gₜ .+= norm(ϕ)^2
     N = size(ϕ, 2)
-    ϵ .= N*ϵ/(aux_vars[:Gₜ][1] + 1)
+    ϵ .= N*ϵ/(Gₜ[1] + 1)
     q .+= ϵ .*ϕ
 end
 
-function update!(
-::Val{:WAG}, q, ϕ, ϵ, kernel, grad_logp, aux_vars,
-        ∇logp_mat;
-                 kwargs...)
-    # aux_vars[:qₜ₋₁] = copy(q)
-    iter = get(kwargs, :iter, false)
-    α = get(kwargs, :α, false)
-    ϕ .= calculate_phi_vectorized(kernel, aux_vars[:y], grad_logp,
-                                  ∇logp_mat; kwargs...)
-    q_new = aux_vars[:y] .+ ϵ.*ϕ
-    aux_vars[:y] .= q_new .+ (iter-1)/iter .* (aux_vars[:y].-q) + (iter + α -2)/iter * ϵ .* ϕ
-    q .= q_new
+function update!(::Val{:WAG},
+q, ϕ, ϵ, kernel, ∇logp_mat
+;t, qₜ₋₁, y, α, kwargs...
+)
+    ϕ .= calculate_phi_vectorized(kernel, y, ∇logp_mat)
+    q .= y.+ϵ.*ϕ
+    y .= q + (t-1)/t.*(y.-q) + (t+α-2)/t*ϵ.*ϕ
+    qₜ₋₁ .= q
 end
 
-function update!(
-::Val{:forward_euler},
-q, ϕ, ϵ, kernel, grad_logp, aux_vars, ∇logp_mat,
+function update!(::Val{:forward_euler},
+q, ϕ, ϵ, kernel, ∇logp_mat,
 ;kwargs...
 )
-    ϕ .= calculate_phi_vectorized(kernel, q, grad_logp, ∇logp_mat; kwargs...)
+    ϕ .= calculate_phi_vectorized(kernel, q, ∇logp_mat; kwargs...)
     q .+= ϵ.*ϕ
 end
 
 function update!(::Val{:WNES},
-q, ϕ, ϵ, kernel, grad_logp, aux_vars, ∇logp_mat
-; kwargs...
+q, ϕ, ϵ, kernel, ∇logp_mat
+;c₁, qₜ₋₁, y, c₂, kwargs...
 )
-    aux_vars[:qₜ₋₂] .= aux_vars[:qₜ₋₁]
-    aux_vars[:qₜ₋₁] .= q
-    ϕ .= WNes_ϕ(ϵ, q, aux_vars[:qₜ₋₁], kernel, kwargs[:c₁],
-               kwargs[:c₂], grad_logp, ∇logp_mat; kwargs...)
-    q .+= ϵ .* ϕ
-end
-
-function WNes_ϕ(ϵ, q, qₜ₋₁, kernel, c₁, c₂, grad_logp, ∇logp_mat; kwargs...)
-    CΔq = c₁*(c₂-1).*(q.-qₜ₋₁)
-    ϵ.\CΔq .+ calculate_phi_vectorized(kernel, q.+CΔq, grad_logp, ∇logp_mat
-                                       ; kwargs...)
+    ϕ .= calculate_phi_vectorized(kernel, y, ∇logp_mat)
+    q .= y.+ϵ.*ϕ
+    y = q + c₁*(c₂-1).*(q.-qₜ₋₁)
+    qₜ₋₁ .= q
 end
 
 function divergence(F, X)
@@ -278,12 +250,11 @@ function WNes_dKL(kernel, q, ϕ, grad_logp, aux_vars, ϵ, ∇logp_mat; kwargs...
     0.
 end
 
-function calculate_phi_vectorized(kernel, q, grad_logp, ∇logp_mat; kwargs...)
-    γₐ = get(kwargs, :γₐ, [1.])
+function calculate_phi_vectorized(kernel, q, ∇logp_mat;γₐ=[1.], kwargs...)
     N = size(q, 2)
     k_mat = KernelFunctions.kernelmatrix(kernel, q)
     grad_k = kernel_grad_matrix(kernel, q)
-    ϕ = 1/N * (γₐ .* ∇logp_mat * k_mat .+ grad_k )
+    ϕ = 1/N * (γₐ .* ∇logp_mat * k_mat .+ grad_k)
 end
 
 function calculate_phi(kernel, q, grad_logp, ∇logp_mat; kwargs...)
