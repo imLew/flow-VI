@@ -85,9 +85,8 @@ function push_to_hist!(
     push!(hist, :ϕ_norm, i, mean(norm(ϕ)))
 
     dKL_estimator = get(kwargs, :dKL_estimator, false)
-    if kwargs[:update_method] == :WNES
-        dKL = WNes_dKL(kernel, q, ϕ, grad_logp, aux_vars, ϵ, ∇logp_mat; kwargs...)
-        push!(hist, :WNes_dKL, i, dKL)
+    if kwargs[:update_method] ∈ [:WAG, :WNES] || dKL_estimator == false
+        nothing
     elseif kwargs[:update_method] == :scalar_Adam
         dKL = dKL_Adam(kernel, q, ϕ, grad_logp, aux_vars, ϵ, ∇logp_mat; kwargs...)
         push!(hist, :adam_dKL, i, dKL)

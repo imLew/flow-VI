@@ -8,7 +8,6 @@ ALG_PARAMS = Dict(
     :step_size =>  0.01,
     :n_iter =>  20000,
     :n_particles =>  50,
-    :dKL_estimator => :RKHS_norm,
     :update_method => [:WAG, :WNES, :forward_euler],
     :α => @onlyif(:update_method==:WAG, [3.01, 5, 10]),
     :c₁ => @onlyif(:update_method==:WNES, [1, 5, 10]),
@@ -23,8 +22,7 @@ PROBLEM_PARAMS = Dict(
     :n_dim => 2,
     :μ_initial => [ [0., 0.] ],
     :Σ_initial => [ [1. 0; 0 1.], ],
-    :μₚ => [ [[8., -2.], [1., -6.], [4., -6.], [2., -3.]],
-              [[2., -2.], [3., -6.], [-4., -6.], [2., -3.]]],
+    :μₚ => [ [[8., -2.], [1., -6.], [4., -6.], [2., -3.]] ],
     :Σₚ => [ [I(2), I(2), I(2), I(2), I(2)] ],
     )
 
