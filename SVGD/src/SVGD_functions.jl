@@ -16,13 +16,6 @@ export compute_dKL
 export kernel_grad_matrix
 export calculate_phi
 
-"""
-Fit the samples in q to the distribution corresponding to grad_logp.
-Possible values for dKL_estimator are `:RKHS_norm`, `:KSD`, `:UKSD`; they can be
-combined by putting them in array.
-Possible values for update_method are `:forward_euler`, `:WNES`,
-':scalar_Adam', ':scalar_RMS_prop', ':scalar_adagrad' `:WAG`.
-"""
 function svgd_fit(q, grad_logp; kwargs...)
     kernel = TransformedKernel(SqExponentialKernel(), ScaleTransform(1.))
     kwargs = Dict(kwargs...)
