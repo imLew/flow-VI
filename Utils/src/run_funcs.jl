@@ -112,8 +112,7 @@ function run_svgd(::Val{:gauss_mixture_sampling} ;problem_params, alg_params,
     svgd_results = []
     svgd_hist = MVHistory[]
 
-    target_dist = MixtureModel( MvNormal, [zip(problem_params[:μₚ],
-                                               problem_params[:Σₚ])...] )
+    target_dist = MixtureModel(MvNormal, [zip(problem_params[:μₚ], problem_params[:Σₚ])...])
 
     grad_logp(x) = ForwardDiff.gradient(x′->log(pdf(target_dist, x′)), x)
     grad_logp!(g, x) = g .= grad_logp(x)
@@ -132,8 +131,7 @@ function run_svgd(::Val{:gauss_mixture_sampling} ;problem_params, alg_params,
             @info "Run $i/$(alg_params[:n_runs])"
             q = rand( initial_dist, alg_params[:n_particles] )
 
-            q, hist = svgd_fit(q, grad_logp, problem_params=problem_params;
-                               alg_params...)
+            q, hist = svgd_fit(q, grad_logp, problem_params=problem_params; alg_params...)
 
             push!(svgd_results, q)
             push!(svgd_hist, hist)
@@ -147,7 +145,7 @@ function run_svgd(::Val{:gauss_mixture_sampling} ;problem_params, alg_params,
     H₀ = Distributions.entropy(initial_dist)
     EV = expectation_V(initial_dist, target_dist)
     estimated_logZ =
-    if alg_params[:update_method] ∈ [:WNES, :WAG]
+    if alg_params[:update_method] ∈ [:WNES, :WAG] || :dKL_estimator ∉ keys(alg_params)
         nothing
     elseif typeof(alg_params[:dKL_estimator]) <: Symbol
         [est[end] for est in estimate_logZ(H₀, EV, svgd_hist; alg_params...)]
@@ -156,16 +154,14 @@ function run_svgd(::Val{:gauss_mixture_sampling} ;problem_params, alg_params,
         for estimator in alg_params[:dKL_estimator]
             d[estimator] = [
                 est[end] for est
-                in estimate_logZ(H₀, EV, svgd_hist;
-                                 alg_params...)[1][estimator]
+                in estimate_logZ(H₀, EV, svgd_hist; alg_params...)[1][estimator]
                ]
         end
         d
     end
 
     results = merge(alg_params, problem_params,
-                    @dict(true_logZ, svgd_results, svgd_hist, failed_count,
-                          estimated_logZ)
+                    @dict(true_logZ, svgd_results, svgd_hist, failed_count, estimated_logZ)
                    )
     if save
         file_prefix = get_savename(merge(problem_params, alg_params))
