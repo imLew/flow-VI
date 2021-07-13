@@ -198,7 +198,7 @@ q, ϕ, ϵ, kernel, ∇logp_mat
 )
     ϕ .= calculate_phi_vectorized(kernel, y, ∇logp_mat)
     q .= y.+ϵ.*ϕ
-    y = q + c₁*(c₂-1).*(q.-qₜ₋₁)
+    y .= q + c₁*(c₂-1).*(q.-qₜ₋₁)
     qₜ₋₁ .= q
 end
 
