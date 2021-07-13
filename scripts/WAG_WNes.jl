@@ -8,7 +8,6 @@ ALG_PARAMS = Dict(
     :step_size =>  0.01,
     :n_iter =>  20000,
     :n_particles =>  50,
-    :dKL_estimator => :RKHS_norm,
     :update_method => [:WAG, :WNES, :forward_euler],
     :α => @onlyif(:update_method==:WAG, [3.01, 5, 10]),
     :c₁ => @onlyif(:update_method==:WNES, [1, 5, 10]),
