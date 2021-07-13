@@ -212,22 +212,21 @@ q, ϕ, ϵ, kernel, grad_logp, aux_vars, ∇logp_mat,
     q .+= ϵ.*ϕ
 end
 
-function update!(::Val{:WNES},
-q, ϕ, ϵ, kernel, grad_logp, aux_vars, ∇logp_mat
-; kwargs...
-)
-    aux_vars[:qₜ₋₂] .= aux_vars[:qₜ₋₁]
+function update!(::Val{:WNES}, q, ϕ, ϵ, kernel, aux_vars, ∇logp_mat; kwargs...)
+    c₁ = kwargs[:c₁]
+    c₂ = kwargs[:c₂]
+
+    q .= aux_vars[:y].+ϵ.*calculate_phi_vectorized(kernel, aux_vars[:y], ∇logp_mat)
+
+    aux_vars[:y] = q + c₁*(c₂-1).*(q.-aux_vars[:qₜ₋₁])
     aux_vars[:qₜ₋₁] .= q
-    ϕ .= WNes_ϕ(ϵ, q, aux_vars[:qₜ₋₁], kernel, kwargs[:c₁],
-               kwargs[:c₂], grad_logp, ∇logp_mat; kwargs...)
-    q .+= ϵ .* ϕ
 end
 
-function WNes_ϕ(ϵ, q, qₜ₋₁, kernel, c₁, c₂, grad_logp, ∇logp_mat; kwargs...)
-    CΔq = c₁*(c₂-1).*(q.-qₜ₋₁)
-    ϵ.\CΔq .+ calculate_phi_vectorized(kernel, q.+CΔq, grad_logp, ∇logp_mat
-                                       ; kwargs...)
-end
+# function WNes_ϕ(ϵ, q, qₜ₋₁, kernel, c₁, c₂, grad_logp, ∇logp_mat; kwargs...)
+#     CΔq = c₁*(c₂-1).*(q.-qₜ₋₁)
+#     ϵ.\CΔq .+ calculate_phi_vectorized(kernel, q.+CΔq, ∇logp_mat
+#                                        ; kwargs...)
+# end
 
 function divergence(F, X)
     div = 0
