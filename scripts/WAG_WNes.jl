@@ -5,7 +5,7 @@ using LinearAlgebra
 using Utils
 
 ALG_PARAMS = Dict(
-    :step_size =>  0.01,
+    :step_size =>  0.001,
     :n_iter =>  20000,
     :n_particles =>  50,
     :update_method => [:WAG, :WNES, :forward_euler],
