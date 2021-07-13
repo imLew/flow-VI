@@ -341,9 +341,9 @@ version = "1.4.0"
 
 [[FFTW_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "5a0d4b6a22a34d17d53543bd124f4b08ed78e8b0"
+git-tree-sha1 = "3676abafff7e4ff07bbd2c42b3d8201f31653dcc"
 uuid = "f5851436-0d7a-5f13-b9de-f02708fd171a"
-version = "3.3.9+7"
+version = "3.3.9+8"
 
 [[FileIO]]
 deps = ["Pkg", "Requires", "UUIDs"]
@@ -1300,7 +1300,7 @@ version = "1.0.2"
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 
 [[Utils]]
-deps = ["AdvancedHMC", "BSON", "ColorSchemes", "Distances", "Distributions", "DistributionsAD", "DrWatson", "Examples", "ForwardDiff", "InteractiveUtils", "KernelFunctions", "LinearAlgebra", "Optim", "PDMats", "Plots", "ProgressMeter", "Random", "SVGD", "ThermodynamicIntegration", "Trapz", "ValueHistories", "Zygote"]
+deps = ["AdvancedHMC", "BSON", "ColorSchemes", "Distances", "Distributions", "DistributionsAD", "DrWatson", "Examples", "ForwardDiff", "InteractiveUtils", "KernelFunctions", "LinearAlgebra", "Optim", "PDMats", "Plots", "ProgressMeter", "Random", "SVGD", "StatsPlots", "ThermodynamicIntegration", "Trapz", "ValueHistories", "Zygote"]
 path = "Utils"
 uuid = "18b992a5-4bfc-47a0-89d0-a72c2b812ee8"
 version = "0.1.0"
