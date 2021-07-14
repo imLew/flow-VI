@@ -33,3 +33,4 @@ PROBLEM_PARAMS = Dict(
 )
 
 run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, "bayesian_logistic_regression/RMSprop")
+@info "RMSprop running all finished"

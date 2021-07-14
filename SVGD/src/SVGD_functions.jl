@@ -54,12 +54,14 @@ function svgd_fit(q, grad_logp; kwargs...)
         else
             [annealing_schedule(i, n_iter; annealing_params...)]
         end
+        push!(hist, :annealing, i, γₐ[1])
         ∇logp_mat = mapreduce(grad_logp, hcat, eachcol(q))
-        push_to_hist!(hist, q, ϵ, ϕ, i, γₐ, kernel, grad_logp, ∇logp_mat,
+        store_dKL!(hist, q, ϵ, ϕ, i, γₐ, kernel, grad_logp, ∇logp_mat,
                       ;kwargs..., aux_vars...)
         update!(Val(update_method), q, ϕ, ϵ, kernel, ∇logp_mat, t=i, γₐ=γₐ
                 ;aux_vars..., kwargs...)
         push!(hist, :ϕ_norm, i, mean(norm(ϕ)))
+        push!(hist, :step_sizes, i, ϵ[1])
         if !isnothing(callback)
             callback(;hist=hist, q=q, ϕ=ϕ, i=i, kernel=kernel, ∇logp_mat,
                      aux_vars..., kwargs...)
@@ -69,12 +71,10 @@ function svgd_fit(q, grad_logp; kwargs...)
     return q, hist
 end
 
-function push_to_hist!(
+function store_dKL!(
     hist, q, ϵ, ϕ, i, γₐ, kernel, grad_logp, ∇logp_mat,
     ;dKL_estimator=nothing, kwargs...
 )
-    push!(hist, :step_sizes, i, ϵ[1])
-    push!(hist, :annealing, i, γₐ[1])
 
     if kwargs[:update_method] ∈ [:WAG, :WNES] || isnothing(dKL_estimator)
         nothing
@@ -160,7 +160,7 @@ q, ϕ, ϵ, kernel, ∇logp_mat
     ϕ .= calculate_phi_vectorized(kernel, q, ∇logp_mat; kwargs...)
     Gₜ .= γ * norm(ϕ)^2 .+ (1-γ) * Gₜ
     ϵ .= ϵ/(√(Gₜ[1] + 1))
-    q .+= ϵ .*ϕ
+    q .+= ϵ.*ϕ
 end
 
 function update!(::Val{:scalar_adagrad},
