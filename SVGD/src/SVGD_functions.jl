@@ -75,7 +75,6 @@ function store_dKL!(
     hist, q, ϵ, ϕ, i, γₐ, kernel, grad_logp, ∇logp_mat,
     ;dKL_estimator=nothing, kwargs...
 )
-
     if kwargs[:update_method] ∈ [:WAG, :WNES] || isnothing(dKL_estimator)
         nothing
     elseif kwargs[:update_method] == :scalar_Adam
