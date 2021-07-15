@@ -179,7 +179,7 @@ q, ϕ, ϵ, kernel, ∇logp_mat
 )
     ϕ .= calculate_phi_vectorized(kernel, y, ∇logp_mat)
     q .= y.+ϵ.*ϕ
-    y .= q + (t-1)/t.*(y.-q) + (t+α-2)/t*ϵ.*ϕ
+    y .= q + (t-1)/t.*(y.-qₜ₋₁) + (t+α-2)/t*ϵ.*ϕ
     qₜ₋₁ .= q
 end
 
@@ -187,7 +187,7 @@ function update!(::Val{:forward_euler},
 q, ϕ, ϵ, kernel, ∇logp_mat,
 ;kwargs...
 )
-    ϕ .= calculate_phi_vectorized(kernel, q, ∇logp_mat; kwargs...)
+    ϕ .= calculate_phi_vectorized(kernel, q, ∇logp_mat)
     q .+= ϵ.*ϕ
 end
 
@@ -197,7 +197,7 @@ q, ϕ, ϵ, kernel, ∇logp_mat
 )
     ϕ .= calculate_phi_vectorized(kernel, y, ∇logp_mat)
     q .= y.+ϵ.*ϕ
-    y .= q + c₁*(c₂-1).*(q.-qₜ₋₁)
+    y .= q .+ c₁*(c₂-1).*(q.-qₜ₋₁)
     qₜ₋₁ .= q
 end
 
