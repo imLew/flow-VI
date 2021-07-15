@@ -5,10 +5,10 @@ using LinearAlgebra
 using Utils
 
 ALG_PARAMS = Dict(
-    :update_method => :scalar_RMS_prop,
-    :γ => [ collect(0.1:0.1:1) ],
+    :update_method => [ :forward_euler, :scalar_RMS_prop ],
+    :γ => @onlyif(:update_method==:scalar_RMS_prop, collect(0.1:0.1:1)),
     :kernel_cb => median_trick_cb!,
-    :step_size => 0.001,
+    :step_size => [ 0.001, @onlyif(:update_method==:forward_euler, 0.0001) ],
     :n_iter => 20000,
     :n_particles => 50,
     :n_runs => 10,
@@ -32,5 +32,5 @@ PROBLEM_PARAMS = Dict(
     :random_seed => 0,
 )
 
-run_single_instance(PROBLEM_PARAMS, ALG_PARAMS,
-                    "bayesian_logistic_regression/RMSprop")
+run_single_instance(PROBLEM_PARAMS, ALG_PARAMS, "bayesian_logistic_regression/RMSprop")
+@info "RMSprop running all finished"
