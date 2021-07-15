@@ -231,6 +231,7 @@ function make_boxplots!(plt, data; legend_keys=[], kwargs...)
     true_color = get(kwargs, :true_color, TRUE_COLOR)
     therm_color = get(kwargs, :therm_color, THERM_COLOR)
     start_color = get(kwargs, :start_color, START_COLOR)
+    box_colors = get(kwargs, :box_colors, colors)
     legend_keys = intersect(keys(data[1]), legend_keys)
     !haskey(kwargs, :xticks) ? kwargs[:xticks] = [] : nothing
     if haskey(kwargs,:labels)
@@ -242,13 +243,13 @@ function make_boxplots!(plt, data; legend_keys=[], kwargs...)
     labels = reshape(labels, 1, length(data))
     boxplot!(plt,
             [[est[end] for est in estimate_logZ(d; kwargs...)] for d in data],
-            labels=labels, legend=:outerright; kwargs...
+            labels=labels; kwargs...
            )
     if haskey(data[1], :true_logZ)
         hline!(plt, [data[1][:true_logZ]], label=true_label, color=true_color,
               lw=2)
     end
-    if haskey(data[1], :therm_logZ)
+    if haskey(data[1], :therm_logZ) && !isnothing(data[1][:therm_logZ])
         hline!(plt, [data[1][:therm_logZ]], label=therm_label, ls=:dot,
                colors=therm_color, lw=2)
     end
