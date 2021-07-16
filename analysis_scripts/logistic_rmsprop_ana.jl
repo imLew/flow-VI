@@ -57,16 +57,25 @@ for d in all_data
 end
 
 ###### Cell ###### -
-data = all_data
+data = [all_data[1], all_data[end-2], all_data[end]]
 
-plt = plot(legend=:bottomright, xticks=(0:5000:20000, ["$s" for s in 0:5000:20000]))
-plot_integration!(plt, data[1], int_color=colors[1], flow_label="ϵ=0.001",
-                 show_ribbon=false)
-plot_integration!(plt, data[end-2], int_color=colors[2], flow_label="RMSprop",
-                 show_ribbon=false)
-plot_integration!(plt, data[end], int_color=colors[3], flow_label="ϵ=0.0001",
-                 show_ribbon=false)
+plt = plot(legend=:bottomright, xticks=(0:5000:20000, ["$s" for s in 0:5000:20000]),
+           ylims=(-51, 1.7))
+labels = ["ϵ=0.001", "RMSprop", "ϵ=0.0001"]
+for i in 1:length(data)
+    plot_integration!(plt, data[i], int_color=colors[i], flow_label=labels[i],
+                 show_ribbon=false,  ylims=(-51, 1.7),
+                 xticks=(0:5000:20000, ["0", "5000", "10000", "15000", "20000"]),
+                )
+end
 display(plt)
+plot(plt, make_boxplots(data, yticks=nothing,  labels=labels, ylims=(-51, 1.7),
+                        legend=:none),
+     layout=grid(1,2, widths=[0.7, 0.3]))
+
+# ylims(plt)  # (-50.80896439437238, -12.821591985386869)
+# ylims(make_boxplots(data))  # (-44.76282353343334, 1.6170925009068293)
+
 saveplot("RMSvEuler.png")
 
 ###### Cell ###### -
