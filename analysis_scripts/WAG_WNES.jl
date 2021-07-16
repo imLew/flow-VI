@@ -47,16 +47,27 @@ all_data = load_data("WAG_WNes")
 d = all_data[1]
 
 ###### Cell ###### - Check how variable Δq is over the runs
-for d in all_data
+WNes_data = filter_by_dict(Dict(:update_method=>[:WNES]), all_data)
+WNes_data = filter_by_dict(Dict(:c₂=>[0,2]), WNes_data)
+sort!(WNes_data, by=d->d[:c₂])
+WAG_data = filter_by_dict(Dict(:update_method=>[:WAG]), all_data)
+f_data = filter_by_dict(Dict(:update_method=>[:forward_euler]), all_data)
+
+data = [WNes_data... f_data... WAG_data...]
+
+failed = [d for d in data if any(isnan.(d[:svgd_results][1]))]
+data = [d for d in data if !any(isnan.(d[:svgd_results][1]))]
+
+for d in data
     F = [get(h, :ϕ_norm)[2] for h ∈ d[:svgd_hist]]
     @info maximum(std(F))
     show_params(d)
 end
 
 ###### Cell ###### -
-plt = plot()
-
-for d in all_data
+plt = plot(xticks=(0:5000:20000, ["$s" for s in 0:5000:20000]),
+          ylabel="||Δq||")
+for d in data
     F = [get(h, :ϕ_norm)[2] for h ∈ d[:svgd_hist]]
     # display(plot(mean(F), title=String(d[:update_method])))
     # readline()
@@ -67,9 +78,24 @@ for d in all_data
     elseif d[:update_method] == :WNES
         c = colors[3]
     end
-    plot!(plt, F[1], ribbon=std(F), color=c, label=:none)
+    if d[:update_method] == :WAG
+        l = "α=$(round(d[:α], digits=2))"
+        ls=:solid
+    elseif d[:update_method] == :WNES
+        l = "c₁=$(d[:c₁]), c₂=$(d[:c₂])"
+        if d[:c₂] == 2
+            ls=:dash
+        else
+            ls=:dashdot
+        end
+    elseif d[:update_method] == :forward_euler
+        l = "SVGD"
+        ls=:dot
+    end
+    plot!(plt, mean(F), ribbon=std(F), label=l, ls=ls)
 end
 display(plt)
+saveplot("accelerated_steps.png")
 
 ###### Cell ###### -
 d = all_data[2]
